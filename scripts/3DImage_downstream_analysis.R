@@ -28,7 +28,7 @@ cat.image.parameters.per.condition = function(files.surface)
     name.param = basename(files.surface[m])
     #cat(name.param, ' -- ')
     param = read.csv(file = files.surface[m], sep = ',', header = FALSE, comment.char = '=', stringsAsFactors = FALSE)
-    kk = which(param[,1] != ' ')
+    kk = which(param[, 1] != ' ')
     
     name.param = gsub('.csv', '', name.param)
     name.param = gsub(' ', '.', name.param)
@@ -39,6 +39,7 @@ cat.image.parameters.per.condition = function(files.surface)
     cat(conds[n],  ' : m = ', m, ' param.name :',  name.param, '\n')
     
     # colnames of extracted parameterse
+    # I hate coding like 
     names = as.character(unlist(param[kk[2], ]))
     names = gsub('_', '.', names)
     names = gsub(' ', '.', names)
@@ -56,7 +57,7 @@ cat.image.parameters.per.condition = function(files.surface)
       
       # select again the columns before Unit if it exits in the table
       index.unit = grep('Unit', colnames(param))
-     
+      
       if(length(index.unit) >= 1){
         index.unit = max(index.unit)
         unit.uniq = unique(as.character(param[, index.unit]))
@@ -66,9 +67,10 @@ cat.image.parameters.per.condition = function(files.surface)
           
           colnames(param)[2:ncol(param)] = paste0(colnames(param)[2:ncol(param)], '.Unit.', unit.uniq)
           
-        }else{
-          param = param[, c(1:index.unit)]
-        }
+        }#else{
+          ## possible a bug here
+          #param = param[, c(1:index.unit)]
+        #}
       }
       
       colnames(param)[2:ncol(param)] = paste0(colnames(param)[2:ncol(param)], '_', name.param)
