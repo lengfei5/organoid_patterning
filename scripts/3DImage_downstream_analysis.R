@@ -14,92 +14,6 @@
 ##########################################################################
 ##########################################################################
 
-##########################################
-# functions 
-##########################################
-cat.image.parameters.per.condition = function(files.surface)
-{
-  # files.surface = files.cyst;
-  res.cc = c()
-    
-  for(m in 1:length(files.surface))
-  {
-    # m = 1
-    name.param = basename(files.surface[m])
-    #cat(name.param, ' -- ')
-    param = read.csv(file = files.surface[m], sep = ',', header = FALSE, comment.char = '=', stringsAsFactors = FALSE)
-    kk = which(param[, 1] != ' ')
-    
-    name.param = gsub('.csv', '', name.param)
-    name.param = gsub(' ', '.', name.param)
-    name.param = gsub('=', '', name.param)
-    name.param = gsub('Surfaces_[1-9]_', '', name.param)
-    name.param = gsub('_', '.', name.param)
-    
-    cat(conds[n],  ' : m = ', m, ' param.name :',  name.param, '\n')
-    
-    # colnames of extracted parameterse
-    # I hate coding like 
-    names = as.character(unlist(param[kk[2], ]))
-    names = gsub('_', '.', names)
-    names = gsub(' ', '.', names)
-    
-    param = data.frame(param[(kk[2]+1):nrow(param), ])
-    colnames(param) = names
-    index.id = which(names == 'ID')
-    
-    if(length(index.id) != 1) {
-      stop('Error : no ID column found !!! \n')
-      
-    }else{
-      # select columns before the ID column
-      param = param[, c(index.id, 1:(index.id-1))]
-      
-      # select again the columns before Unit if it exits in the table
-      index.unit = grep('Unit', colnames(param))
-      
-      if(length(index.unit) >= 1){
-        index.unit = max(index.unit)
-        unit.uniq = unique(as.character(param[, index.unit]))
-        unit.uniq = gsub('[\\^]', '', unit.uniq)
-        if(length(unit.uniq) == 1) {
-          param = param[, c(1:(index.unit-1))]
-          
-          colnames(param)[2:ncol(param)] = paste0(colnames(param)[2:ncol(param)], '.Unit.', unit.uniq)
-          
-        }#else{
-          ## possible a bug here
-          #param = param[, c(1:index.unit)]
-        #}
-      }
-      
-      colnames(param)[2:ncol(param)] = paste0(colnames(param)[2:ncol(param)], '_', name.param)
-      
-      if(m == 1 ){
-        #colnames(param)[2:ncol(param)] = paste0(colnames(param)[2:ncol(param)], '_', name.param)
-        res.cc = data.frame(param, stringsAsFactors = FALSE)
-        
-      }else{
-        # double check the ID match
-        if(length(intersect(res.cc$ID, param$ID)) != length(res.cc$ID)) { cat('ID does not match exactly \n') }
-        ii = match(res.cc$ID, param$ID)
-        if(ncol(param) > 2){
-          res.cc = data.frame(res.cc, param[ii, -1], stringsAsFactors = FALSE)  
-        }
-        if(ncol(param) == 2){
-          res.cc = data.frame(res.cc, param[ii, -1], stringsAsFactors = FALSE)
-          colnames(res.cc)[ncol(res.cc)] = colnames(param)[2]
-        }
-      }
-      
-    }
-    
-  }
-  
-  return(res.cc)
-  
-}
-
 
 ########################################################
 ########################################################
@@ -120,6 +34,7 @@ floorplat.channel = '2'
 if(!dir.exists(resDir)) dir.create(resDir)
 
 
+source('orgnoid_functions.R')
 ##########################################
 # 
 ##########################################
@@ -152,6 +67,5 @@ for(n in 1:length(conds))
   
   
 }
-
 
 
