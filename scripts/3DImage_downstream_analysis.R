@@ -14,27 +14,30 @@
 ##########################################################################
 ##########################################################################
 
-
 ########################################################
 ########################################################
 # Section : concatinate the readouts of 3D image analysis
-#  
+# map the floorplate with the cysts 
 ########################################################
 ########################################################
-# rm(list=ls())
+rm(list=ls())
 
 # specific input and output folders
 dataDir = '../210217_hNTdrugs3_0310outputs'
 resDir = '../results'
+tabDir = paste0(resDir, '/tables')
 analysis.verison = 'hNTdrugs3_0310_Analysis20210410'
 
 cyst.channel = '1'
 floorplat.channel = '2'
 
 if(!dir.exists(resDir)) dir.create(resDir)
-
+if(!dir.exists(tabDir)) dir.create(tabDir)
 
 source('orgnoid_functions.R')
+
+save.table.each.condition = FALSE
+
 ##########################################
 # 
 ##########################################
@@ -42,10 +45,9 @@ conditions.list = dir(path = dataDir, pattern = '*_Statistics', full.names = TRU
 conds = basename(conditions.list)
 conds = gsub('_Statistics', '', conds)
 
-
 for(n in 1:length(conds))
 {
-  # n = 1
+  # n = 18
   cat(n, ' -- start ', conds[n], '\n')
   
   files.cyst = list.files(path = paste0(conditions.list[n], '/Surfaces_', cyst.channel,   '_Statistics'), 
@@ -60,12 +62,25 @@ for(n in 1:length(conds))
   
   res2 = cat.image.parameters.per.condition(files.fp)
   
-  write.table(res1, file = paste0(resDir, '/', analysis.verison, '_condition_', conds[n], '_cyst.txt'), 
-              sep = '\t', quote = FALSE, col.names = TRUE, row.names = FALSE)
-  write.table(res2, file = paste0(resDir, '/', analysis.verison, '_condition_', conds[n], '_floorplate.txt'), 
-              sep = '\t', quote = FALSE, col.names = TRUE, row.names = FALSE)
+  if(save.table.each.condition){
+    write.table(res1, file = paste0(resDir, '/', analysis.verison, '_condition_', conds[n], '_cyst.txt'), 
+                sep = '\t', quote = FALSE, col.names = TRUE, row.names = FALSE)
+    write.table(res2, file = paste0(resDir, '/', analysis.verison, '_condition_', conds[n], '_floorplate.txt'), 
+                sep = '\t', quote = FALSE, col.names = TRUE, row.names = FALSE)
+  }
   
+  
+  source('orgnoid_functions.R')
+  
+  res = find.cyst.for.each.fp(res.cyst = res1, res.fp = res2)
+  
+  write.table(res, file = paste0(tabDir, '/', analysis.verison, '_condition_', conds[n], '_cyst_fp.txt'), 
+              sep = '\t', quote = FALSE, col.names = TRUE, row.names = FALSE)
   
 }
+
+
+
+
 
 
