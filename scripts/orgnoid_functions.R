@@ -314,3 +314,55 @@ find.cyst.for.each.fp = function(res.cyst, res.fp)
   
 }
 
+
+##########################################
+# extract turing model related parameters 
+##########################################
+calcuate.cyst.radius = function(xx0)
+{
+  # xx0 = res.cp[kk, ]
+  
+  # first check if cyst id is unique
+  if(length(unique(xx0$ID_cyst) == 1)){
+    
+    x0 = xx0[, grep('_cyst$', colnames(xx0))]
+    yy = xx0[, grep('_fp$', colnames(xx0))]
+    colnames(x0) = gsub('_cyst$', '', colnames(x0))
+    colnames(yy) = gsub('_fp$', '', colnames(yy))
+    dd = calculate.distance(x0[1, ], yy)
+    rfp = (as.numeric(yy$Volume.Unit._Volume)/(4/3*pi))^(1/3)
+    rrc = median(dd + rfp)
+    return(rrc)
+    
+  }else{
+    stop('multiple cyst ID found !!!')
+  }
+}
+
+extract.turing.parameters = function(res.cp)
+{
+  # res.cp = res
+  nb.fp = c()
+  radius = c()
+  
+  cyst.id = unique(res.cp$ID_cyst)
+  
+  for(n in 1:length(cyst.id))
+  {
+    kk = which(res.cp$ID_cyst == cyst.id[n])
+    if(length(kk) == 0){
+      nb.fp = c(nb.fp, 0)
+      radius = c(radius, NA)
+    }
+    
+    if(length(kk) >=1){
+      nb.fp = c(nb.fp, length(kk))
+      radius = c(radius, calcuate.cyst.radius(res.cp[kk, ]))
+    }
+        
+  }
+  
+  
+}
+
+

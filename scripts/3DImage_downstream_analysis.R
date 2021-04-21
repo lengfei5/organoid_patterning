@@ -39,7 +39,7 @@ source('orgnoid_functions.R')
 save.table.each.condition = FALSE
 
 ##########################################
-# 
+# find associated fp for cyst at each condition
 ##########################################
 conditions.list = dir(path = dataDir, pattern = '*_Statistics', full.names = TRUE, recursive = FALSE, include.dirs = TRUE)
 conds = basename(conditions.list)
@@ -74,11 +74,27 @@ for(n in 1:length(conds))
   
   res = find.cyst.for.each.fp(res.cyst = res1, res.fp = res2)
   
-  write.table(res, file = paste0(tabDir, '/', analysis.verison, '_condition_', conds[n], '_cyst_fp.txt'), 
-              sep = '\t', quote = FALSE, col.names = TRUE, row.names = FALSE)
+  if(save.table.each.condition){
+    write.table(res, file = paste0(tabDir, '/', analysis.verison, '_condition_', conds[n], '_cyst_fp.txt'), 
+                sep = '\t', quote = FALSE, col.names = TRUE, row.names = FALSE)
+  }
   
 }
 
+########################################################
+########################################################
+# Section : extract relevant parameters and compare across conditions
+# 
+########################################################
+########################################################
+
+
+# filter cyst or/and floorplates using global parameters
+
+# extract turing-relevant parameters
+source('orgnoid_functions.R')
+
+params = extract.turing.parameters(res)
 
 
 
