@@ -48,7 +48,8 @@ cat.image.parameters.per.condition = function(files.surface)
       # keep the original image name and id
       if(m == 1){
         images.names = param[, c(which(colnames(param) == 'Original.Image.Name'), 
-                                 which(colnames(param) == 'Original.Image.ID'))]
+                                 which(colnames(param) == 'Original.Image.ID'), 
+                                 which(colnames(param) ==  "OriginalID"))]
       }
       
       # select columns before the ID column
@@ -297,10 +298,14 @@ find.cyst.for.each.fp = function(res.cyst, res.fp)
   for(n in 1:length(mapping))
   {
     nb.fp = c(nb.fp, length(mapping[[n]]))
+    
     index.cyst = which(res.cyst$ID == gsub('cyst_','', names(mapping)[n]))
     index.fp = mapping[[n]]
-    
-    index.cf = rbind(index.cf, cbind(rep(index.cyst, length(index.fp)), index.fp))
+    if(length(index.fp) == 0){
+      index.cf = rbind(index.cf, cbind(index.cyst, NA))
+    }else{
+      index.cf = rbind(index.cf, cbind(rep(index.cyst, length(index.fp)), index.fp))
+    }
   }
   hist(nb.fp, breaks = c(-1:max(nb.fp)))
   
@@ -339,29 +344,146 @@ calcuate.cyst.radius = function(xx0)
   }
 }
 
+calculate.angle.between.two.fps = function(x, y)
+{
+  # x = x0[1,]; y = yy
+  if(nrow(y) == 2){
+    C = c(x$Position.X.Unit.µm_Position, x$Position.Y.Unit.µm_Position, x$Position.Z.Unit.µm_Position)
+    A = c(y$Position.X.Unit.µm_Position[1], y$Position.Y.Unit.µm_Position[1], y$Position.Z.Unit.µm_Position[1])
+    B = c(y$Position.X.Unit.µm_Position[2], y$Position.Y.Unit.µm_Position[2], y$Position.Z.Unit.µm_Position[2])
+    
+    a2 = sum((C-A)^2)
+    b2 = sum((C-B)^2)
+    c2 = sum((A-B)^2)
+    alpha = acos((a2+b2 -c2)/(2*sqrt(a2)*sqrt(b2)))
+    return(alpha)
+    
+  }else{
+    stop('Error, only two fp required ')
+  } 
+}
+
+calcuate.fp.dist = function(xx0)
+{
+  # xx0 = res.cp[kk.fp, ]
+  
+  # first check if cyst id is unique
+  if(length(unique(xx0$ID_cyst) == 1)){
+    x0 = xx0[, grep('_cyst$', colnames(xx0))]
+    yy = xx0[, grep('_fp$', colnames(xx0))]
+    colnames(x0) = gsub('_cyst$', '', colnames(x0))
+    colnames(yy) = gsub('_fp$', '', colnames(yy))
+    
+    if(nrow(xx0) == 1){
+      rc = mean(calculate.distance(x0[1, ], yy))
+      d.fp = 2*pi*rc
+      return(d.fp)
+    }else{
+      if(nrow(xx0) == 2){
+        rc = mean(calculate.distance(x0[1, ], yy))
+        alpha = calculate.angle.between.two.fps(x0[1,], yy)
+        d.fp = rc*alpha
+        return(d.fp)
+      }else{
+        dds.fp = c()
+        for(i in 1:nrow(yy))
+        {
+          dd.i = c()
+          for(j in 1:nrow(yy))
+          {
+            if(j != i){
+              dd.i = c(dd.i, mean(calculate.distance(x0[1, ], yy[c(i, j), ]))*calculate.angle.between.two.fps(x0[1,], yy[c(i, j), ]))
+            }
+          }
+          dd.i = dd.i[order(dd.i)]
+          dds.fp = c(dds.fp, mean(dd.i[c(1:2)]))
+        }
+        
+        return(mean(dds.fp))
+        
+      } 
+    }
+    # rfp = (as.numeric(yy$Volume.Unit._Volume)/(4/3*pi))^(1/3)
+    # rrc = median(dd + rfp)
+    # return(rrc)
+    
+  }else{
+    stop('multiple cyst ID found !!!')
+  }
+}
+
 extract.turing.parameters = function(res.cp)
 {
   # res.cp = res
-  nb.fp = c()
-  radius = c()
+  cc = unique(res.cp$condition)
+  params = c()
   
-  cyst.id = unique(res.cp$ID_cyst)
-  
-  for(n in 1:length(cyst.id))
+  for(m in 1:length(cc))
   {
-    kk = which(res.cp$ID_cyst == cyst.id[n])
-    if(length(kk) == 0){
-      nb.fp = c(nb.fp, 0)
-      radius = c(radius, NA)
+    # m = 18
+    c = cc[m]
+    cat('condition : ', c, '\n')
+    
+    # parameters to extract
+    cyst.id = unique(res.cp$ID_cyst[which(res.cp$condition == c)])
+    
+    volume = rep(NA, length(cyst.id))
+    area = rep(NA, length(cyst.id))
+    voxel = rep(NA, length(cyst.id))
+    overlap.ratio = rep(NA, length(cyst.id))
+    olig2 = rep(NA, length(cyst.id))
+    foxa2 = rep(NA, length(cyst.id))
+    
+    radius = rep(NA, length(cyst.id))
+    nb.fp = rep(NA, length(cyst.id))
+    
+    dist.fp = rep(NA, length(cyst.id))
+    volume.fp = rep(NA, length(cyst.id))
+    radius.fp = rep(NA, length(cyst.id))
+    foxa2.fp = rep(NA, length(cyst.id))
+    
+    for(n in 1:length(cyst.id))
+    {
+      # n = 4
+      kk = which(res.cp$ID_cyst == cyst.id[n] & res.cp$condition == c)
+      
+      # extract information of cyst
+      volume[n] = as.numeric(res.cp$Volume.Unit._Volume_cyst[kk[1]])
+      area[n] = as.numeric(res.cp$Area.Unit.µm2_Area_cyst[kk[1]])
+      voxel[n] = as.numeric(res.cp$Number.of.Voxels.Unit._Number.of.Voxels.Img1_cyst[kk[1]])
+      overlap.ratio[n] = as.numeric(res.cp$Overlapped.Volume.Ratio_cyst[kk[1]])
+      olig2[n] = as.numeric(res.cp$Intensity.Mean.Unit._Intensity.Mean.Ch2.Img1_cyst[kk[1]])
+      foxa2[n] = as.numeric(res.cp$Intensity.Mean.Unit._Intensity.Mean.Ch3.Img1_cyst[kk[1]])
+      
+      kk.fp = kk[!is.na(res.cp$ID_fp[kk])]
+      #cat(length(kk), 'fp \n')
+      
+      if(length(kk.fp) == 0){ # no fp in the cyst
+        nb.fp[n] = 0
+        radius[n] = ((volume[n])/(4/3*pi))^(1/3) # rough estimation with cyst volume
+      }else{
+        nb.fp[n] = length(kk.fp)
+        radius[n] = calcuate.cyst.radius(res.cp[kk.fp, ]) # calcuate this using the cyst center, fp center and fp radius
+        volume.fp[n] = median(as.numeric(res.cp$Volume.Unit._Volume_fp[kk.fp]))
+        foxa2.fp[n] = median(as.numeric(res.cp$Intensity.Mean.Unit._Intensity.Mean.Ch3.Img1_fp[kk.fp]))
+        radius.fp[n] = median((volume.fp[n])/(4/3*pi)^(1/3))
+        
+        dist.fp[n] = calcuate.fp.dist(res.cp[kk.fp, ])
+      }
+      
     }
     
-    if(length(kk) >=1){
-      nb.fp = c(nb.fp, length(kk))
-      radius = c(radius, calcuate.cyst.radius(res.cp[kk, ]))
-    }
-        
+    params = rbind(params, cbind(rep(c, length(cyst.id)), cyst.id, nb.fp, dist.fp, foxa2.fp, radius.fp, radius, 
+                                 volume, area, voxel, overlap.ratio,
+                                 olig2, foxa2, volume.fp))
+    
   }
   
+  params = data.frame(params, stringsAsFactors = FALSE)
+  colnames(params) = c('condition', 'cyst.id', 'nb.fp', 'dist.fp', 'foxa2.fp', 'radius.fp',  'radius.cyst', 
+                       'volume', 'area', 'voxel', 'overlap.ratio', 'olig2', 'foxa2', 'volume.fp')
+  
+  return(params)
   
 }
 
