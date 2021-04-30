@@ -203,8 +203,37 @@ conds.sels = list(
   
 )
 
-pdfname = paste0(resDir, '/Organoid_perturbation_summary_v2.pdf')
+pdfname = paste0(resDir, '/Organoid_perturbation_summary_v3.pdf')
 pdf(pdfname,  width = 16, height = 12)
+
+sels = c(1:nrow(params))
+# general overview
+p0 = as_tibble(params[sels, ]) %>% group_by(condition) %>% tally() %>%
+  ggplot(aes(x = condition, y = n, fill = condition)) +
+  geom_bar(stat = "identity") +
+  theme_classic() + ggtitle('nb of cyst')
+
+p1 = ggplot(params[sels, ], aes(x = condition, y=volume, fill=condition)) + 
+  geom_violin() + ggtitle('cyst volume')
+
+p2 = ggplot(params[sels, ], aes(x = condition, y=overlap.ratio, fill=condition)) + 
+  geom_violin() + ggtitle('cyst fraction overlapped by fp')
+
+p3 = ggplot(params[sels, ], aes(x = condition, y=foxa2.fp, fill=condition)) + 
+  geom_violin() + ggtitle('FoxA2 mean intensity')
+
+p4 = ggplot(params[sels, ], aes(fill=condition, y=olig2 , x = condition)) + 
+  geom_violin() + ggtitle('Olig2 mean intensity')
+
+
+p5 = as_tibble(params[sels, ]) %>% 
+  group_by(condition, nb.fp) %>% tally() %>%
+  ggplot(aes(x = condition, y = n, fill = nb.fp)) +
+  geom_bar(stat = "identity") +
+  theme_classic() + ggtitle('nb of fp')
+
+grid.arrange(p0, p1, p2, p3, p4, p5, nrow = 3, ncol = 2)
+
 
 for(n in 1:length(conds.sels))
 {
@@ -213,32 +242,7 @@ for(n in 1:length(conds.sels))
   nb.fp = as.numeric(as.character(params$nb.fp[sels]))
   sels = sels[which(nb.fp>=0 & nb.fp<10)]
   
-  # general overview
-  p0 = as_tibble(params[sels, ]) %>% group_by(condition) %>% tally() %>%
-    ggplot(aes(x = condition, y = n, fill = condition)) +
-    geom_bar(stat = "identity") +
-    theme_classic() + ggtitle('nb of cyst')
-  
-  p1 = ggplot(params[sels, ], aes(x = condition, y=volume, fill=condition)) + 
-    geom_violin() + ggtitle('cyst volume')
-  
-  p2 = ggplot(params[sels, ], aes(x = condition, y=overlap.ratio, fill=condition)) + 
-    geom_violin() + ggtitle('cyst fraction overlapped by fp')
-  
-  p3 = ggplot(params[sels, ], aes(x = condition, y=foxa2.fp, fill=condition)) + 
-    geom_violin() + ggtitle('FoxA2 mean intensity')
-  
-  p4 = ggplot(params[sels, ], aes(fill=condition, y=olig2 , x = condition)) + 
-    geom_violin() + ggtitle('Olig2 mean intensity')
-  
-  
-  p5 = as_tibble(params[sels, ]) %>% 
-    group_by(condition, nb.fp) %>% tally() %>%
-    ggplot(aes(x = condition, y = n, fill = nb.fp)) +
-    geom_bar(stat = "identity") +
-    theme_classic() + ggtitle('nb of fp')
  
-  grid.arrange(p0, p1, p2, p3, p4, p5, nrow = 3, ncol = 2)
   
   
   # parameters relevant to Turing model
