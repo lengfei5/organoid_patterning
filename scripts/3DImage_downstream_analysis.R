@@ -16,7 +16,7 @@
 
 ########################################################
 ########################################################
-# Section : concatinate the readouts of 3D image analysis
+# Section I : concatinate the readouts of 3D image analysis
 # map the floorplate with the cysts 
 ########################################################
 ########################################################
@@ -118,7 +118,7 @@ saveRDS(res, file = paste0(Rdata, 'mergedTable_cyst.fp_allConditions.rds'))
 
 ########################################################
 ########################################################
-# Section : extract relevant parameters and compare across conditions
+# Section II: extract relevant parameters and compare across conditions
 # 
 ########################################################
 ########################################################
@@ -129,7 +129,8 @@ res = readRDS(file = paste0(Rdata, 'mergedTable_cyst.fp_allConditions.rds'))
 ##########################################
 res = res[which(res$Distance.to.Image.Border.XY.Unit.µm_Distance.to.Image.Border.XY.Img1_cyst > 0), ]
 
-res = res[which(res$Overlapped.Volume.Ratio_fp > 0.25 | is.na(res$Overlapped.Volume.Ratio_fp)), ]
+res = res[which(res$Overlapped.Volume.Ratio_fp > 0.5 | is.na(res$Overlapped.Volume.Ratio_fp)), ]
+res = res[which(res$Overlapped.Volume.Ratio_cyst > 0.1 | is.na(res$Overlapped.Volume.Ratio_cyst)), ]
 
 res = res[which(res$Sphericity.Unit._Sphericity_cyst > 0.8), ]
 
@@ -142,20 +143,23 @@ source('orgnoid_functions.R')
 params = extract.turing.parameters(res)
 
 
-
 ##########################################
 # visualize the turing-model relevant parameters
 ##########################################
 require(ggplot2)
 require(grid)
 require(gridExtra)
-params$condition = as.factor(params$condition)
-params$nb.fp = as.factor(params$nb.fp)
-params$radius.cyst = as.numeric(params$radius.cyst)
-params$volume = as.numeric(params$volume)
-params$dist.fp = as.numeric(params$dist.fp)
-params$foxa2.fp = as.numeric(params$foxa2.fp)
-params$radius.fp = as.numeric(params$radius.fp)
+library(tidyr)
+library(dplyr)
+
+for(n in 1:ncol(params))
+{
+  if(colnames(params)[n] == 'condition'|colnames(params)[n] == 'nb.fp'){
+    params[ ,n] = as.factor(params[,n])
+  }else{
+    params[,n] = as.numeric(params[,n])
+  }
+}
 
 conds = unique(params$condition)
 
@@ -165,24 +169,42 @@ conds.sels = list(
   # controls 
   which(params$condition == "RA_LDNSB"|
               params$condition == 'noRA_LDNSB'| 
-              params$condition == 'RA_noLDNnoSB'|
-              params$condition == 'RA_LDNonly'),
+              params$condition == 'RA_LDNonly'|
+          params$condition == 'RA_noLDNnoSB'),
+  
   which(params$condition == "RA_LDNSB"| 
           params$condition == 'FGF_LDNSB'|
           params$condition == 'PD_LDNSB'), # Fgf perturbation 
+  
   which(params$condition == "RA_LDNSB"|
           params$condition == 'Chir3_LDNSB'|
           params$condition == 'Chir6_LDNSB'|
           params$condition == 'IWP2_LDNSBb'|
           params$condition == 'XAV_LDNSB'), # Wnt perturbation
+  
   which(params$condition == "RA_LDNSB"|
           params$condition == 'BMP4_SBonlyb'| # BMP perturbation
-          params$condition == 'RA_SBonly') 
-
+          params$condition == 'RA_SBonly'
+          ),
+  
+  which(params$condition == "RA_LDNSB"|
+          params$condition == 'XAV_SBonly'| # BMP perturbation
+          params$condition == 'IWP2_SBonly'|
+          params$condition == 'Chir3_SBonly'|
+          params$condition == 'Chir6_SBonly'
+  ), 
+  
+  which(params$condition == "RA_LDNSB"|
+          params$condition == 'FGF_SBonlyb'| # BMP perturbation
+          params$condition == 'PD_SBonly'|
+          params$condition == 'Chir3_SBonly'|
+          params$condition == 'Chir6_SBonly'
+  )
+  
 )
 
-pdfname = paste0(resDir, '/perturbation_summary.pdf')
-pdf(pdfname,  width = 24, height = 16)
+pdfname = paste0(resDir, '/Organoid_perturbation_summary_v2.pdf')
+pdf(pdfname,  width = 16, height = 12)
 
 for(n in 1:length(conds.sels))
 {
@@ -191,26 +213,62 @@ for(n in 1:length(conds.sels))
   nb.fp = as.numeric(as.character(params$nb.fp[sels]))
   sels = sels[which(nb.fp>=0 & nb.fp<10)]
   
-  p1 = ggplot(params[sels, ], aes(x=nb.fp, y=radius.cyst, color=condition, fill = condition)) +
+  # general overview
+  p0 = as_tibble(params[sels, ]) %>% group_by(condition) %>% tally() %>%
+    ggplot(aes(x = condition, y = n, fill = condition)) +
+    geom_bar(stat = "identity") +
+    theme_classic() + ggtitle('nb of cyst')
+  
+  p1 = ggplot(params[sels, ], aes(x = condition, y=volume, fill=condition)) + 
+    geom_violin() + ggtitle('cyst volume')
+  
+  p2 = ggplot(params[sels, ], aes(x = condition, y=overlap.ratio, fill=condition)) + 
+    geom_violin() + ggtitle('cyst fraction overlapped by fp')
+  
+  p3 = ggplot(params[sels, ], aes(x = condition, y=foxa2.fp, fill=condition)) + 
+    geom_violin() + ggtitle('FoxA2 mean intensity')
+  
+  p4 = ggplot(params[sels, ], aes(fill=condition, y=olig2 , x = condition)) + 
+    geom_violin() + ggtitle('Olig2 mean intensity')
+  
+  
+  p5 = as_tibble(params[sels, ]) %>% 
+    group_by(condition, nb.fp) %>% tally() %>%
+    ggplot(aes(x = condition, y = n, fill = nb.fp)) +
+    geom_bar(stat = "identity") +
+    theme_classic() + ggtitle('nb of fp')
+ 
+  grid.arrange(p0, p1, p2, p3, p4, p5, nrow = 3, ncol = 2)
+  
+  
+  # parameters relevant to Turing model
+  #ggplot(params[sels, ], aes(x=area, y = radius.cyst, color=condition, fill = condition)) +
+  #  geom_point() + ggtitle('estimated cyst radius')
+  
+  #ggplot(params[sels, ], aes(x=area, y = nb.fp, color=condition, fill = condition)) +
+  # xx = data.frame(radius.cyst = params$radius.cyst[sels], nb.fp = as.numeric(params$nb.fp[sels]), condition = params$condition[sels])
+  # xx$radius.cyst.group = NA
+  # xx$radius.cyst.group[which(xx$radius.cyst<=60)] = '1'
+  # xx$radius.cyst.group[which(xx$radius.cyst> 60 & xx$radius.cyst<=80)] = '2'
+  # xx$radius.cyst.group[which(xx$radius.cyst> 80 & xx$radius.cyst<=100)] = '3'
+  # xx$radius.cyst.group[which(xx$radius.cyst> 100 & xx$radius.cyst<=120)] = '4'
+  # xx$radius.cyst.group[which(xx$radius.cyst>120)] = '5'
+  
+  xx = params[sels, ]
+  #p1 = ggplot(xx, aes(x=radius.cyst.group, y=nb.fp, fill=condition)) +
+  #  geom_violin() + ggtitle('estimated cyst radius')
+  
+  p2 = ggplot(params[sels, ], aes(x=nb.fp, y=radius.cyst, color=condition, fill = condition)) +
     geom_violin() + ggtitle('estimated cyst radius')
   
+  p3 = ggplot(params[sels[which(as.numeric(params$nb.fp[sels])>1)], ], aes(x=volume, y=dist.fp, color=condition)) +
+    geom_point(size = 2.5) + ggtitle('distance between fps (wavelength)')
   
-  p2 = ggplot(params[sels, ], aes(x=nb.fp, y=dist.fp, fill=condition)) +
-    geom_violin() + ggtitle('distance between fps')
+  p4 = ggplot(params[sels, ], aes(x=nb.fp, y=radius.fp, fill=condition)) + 
+    geom_violin() + ggtitle('foxa2 radius') + coord_cartesian(ylim = c(0, 3*10^5))
   
-  
-  p3 = ggplot(params[sels, ], aes(x=nb.fp, y=foxa2.fp, fill=condition)) +
-    geom_violin() + ggtitle('foxa2 mean intensity')
-  
-  p4 = ggplot(params[sels, ], aes(x=nb.fp, y=radius.fp, fill=condition)) +
-    geom_violin() + ggtitle('foxa2 radius')
-  
-  grid.arrange(p1, p2, p3, p4, nrow = 2, ncol = 2)
+  grid.arrange(p2, p3, p4, nrow = 2, ncol = 2)
   
 }
 
 dev.off()
-
-
-
-

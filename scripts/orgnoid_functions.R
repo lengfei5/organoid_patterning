@@ -356,6 +356,7 @@ calculate.angle.between.two.fps = function(x, y)
     b2 = sum((C-B)^2)
     c2 = sum((A-B)^2)
     alpha = acos((a2+b2 -c2)/(2*sqrt(a2)*sqrt(b2)))
+    
     return(alpha)
     
   }else{
@@ -380,7 +381,7 @@ calcuate.fp.dist = function(xx0)
       return(d.fp)
     }else{
       if(nrow(xx0) == 2){
-        rc = mean(calculate.distance(x0[1, ], yy))
+        rc = min(calculate.distance(x0[1, ], yy))
         alpha = calculate.angle.between.two.fps(x0[1,], yy)
         d.fp = rc*alpha
         return(d.fp)
@@ -392,7 +393,7 @@ calcuate.fp.dist = function(xx0)
           for(j in 1:nrow(yy))
           {
             if(j != i){
-              dd.i = c(dd.i, mean(calculate.distance(x0[1, ], yy[c(i, j), ]))*calculate.angle.between.two.fps(x0[1,], yy[c(i, j), ]))
+              dd.i = c(dd.i, min(calculate.distance(x0[1, ], yy[c(i, j), ]))*calculate.angle.between.two.fps(x0[1,], yy[c(i, j), ]))
             }
           }
           dd.i = dd.i[order(dd.i)]
