@@ -201,58 +201,9 @@ conds.sels = list(
   
 )
 
+
 pdfname = paste0(resDir, '/Organoid_perturbation_summary_v3.pdf')
-pdf(pdfname,  width = 22, height = 10)
-
-sels = c(1:nrow(params))
-nb.fp = as.numeric(as.character(params$nb.fp[sels]))
-sels = sels[which(nb.fp>=0 & nb.fp<10)]
-
-# general overview
-p0 = as_tibble(params[sels, ]) %>% group_by(condition) %>% tally() %>%
-  ggplot(aes(x = condition, y = n, fill = condition)) +
-  geom_bar(stat = "identity") +
-  theme_classic() + ggtitle('nb of cyst')
-
-p5 = as_tibble(params[sels, ]) %>% 
-  group_by(condition, nb.fp) %>% tally() %>%
-  ggplot(aes(x = condition, y = n, fill = nb.fp)) +
-  geom_bar(stat = "identity") +
-  theme_classic() + ggtitle('nb of fp')
-
-
-p1 = ggplot(params[sels, ], aes(x = condition, y=volume, fill=condition)) + 
-  geom_violin() + ggtitle('cyst volume')
-
-
-
-p2 = ggplot(params[sels, ], aes(x = condition, y=overlap.ratio, fill=condition)) + 
-  geom_violin() + ggtitle('cyst fraction overlapped by fp')
-
-p6 = ggplot(params[sels, ], aes(x=condition, y=radius.fp, fill=condition)) + 
-  geom_violin() + ggtitle('foxa2 radius') 
-
-p3 = ggplot(params[sels, ], aes(x = condition, y=foxa2.fp, fill=condition)) + 
-  geom_violin() + ggtitle('FoxA2 mean intensity')
-
-
-p4 = ggplot(params[sels, ], aes(fill=condition, y=olig2 , x = condition)) + 
-  geom_violin() + ggtitle('Olig2 mean intensity')
-
-
-
-
-#grid.arrange(p0, p1, p2, p3, p4, p5, nrow = 3, ncol = 2)
-plot(p0)
-plot(p1)
-plot(p2)
-plot(p3)
-plot(p4)
-plot(p5)
-plot(p6)
-
-dev.off()
-
+pdf(pdfname,  width = 24, height = 12)
 
 for(n in 1:length(conds.sels))
 {
@@ -261,36 +212,63 @@ for(n in 1:length(conds.sels))
   nb.fp = as.numeric(as.character(params$nb.fp[sels]))
   sels = sels[which(nb.fp>=0 & nb.fp<10)]
   
- 
+  xx = params[sels, ]
+  xx = xx[which(as.numeric(as.character(xx$nb.fp))> 1), ]
+  xx = xx[which(xx$dist.fp > 300), ]
   
+  #sels = c(1:nrow(params))
+  #nb.fp = as.numeric(as.character(params$nb.fp[sels]))
+  #sels = sels[which(nb.fp>=0 & nb.fp<10)]
+  
+  # general overview
+  # p0 = as_tibble(params[sels, ]) %>% group_by(condition) %>% tally() %>%
+  #   ggplot(aes(x = condition, y = n, fill = condition)) +
+  #   geom_bar(stat = "identity") +
+  #   theme_classic() + ggtitle('nb of cyst')
+  
+  p0 = as_tibble(params[sels, ]) %>% 
+    group_by(condition, nb.fp) %>% tally() %>%
+    ggplot(aes(x = condition, y = n, fill = nb.fp)) +
+    geom_bar(stat = "identity") +
+    theme_classic() + ggtitle('nb of cysts and fp nb distribution')
+  
+  p1 = ggplot(params[sels, ], aes(x = condition, y=volume, fill=condition)) + 
+    geom_violin() + ggtitle('cyst volume')
+  
+  p2 = ggplot(params[sels, ], aes(x = condition, y=overlap.ratio, fill=condition)) + 
+    geom_violin() + ggtitle('cyst fraction overlapped by fp')
+  
+  p3 = ggplot(params[sels, ], aes(x=condition, y=radius.fp, fill=condition)) + 
+    geom_violin() + ggtitle('foxa2 radius') 
+  
+  p4 = ggplot(params[sels, ], aes(x = condition, y=foxa2.fp, fill=condition)) + 
+    geom_violin() + ggtitle('FoxA2 mean intensity')
+  
+  p5 = ggplot(params[sels, ], aes(fill=condition, y=olig2 , x = condition)) + 
+    geom_violin() + ggtitle('Olig2 mean intensity')
   
   # parameters relevant to Turing model
   #ggplot(params[sels, ], aes(x=area, y = radius.cyst, color=condition, fill = condition)) +
   #  geom_point() + ggtitle('estimated cyst radius')
   
   #ggplot(params[sels, ], aes(x=area, y = nb.fp, color=condition, fill = condition)) +
-  # xx = data.frame(radius.cyst = params$radius.cyst[sels], nb.fp = as.numeric(params$nb.fp[sels]), condition = params$condition[sels])
-  # xx$radius.cyst.group = NA
-  # xx$radius.cyst.group[which(xx$radius.cyst<=60)] = '1'
-  # xx$radius.cyst.group[which(xx$radius.cyst> 60 & xx$radius.cyst<=80)] = '2'
-  # xx$radius.cyst.group[which(xx$radius.cyst> 80 & xx$radius.cyst<=100)] = '3'
-  # xx$radius.cyst.group[which(xx$radius.cyst> 100 & xx$radius.cyst<=120)] = '4'
-  # xx$radius.cyst.group[which(xx$radius.cyst>120)] = '5'
   
-  xx = params[sels, ]
   #p1 = ggplot(xx, aes(x=radius.cyst.group, y=nb.fp, fill=condition)) +
   #  geom_violin() + ggtitle('estimated cyst radius')
   
-  p2 = ggplot(params[sels, ], aes(x=nb.fp, y=radius.cyst, color=condition, fill = condition)) +
+  p6 = ggplot(params[sels, ], aes(x=nb.fp, y=radius.cyst, color=condition, fill = condition)) +
     geom_violin() + ggtitle('estimated cyst radius')
   
-  p3 = ggplot(params[sels[which(as.numeric(params$nb.fp[sels])>1)], ], aes(x=volume, y=dist.fp, color=condition)) +
+  p7 = ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>1)], ], aes(x=volume, y=dist.fp, color=condition)) +
     geom_point(size = 2.5) + ggtitle('distance between fps (wavelength)')
   
+  grid.arrange(p0, p1, p2, p3, p4, p5, p6, p7, nrow = 3, ncol = 3)
   
-  
-  grid.arrange(p2, p3, p4, nrow = 2, ncol = 2)
+  #grid.arrange(p2, p3, nrow = 1, ncol = 2)
   
 }
 
 dev.off()
+
+
+
