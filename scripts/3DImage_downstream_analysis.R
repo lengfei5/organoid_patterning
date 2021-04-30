@@ -130,7 +130,7 @@ res = readRDS(file = paste0(Rdata, 'mergedTable_cyst.fp_allConditions.rds'))
 res = res[which(res$Distance.to.Image.Border.XY.Unit.µm_Distance.to.Image.Border.XY.Img1_cyst > 0), ]
 
 res = res[which(res$Overlapped.Volume.Ratio_fp > 0.5 | is.na(res$Overlapped.Volume.Ratio_fp)), ]
-res = res[which(res$Overlapped.Volume.Ratio_cyst > 0.1 | is.na(res$Overlapped.Volume.Ratio_cyst)), ]
+#res = res[which(res$Overlapped.Volume.Ratio_cyst > 0.05 | is.na(res$Overlapped.Volume.Ratio_cyst)), ]
 
 res = res[which(res$Sphericity.Unit._Sphericity_cyst > 0.8), ]
 
@@ -139,9 +139,7 @@ res = res[which(res$Sphericity.Unit._Sphericity_cyst > 0.8), ]
 #########################################
 
 source('orgnoid_functions.R')
-
 params = extract.turing.parameters(res)
-
 
 ##########################################
 # visualize the turing-model relevant parameters
@@ -204,27 +202,17 @@ conds.sels = list(
 )
 
 pdfname = paste0(resDir, '/Organoid_perturbation_summary_v3.pdf')
-pdf(pdfname,  width = 16, height = 12)
+pdf(pdfname,  width = 22, height = 10)
 
 sels = c(1:nrow(params))
+nb.fp = as.numeric(as.character(params$nb.fp[sels]))
+sels = sels[which(nb.fp>=0 & nb.fp<10)]
+
 # general overview
 p0 = as_tibble(params[sels, ]) %>% group_by(condition) %>% tally() %>%
   ggplot(aes(x = condition, y = n, fill = condition)) +
   geom_bar(stat = "identity") +
   theme_classic() + ggtitle('nb of cyst')
-
-p1 = ggplot(params[sels, ], aes(x = condition, y=volume, fill=condition)) + 
-  geom_violin() + ggtitle('cyst volume')
-
-p2 = ggplot(params[sels, ], aes(x = condition, y=overlap.ratio, fill=condition)) + 
-  geom_violin() + ggtitle('cyst fraction overlapped by fp')
-
-p3 = ggplot(params[sels, ], aes(x = condition, y=foxa2.fp, fill=condition)) + 
-  geom_violin() + ggtitle('FoxA2 mean intensity')
-
-p4 = ggplot(params[sels, ], aes(fill=condition, y=olig2 , x = condition)) + 
-  geom_violin() + ggtitle('Olig2 mean intensity')
-
 
 p5 = as_tibble(params[sels, ]) %>% 
   group_by(condition, nb.fp) %>% tally() %>%
@@ -232,7 +220,38 @@ p5 = as_tibble(params[sels, ]) %>%
   geom_bar(stat = "identity") +
   theme_classic() + ggtitle('nb of fp')
 
-grid.arrange(p0, p1, p2, p3, p4, p5, nrow = 3, ncol = 2)
+
+p1 = ggplot(params[sels, ], aes(x = condition, y=volume, fill=condition)) + 
+  geom_violin() + ggtitle('cyst volume')
+
+
+
+p2 = ggplot(params[sels, ], aes(x = condition, y=overlap.ratio, fill=condition)) + 
+  geom_violin() + ggtitle('cyst fraction overlapped by fp')
+
+p6 = ggplot(params[sels, ], aes(x=condition, y=radius.fp, fill=condition)) + 
+  geom_violin() + ggtitle('foxa2 radius') 
+
+p3 = ggplot(params[sels, ], aes(x = condition, y=foxa2.fp, fill=condition)) + 
+  geom_violin() + ggtitle('FoxA2 mean intensity')
+
+
+p4 = ggplot(params[sels, ], aes(fill=condition, y=olig2 , x = condition)) + 
+  geom_violin() + ggtitle('Olig2 mean intensity')
+
+
+
+
+#grid.arrange(p0, p1, p2, p3, p4, p5, nrow = 3, ncol = 2)
+plot(p0)
+plot(p1)
+plot(p2)
+plot(p3)
+plot(p4)
+plot(p5)
+plot(p6)
+
+dev.off()
 
 
 for(n in 1:length(conds.sels))
@@ -268,8 +287,7 @@ for(n in 1:length(conds.sels))
   p3 = ggplot(params[sels[which(as.numeric(params$nb.fp[sels])>1)], ], aes(x=volume, y=dist.fp, color=condition)) +
     geom_point(size = 2.5) + ggtitle('distance between fps (wavelength)')
   
-  p4 = ggplot(params[sels, ], aes(x=nb.fp, y=radius.fp, fill=condition)) + 
-    geom_violin() + ggtitle('foxa2 radius') + coord_cartesian(ylim = c(0, 3*10^5))
+  
   
   grid.arrange(p2, p3, p4, nrow = 2, ncol = 2)
   
