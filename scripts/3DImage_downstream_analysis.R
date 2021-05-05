@@ -49,7 +49,7 @@ source('orgnoid_functions.R')
 
 for(n in 1:length(conds))
 {
-  # n = 12
+  # n = 18
   cat(n, ' -- start ', conds[n], '\n')
   
   files.cyst = list.files(path = paste0(conditions.list[n], '/Surfaces_', cyst.channel,   '_Statistics'), 
@@ -183,27 +183,27 @@ conds.sels = list(
   which(params$condition == "RA_LDNSB"|
           params$condition == 'BMP4_SBonlyb'| # BMP perturbation
           params$condition == 'RA_SBonly'
-          ),
+          )
   
-  which(params$condition == "RA_LDNSB"|
-          params$condition == 'XAV_SBonly'| # BMP perturbation
-          params$condition == 'IWP2_SBonly'|
-          params$condition == 'Chir3_SBonly'|
-          params$condition == 'Chir6_SBonly'
-  ), 
-  
-  which(params$condition == "RA_LDNSB"|
-          params$condition == 'FGF_SBonlyb'| # BMP perturbation
-          params$condition == 'PD_SBonly'|
-          params$condition == 'Chir3_SBonly'|
-          params$condition == 'Chir6_SBonly'
-  )
+  # which(params$condition == "RA_LDNSB"|
+  #         params$condition == 'XAV_SBonly'| # BMP perturbation
+  #         params$condition == 'IWP2_SBonly'|
+  #         params$condition == 'Chir3_SBonly'|
+  #         params$condition == 'Chir6_SBonly'
+  # ), 
+  # 
+  # which(params$condition == "RA_LDNSB"|
+  #         params$condition == 'FGF_SBonlyb'| # BMP perturbation
+  #         params$condition == 'PD_SBonly'|
+  #         params$condition == 'Chir3_SBonly'|
+  #         params$condition == 'Chir6_SBonly'
+  # )
   
 )
 
 
-pdfname = paste0(resDir, '/Organoid_perturbation_summary_v3.pdf')
-pdf(pdfname,  width = 24, height = 12)
+pdfname = paste0(resDir, '/Organoid_perturbation_singlePerturbation.pdf')
+pdf(pdfname,  width = 20, height = 10)
 
 for(n in 1:length(conds.sels))
 {
@@ -262,7 +262,7 @@ for(n in 1:length(conds.sels))
   p7 = ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>1)], ], aes(x=volume, y=dist.fp, color=condition)) +
     geom_point(size = 2.5) + ggtitle('distance between fps (wavelength)')
   
-  grid.arrange(p0, p1, p2, p3, p4, p5, p6, p7, nrow = 3, ncol = 3)
+  grid.arrange(p0, p6, p7, p1, p2, p3, p4, p5,  nrow = 3, ncol = 3)
   
   #grid.arrange(p2, p3, nrow = 1, ncol = 2)
   
@@ -270,5 +270,43 @@ for(n in 1:length(conds.sels))
 
 dev.off()
 
+
+pdfname = paste0(resDir, '/Organoid_perturbation_summary_allConditions_v3.pdf')
+pdf(pdfname,  width = 24, height = 8)
+
+sels = c(1:nrow(params))
+nb.fp = as.numeric(as.character(params$nb.fp[sels]))
+sels = sels[which(nb.fp>=0 & nb.fp<10)]
+
+p0 = as_tibble(params[sels, ]) %>% 
+  group_by(condition, nb.fp) %>% tally() %>%
+  ggplot(aes(x = condition, y = n, fill = nb.fp)) +
+  geom_bar(stat = "identity") +
+  theme_classic() + ggtitle('nb of cysts and fp nb distribution')
+
+p1 = ggplot(params[sels, ], aes(x = condition, y=volume, fill=condition)) + 
+  geom_violin() + ggtitle('cyst volume') + theme(legend.position = "none") 
+
+p2 = ggplot(params[sels, ], aes(x = condition, y=overlap.ratio, fill=condition)) + 
+  geom_violin(width=2) + ggtitle('cyst fraction overlapped by fp') + theme(legend.position = "none") +
+  coord_cartesian(ylim = c(0, 0.1))
+
+p3 = ggplot(params[sels, ], aes(x=condition, y=radius.fp, fill=condition)) + 
+  geom_violin() + ggtitle('foxa2 radius') + coord_cartesian(ylim = c(0, 2*10^5)) + theme(legend.position = "none")
+
+p4 = ggplot(params[sels, ], aes(x = condition, y=foxa2.fp, fill=condition)) + 
+  geom_violin() + ggtitle('FoxA2 mean intensity') + theme(legend.position = "none")
+
+p5 = ggplot(params[sels, ], aes(fill=condition, y=olig2 , x = condition)) + 
+  geom_violin() + ggtitle('Olig2 mean intensity') + theme(legend.position = "none")
+
+plot(p0)
+plot(p1)
+plot(p2)
+plot(p3)
+plot(p4)
+plot(p5)
+
+dev.off()
 
 
