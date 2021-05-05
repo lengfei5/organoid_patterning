@@ -123,8 +123,9 @@ verify.overlapping.by.distance = function(x0, yy)
 
 
 ##########################################
-# function that serach all fp for each cyst
-# but this logic doesn't work quite well, because we don't know exactly the radius of cyst due to the missing lumen volumes in the 
+# function that serach all fp for each cyst (NOT Use at the end)
+# but this logic doesn't work quite well, because we don't know exactly the radius of cyst due to 
+# the missing lumen volumes in the 
 # segmentation
 ##########################################
 find.fp.for.each.cyst = function(res.cyst, res.fp)
@@ -253,18 +254,27 @@ fine.correction.with.dist.volume = function(mapping, res.cyst, res.fp)
   
 }
 
+##########################################
+# the main function for fp assginment to parent cysts 
+##########################################
 find.cyst.for.each.fp = function(res.cyst, res.fp)
 {
   # res.cyst = res1; res.fp = res2
   res.cyst = data.frame(res.cyst, stringsAsFactors = FALSE)
   res.fp = data.frame(res.fp, stringsAsFactors = FALSE)
   
+  # clean the name by removing the space
   res.cyst$ID = gsub(' ', '', res.cyst$ID)
   res.fp$ID = gsub(' ', '', res.fp$ID)
   
   # define a list in which each element named with cyst_ID and its contents will be a vector of assocaited fp IDs if there are any
-  mapping = vector("list", length = length(unique(res.cyst$ID)))
-  names(mapping) = paste0('cyst_', unique(res.cyst$ID))
+  if(length(res.cyst$ID) != length(unique(res.cyst$ID))){
+    stop('cyst ID is not unqiue')
+  }else{
+    #res.cyst = res.cyst[match(unique(res.cyst$ID), res.cyst)]
+    mapping = vector("list", length = length(res.cyst$ID))
+    names(mapping) = paste0('cyst_', res.cyst$ID)
+  }
   
   # loop over fp to serach for associated cyst
   for(n in 1:nrow(res.fp)){
@@ -279,6 +289,7 @@ find.cyst.for.each.fp = function(res.cyst, res.fp)
       kk = which(res.cyst$Original.Image.Name == res.fp$Original.Image.Name[n])
       kk = kk[which(as.numeric(res.cyst[kk, grep('Overlapped.Volume.Ratio.to.Surfaces', colnames(res.cyst))]) > 0)]
       
+      # find the closest cyst for the floor plate
       if(length(kk) > 1){
         kk.closest = kk[find.closest.cyst(res.fp[n,], res.cyst[kk, ])]
         mapping[[kk.closest]] = c(mapping[[kk.closest]], n)
@@ -292,7 +303,6 @@ find.cyst.for.each.fp = function(res.cyst, res.fp)
   }
   
   #mapping.c = fine.correction.with.dist.volume(mapping, res.cyst, res.fp)
-  
   nb.fp = c()
   index.cf = c()
   for(n in 1:length(mapping))

@@ -83,6 +83,7 @@ for(n in 1:length(conds))
 }
 
 
+
 # merge tables of all conditions
 files = list.files(path = tabDir, pattern = '_cyst_fp.txt', full.names = TRUE)
 
@@ -115,6 +116,27 @@ for(n in 1:length(files))
 res = data.frame(condition = cc, res, stringsAsFactors = FALSE)
 
 saveRDS(res, file = paste0(Rdata, 'mergedTable_cyst.fp_allConditions.rds'))
+
+Double.check = FALSE
+if(Double.check){
+  res = readRDS(file = paste0(Rdata, 'mergedTable_cyst.fp_allConditions.rds'))
+  
+  jj = which(!is.na(res$ID_fp))
+  
+  head(res[jj, grep('Original.Image.Name', colnames(res))])
+  
+  length(which(as.character(res$Original.Image.Name_cyst[jj]) != as.character(res$Original.Image.Name_fp[jj])))
+  
+  res = res[which(res$condition == 'RA_LDNSB' & res$Original.Image.Name_cyst == '210217_nodrug_LDNSB_4_01_[ims1_2021-03-09T16-53-43.863]'),
+            ]
+  
+  xx = (cbind(res$OriginalID_cyst, res$OriginalID_fp, res$Distance.to.Image.Border.XY.Unit.µm_Distance.to.Image.Border.XY.Img1_cyst))
+  colnames(xx) = c('cyst.ID', 'fp.id', 'Cyst.distanct.image.board.XY')
+  
+  write.table(xx, file = paste0(resDir, '/table_for_Hannah_manualCheck_cyst_fp.assignment.txt'),
+              sep = '\t', col.names = TRUE, row.names = FALSE, quote = FALSE) 
+  
+}
 
 ########################################################
 ########################################################
