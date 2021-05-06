@@ -27,7 +27,7 @@ dataDir = '../210217_hNTdrugs3_0310outputs'
 resDir = '../results'
 tabDir = paste0(resDir, '/tables')
 Rdata = paste0(resDir, '/Rdata')
-analysis.verison = 'hNTdrugs3_0310_Analysis20210410'
+analysis.verison = 'hNTdrugs3_0310_Analysis20210506'
 
 cyst.channel = '1'
 floorplat.channel = '2'
@@ -83,9 +83,9 @@ for(n in 1:length(conds))
 }
 
 
-
 # merge tables of all conditions
 files = list.files(path = tabDir, pattern = '_cyst_fp.txt', full.names = TRUE)
+files = files[grep(analysis.verison, files)]
 
 cc = c()
 res = c()
@@ -115,7 +115,7 @@ for(n in 1:length(files))
 
 res = data.frame(condition = cc, res, stringsAsFactors = FALSE)
 
-saveRDS(res, file = paste0(Rdata, 'mergedTable_cyst.fp_allConditions.rds'))
+saveRDS(res, file = paste0(Rdata, 'mergedTable_cyst.fp_allConditions_', analysis.verison, '.rds'))
 
 Double.check = FALSE
 if(Double.check){
@@ -144,7 +144,7 @@ if(Double.check){
 # 
 ########################################################
 ########################################################
-res = readRDS(file = paste0(Rdata, 'mergedTable_cyst.fp_allConditions.rds'))
+res = readRDS(file = paste0(Rdata, 'mergedTable_cyst.fp_allConditions_', analysis.verison, '.rds'))
 
 ##########################################
 # filter cyst or/and floorplates using global parameters

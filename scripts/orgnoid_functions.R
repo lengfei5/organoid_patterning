@@ -219,51 +219,103 @@ find.closest.cyst = function(x0, yy)
   
 }
 
-fine.correction.with.dist.volume = function(mapping, res.cyst, res.fp) # not used for the moment
+## initial motivation was to improve the assginment of fp 
+## now as quality control 
+fp.assigment.correction.with.dist.volume = function(mapping, res.cyst, res.fp) # not used for the moment
 {
-  dds = c()
+  #mappinp.saved = mapping
+  newmapping = mapping
+  nb.iteration = 3
+  index.fp.corrected = c()
   
-  for(n in 1:length(mapping))
+  for(nb.i in 1:nb.iteration)
   {
-    # n = 98
-    
-    if(length(mapping[[n]])>0){
-      
-      index.cyst = which(res.cyst$ID == gsub('cyst_','', names(mapping)[n]))
-      index.fp = mapping[[n]]
-      
-      # verfiy volume
-      overlap.volumes.cyst = as.numeric(res.cyst[index.cyst, grep('Overlapped.Volume.to.Surfaces', colnames(res.cyst))])
-      overlap.volume.fps = as.numeric(res.fp[index.fp, grep('Overlapped.Volume.to.Surfaces', colnames(res.fp))])
-      volume.fps = as.numeric(res.fp[index.fp, grep('Volume.Unit', colnames(res.fp))])
-      rr.fp.cyst = volume.fps/overlap.volumes.cyst
-      
-      ## verify the distance
-      dists = calculate.distance(res.cyst[index.cyst, ], res.fp[index.fp, ])
-      dds = c(dds, dists)
-      if(max(dists)/min(dists) > 5){
-        cat(n, '--', names(mapping)[n], 'to check -- dist: ')
-        print(dists)
-        cat('ratios of fp vs. overlapped volume of cyst')
-        print (rr.fp.cyst)
-        cat('\n')
-      }
-      
-      
-      # test the furthest fp
-      Test.new.cyst = FALSE
-      if(Test.new.cyst){
-        ii = index.fp[which(dists == max(dists))]
-        jj = which(res.cyst$Original.Image.Name == res.fp$Original.Image.Name[ii])
-        ds = calculate.distance(res.fp[ii, ], res.cyst[jj, ])
+    dds = c()
+    rrs = c()
+    cat(' iteration of correction -- ', nb.i, '\n')
+    cat(' --------------------------------------\n')
+    for(n in 1:length(newmapping))
+    {
+      # n = 215
+      if(length(newmapping[[n]])>0){
         
-        jj = jj[order(ds)]
-        ds = ds[order(ds)]    
+        index.cyst = which(res.cyst$ID == gsub('cyst_','', names(newmapping)[n]))
+        index.fp = newmapping[[n]]
+        
+        # volume: compare the sum of fp volumes with the assigned cyst volume overlapped by fps
+        overlap.volumes.cyst = as.numeric(res.cyst[index.cyst, grep('Overlapped.Volume.to.Surfaces', colnames(res.cyst))])
+        overlap.volume.fps = as.numeric(res.fp[index.fp, grep('Overlapped.Volume.to.Surfaces', colnames(res.fp))])
+        volume.fps = as.numeric(res.fp[index.fp, grep('Volume.Unit', colnames(res.fp))])
+        rr.fp.cyst = volume.fps/overlap.volumes.cyst
+        
+        ## verify the distance
+        dists = calculate.distance(res.cyst[index.cyst, ], res.fp[index.fp, ])
+        
+        dds = c(dds, dists)
+        rrs = c(rrs, rr.fp.cyst)
+        
+        # try to find the wrongly assigned fp (furthest one here) and assign it to the second close cyst 
+        if((sum(rr.fp.cyst) > 1.5 | max(dists)/min(dists) > 5) & res.cyst$Sphericity.Unit._Sphericity[index.cyst] > 0.8){
+          
+          ii.fp = index.fp[which(dists == max(dists))]
+          cat(n, '--', names(newmapping)[n], '-- fp index', ii.fp,  'reassigned to ')
+          
+          if(length(which(index.fp.corrected == ii.fp)) >= 2){
+            cat('alread reassigned twice, now drop this fp \n')
+            newmapping[[index.cyst]] = setdiff(newmapping[[index.cyst]], ii.fp)
+            
+          }else{
+            index.fp.corrected = c(index.fp.corrected, ii.fp)
+            ## find the second closest cyst
+            kk = which(res.cyst$Original.Image.Name == res.fp$Original.Image.Name[ii.fp])
+            kk = kk[which(as.numeric(res.cyst[kk, grep('Overlapped.Volume.Ratio.to.Surfaces', colnames(res.cyst))]) > 0)]
+            kk = setdiff(kk, index.cyst) # exclude the cyst previously assigned 
+            
+            # find the closest cyst for the floor plate
+            if(length(kk) > 1){
+              kk.closest = kk[find.closest.cyst(res.fp[ii.fp,], res.cyst[kk, ])]
+              index.newmapping = which(names(newmapping) == paste0('cyst_', res.cyst$ID[kk.closest]))
+              # reassign fp to the second closet cyst and remove it from the closest one
+              newmapping[[index.newmapping]] = c(newmapping[[index.newmapping]], ii.fp)
+              newmapping[[index.cyst]] = setdiff(newmapping[[index.cyst]], ii.fp)
+              
+            }else{
+              if(length(kk) == 1){
+                kk.closest = kk
+                index.newmapping = which(names(newmapping) == paste0('cyst_', res.cyst$ID[kk.closest]))
+                # reassign fp to the second closet cyst and remove it from the closest one
+                newmapping[[index.newmapping]] = c(newmapping[[index.newmapping]], ii.fp)
+                newmapping[[index.cyst]] = setdiff(newmapping[[index.cyst]], ii.fp)
+                
+              } 
+            }
+            cat(kk.closest, '\n')
+          }
+          
+          #print(dists)
+          #cat('ratios of fp vs. overlapped volume of cyst')
+          #print (rr.fp.cyst)
+          #print(res.cyst$Sphericity.Unit._Sphericity[index.cyst])
+          #cat('\n')
+          #catr()
+        }
+        
+        # test the furthest fp
+        Test.new.cyst = FALSE
+        if(Test.new.cyst){
+          ii = index.fp[which(dists == max(dists))]
+          jj = which(res.cyst$Original.Image.Name == res.fp$Original.Image.Name[ii])
+          ds = calculate.distance(res.fp[ii, ], res.cyst[jj, ])
+          
+          jj = jj[order(ds)]
+          ds = ds[order(ds)]    
+        }
       }
     }
+    
   }
   
-  hist(dds)
+  return(newmapping)
   
 }
 
@@ -274,7 +326,7 @@ fine.correction.with.dist.volume = function(mapping, res.cyst, res.fp) # not use
 # cyst after filtering not likely cysts is very close to the true one in general
 #
 ##########################################
-find.cyst.for.each.fp = function(res.cyst, res.fp, Quality.test = FALSE)
+find.cyst.for.each.fp = function(res.cyst, res.fp, fp.assignment.correction = TRUE, Quality.test = FALSE)
 {
   # res.cyst = res1; res.fp = res2
   res.cyst = data.frame(res.cyst, stringsAsFactors = FALSE)
@@ -322,6 +374,11 @@ find.cyst.for.each.fp = function(res.cyst, res.fp, Quality.test = FALSE)
     }
   }
   
+  # double check the quality 
+  if(fp.assignment.correction){
+    mapping = fp.assigment.correction.with.dist.volume(mapping, res.cyst, res.fp)
+  }
+  
   #mapping.c = fine.correction.with.dist.volume(mapping, res.cyst, res.fp)
   nb.fp = c()
   index.cf = c()
@@ -340,9 +397,6 @@ find.cyst.for.each.fp = function(res.cyst, res.fp, Quality.test = FALSE)
   
   hist(nb.fp, breaks = c(-1:max(nb.fp)))
   
-  if(Quality.test){
-    fine.correction.with.dist.volume(mapping, res.cyst, res.fp)
-  }
   
   colnames(res.cyst) = paste0(colnames(res.cyst), '_cyst')
   colnames(res.fp) = paste0(colnames(res.fp), '_fp')
@@ -350,7 +404,6 @@ find.cyst.for.each.fp = function(res.cyst, res.fp, Quality.test = FALSE)
   res.cp = data.frame(res.cyst[index.cf[,1], ], res.fp[index.cf[,2], ], stringsAsFactors = FALSE)
   
   return(res.cp)
-  
   
 }
 
