@@ -236,7 +236,7 @@ fp.assigment.correction.with.dist.volume = function(mapping, res.cyst, res.fp) #
     cat(' --------------------------------------\n')
     for(n in 1:length(newmapping))
     {
-      # n = 215
+      # n = 128
       if(length(newmapping[[n]])>0){
         
         index.cyst = which(res.cyst$ID == gsub('cyst_','', names(newmapping)[n]))
@@ -255,7 +255,7 @@ fp.assigment.correction.with.dist.volume = function(mapping, res.cyst, res.fp) #
         rrs = c(rrs, rr.fp.cyst)
         
         # try to find the wrongly assigned fp (furthest one here) and assign it to the second close cyst 
-        if((sum(rr.fp.cyst) > 1.5 | max(dists)/min(dists) > 5) & res.cyst$Sphericity.Unit._Sphericity[index.cyst] > 0.8){
+        if(sum(rr.fp.cyst) > 2.5 & res.cyst$Sphericity.Unit._Sphericity[index.cyst] > 0.8){
           
           ii.fp = index.fp[which(dists == max(dists))]
           cat(n, '--', names(newmapping)[n], '-- fp index', ii.fp,  'reassigned to ')
@@ -326,7 +326,7 @@ fp.assigment.correction.with.dist.volume = function(mapping, res.cyst, res.fp) #
 # cyst after filtering not likely cysts is very close to the true one in general
 #
 ##########################################
-find.cyst.for.each.fp = function(res.cyst, res.fp, fp.assignment.correction = TRUE, Quality.test = FALSE)
+find.cyst.for.each.fp = function(res.cyst, res.fp, fp.assignment.correction = FALSE, Quality.test = FALSE)
 {
   # res.cyst = res1; res.fp = res2
   res.cyst = data.frame(res.cyst, stringsAsFactors = FALSE)
@@ -469,7 +469,7 @@ calcuate.fp.dist = function(xx0)
       return(d.fp)
     }else{
       if(nrow(xx0) == 2){
-        rc = min(calculate.distance(x0[1, ], yy))
+        rc = median(calculate.distance(x0[1, ], yy))
         alpha = calculate.angle.between.two.fps(x0[1,], yy)
         d.fp = rc*alpha
         return(d.fp)
@@ -481,7 +481,7 @@ calcuate.fp.dist = function(xx0)
           for(j in 1:nrow(yy))
           {
             if(j != i){
-              dd.i = c(dd.i, min(calculate.distance(x0[1, ], yy[c(i, j), ]))*calculate.angle.between.two.fps(x0[1,], yy[c(i, j), ]))
+              dd.i = c(dd.i, median(calculate.distance(x0[1, ], yy[c(i, j), ]))*calculate.angle.between.two.fps(x0[1,], yy[c(i, j), ]))
             }
           }
           dd.i = dd.i[order(dd.i)]
