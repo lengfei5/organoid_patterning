@@ -27,7 +27,7 @@ dataDir = '../210217_hNTdrugs3_0310outputs'
 resDir = '../results'
 tabDir = paste0(resDir, '/tables')
 Rdata = paste0(resDir, '/Rdata')
-analysis.verison = 'hNTdrugs3_0310_Analysis20210506'
+analysis.verison = 'hNTdrugs3_0310_Analysis20210507'
 
 cyst.channel = '1'
 floorplat.channel = '2'
@@ -133,7 +133,7 @@ if(Double.check){
   xx = (cbind(res$OriginalID_cyst, res$OriginalID_fp, res$Distance.to.Image.Border.XY.Unit.µm_Distance.to.Image.Border.XY.Img1_cyst))
   colnames(xx) = c('cyst.ID', 'fp.id', 'Cyst.distanct.image.board.XY')
   
-  write.table(xx, file = paste0(resDir, '/table_for_Hannah_manualCheck_cyst_fp.assignment.txt'),
+  write.table(xx, file = paste0(resDir, '/table_for_Hannah_manualCheck_cyst_fp.assignment_refined.Assignement.txt'),
               sep = '\t', col.names = TRUE, row.names = FALSE, quote = FALSE)
   
   
@@ -146,18 +146,75 @@ if(Double.check){
 ########################################################
 ########################################################
 res = readRDS(file = paste0(Rdata, 'mergedTable_cyst.fp_allConditions_', analysis.verison, '.rds'))
+res = data.frame(res, stringsAsFactors = FALSE)
 
 ##########################################
 # filter cyst or/and floorplates using global parameters
+# QC plots
 ##########################################
-res$cond.id = paste0(res$condition, '_', res$ID_cyst)
-mm = match(unique(res$cond.id), res$cond.id)
+require(ggplot2)
+require(grid)
+require(gridExtra)
+library(tidyr)
+library(dplyr)
 
-ggplot(res[mm, ], aes(x = condition, y=Overlapped.Volume.Ratio_cyst, fill=condition)) + 
-  geom_boxplot(width=2) + ggtitle('cyst fraction overlapped by fp') + theme(legend.position = "none") 
+res$condition = as.factor(res$condition)
+cond.id = paste0(res$condition, '_', res$ID_cyst)
+mm = match(unique(cond.id), cond.id)
+xx = res[mm, ]
 
+p0 = as_tibble(res[mm, ]) %>% 
+  group_by(condition) %>% tally() %>%
+  ggplot(aes(x = condition, y = n, fill = condition)) +
+  geom_bar(stat = "identity") +
+  theme(legend.position = "none")  + 
+  ggtitle('nb of cysts ')
+aes(class, hwy)
+p1 = ggplot(res[mm, ], aes(x = condition, y=Overlapped.Volume.Ratio_cyst, fill=condition)) + 
+  geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
+  ggtitle('cyst fraction overlapped by fp') + theme(legend.position = "none") 
 
+p2 = ggplot(res[mm, ], aes(x = condition, y=Intensity.Mean.Unit._Intensity.Mean.Ch3.Img1_cyst, fill=condition)) + 
+  geom_violin() + ggtitle('FoxA2 mean intensity') + theme(legend.position = "none")
+
+pdfname = paste0(resDir, '/QC_plots_beforeFiltering.pdf')
+pdf(pdfname,  width = 25, height = 18)
+grid.arrange(p0, p1, p2, nrow = 3, ncol = 1) 
+dev.off()
+
+# filter the images touching the boarder
 res = res[which(res$Distance.to.Image.Border.XY.Unit.µm_Distance.to.Image.Border.XY.Img1_cyst > 0), ]
+
+cond.id = paste0(res$condition, '_', res$ID_cyst)
+mm = match(unique(cond.id), cond.id)
+
+px = ggplot(xx, aes(x = Distance.to.Image.Border.XY.Unit.µm_Distance.to.Image.Border.XY.Img1_cyst)) +
+  geom_histogram(binwidth = 10)
+pxx = ggplot(res[mm, ], aes(x = Distance.to.Image.Border.XY.Unit.µm_Distance.to.Image.Border.XY.Img1_cyst)) +
+  geom_histogram(binwidth = 10)
+
+xx = res[mm, ]
+
+p0 = as_tibble(res[mm, ]) %>% 
+  group_by(condition) %>% tally() %>%
+  ggplot(aes(x = condition, y = n, fill = condition)) +
+  geom_bar(stat = "identity") +
+  theme(legend.position = "none")  + 
+  ggtitle('nb of cysts ')
+
+p1 = ggplot(res[mm, ], aes(x = condition, y=Overlapped.Volume.Ratio_cyst, fill=condition)) + 
+  geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
+  ggtitle('cyst fraction overlapped by fp') + theme(legend.position = "none") 
+
+p2 = ggplot(res[mm, ], aes(x = condition, y=Intensity.Mean.Unit._Intensity.Mean.Ch3.Img1_cyst, fill=condition)) + 
+  geom_violin() + ggtitle('FoxA2 mean intensity') + theme(legend.position = "none")
+
+
+pdfname = paste0(resDir, '/QC_plots_filteringImageOnBoard.pdf')
+pdf(pdfname,  width = 25, height = 25)
+grid.arrange(px, pxx, p0, p1, p2, nrow = 5, ncol = 1) 
+dev.off()
+
 
 res = res[which(res$Overlapped.Volume.Ratio_fp > 0.5 | is.na(res$Overlapped.Volume.Ratio_fp)), ]
 #res = res[which(res$Overlapped.Volume.Ratio_cyst > 0.05 | is.na(res$Overlapped.Volume.Ratio_cyst)), ]
@@ -174,11 +231,6 @@ params = extract.turing.parameters(res)
 ##########################################
 # visualize the turing-model relevant parameters
 ##########################################
-require(ggplot2)
-require(grid)
-require(gridExtra)
-library(tidyr)
-library(dplyr)
 
 for(n in 1:ncol(params))
 {

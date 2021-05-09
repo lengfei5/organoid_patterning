@@ -225,7 +225,7 @@ fp.assigment.correction.with.dist.volume = function(mapping, res.cyst, res.fp) #
 {
   #mappinp.saved = mapping
   newmapping = mapping
-  nb.iteration = 3
+  nb.iteration = 6
   index.fp.corrected = c()
   
   for(nb.i in 1:nb.iteration)
@@ -255,7 +255,7 @@ fp.assigment.correction.with.dist.volume = function(mapping, res.cyst, res.fp) #
         rrs = c(rrs, rr.fp.cyst)
         
         # try to find the wrongly assigned fp (furthest one here) and assign it to the second close cyst 
-        if(sum(rr.fp.cyst) > 2.5 & res.cyst$Sphericity.Unit._Sphericity[index.cyst] > 0.8){
+        if(sum(rr.fp.cyst) > 4 | max(dists)/min(dists) > 5 ){
           
           ii.fp = index.fp[which(dists == max(dists))]
           cat(n, '--', names(newmapping)[n], '-- fp index', ii.fp,  'reassigned to ')
@@ -326,7 +326,7 @@ fp.assigment.correction.with.dist.volume = function(mapping, res.cyst, res.fp) #
 # cyst after filtering not likely cysts is very close to the true one in general
 #
 ##########################################
-find.cyst.for.each.fp = function(res.cyst, res.fp, fp.assignment.correction = FALSE, Quality.test = FALSE)
+find.cyst.for.each.fp = function(res.cyst, res.fp, fp.assignment.correction = TRUE, Quality.test = FALSE)
 {
   # res.cyst = res1; res.fp = res2
   res.cyst = data.frame(res.cyst, stringsAsFactors = FALSE)
