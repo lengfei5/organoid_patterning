@@ -1,15 +1,5 @@
 ##########################################################################
 ##########################################################################
-# Project:
-# Script purpose: 
-# Usage example: 
-# original code from the paper Economou et al., 2020
-# Author: Jingkui Wang (jingkui.wang@imp.ac.at)
-# Date of creation: Mon May 10 13:42:50 2021
-##########################################################################
-##########################################################################
-##########################################################################
-##########################################################################
 # Project: organoid patterning 
 # Script purpose: functions for RD of 2 components
 # Usage example: 
@@ -27,26 +17,29 @@
 
 # Functions are equivalent to those for 3-component simulations (see 3-compenent simulations for details)
 
-#For simulating inhibitions there are two functions: multi_perturb_2c which inhibits both species a and b at the level of response, and multi_perturb_2c_type_2 which inhibits both species at the level of production
+# For simulating inhibitions there are two functions: 
+# multi_perturb_2c which inhibits both species a and b at the level of response; 
+# multi_perturb_2c_type_2 which inhibits both species at the level of production
 
-#####################
-
-#For running simulations
-
+##########################################
+# For running simulations
+##########################################
 library(deSolve) #Version: 1.13	Depends: R (>= 2.15.0)
 library(plyr) #Version: 1.8.4	Depends: R (>= 3.1.0)
 library(doMC) #Version: 1.3.4	Depends: R (>= 2.14.0), foreach(>= 1.2.0), iterators(>= 1.0.0), parallel
 registerDoMC(cores=6)
 
-#######################
-#Functions
+##########################################
+# Functions 1) Generate parameterisations of Jacobian matrix which satisfy the criteria for diffusion driven instability
+##########################################
+# Unlike for 3-component system (or any system with 2 > components),
+# only statable (non-oscillating) waves can for for a 2-component system, 
+# therefore all parameter sets are type 1 (see 3-component simulations for details)
 
-#Unlike for 3-component system (or any system with 2> components) only statable (non-oscillating) waves can for for a 2-component system, therefore all parameter sets are type 1 (see 3-component simulations for details)
-
-generate_parameters_2c<-function(x,top){
-  
-  par<-runif(4,0,1) 
-  
+generate_parameters_2c<-function(x,top)
+{
+  #set.seed(2021)
+  par<-runif(4,0,1) # generate 4 numbers betwee 0 and 1 with uniform distribution 
   diff<-runif(2,1,10000)
   
   Da<-500/diff[1]
@@ -58,36 +51,32 @@ generate_parameters_2c<-function(x,top){
   
   Y<-rep(NA,12)
   
+  Tr <- Aa + Bb # trace of Jacobian matrix
+  Det <- (Aa*Bb) - (Ab*Ba) # determinant of Jacobian matrix 
   
-  Tr<-Aa+Bb
-  
-  Det<-(Aa*Bb)-(Ab*Ba)
-  
-  
-  if((Tr<0)&(Det>0)){
+  if(Tr < 0 & Det > 0){ # stability criteria without diffusion
     
-    D1<-(Da*Bb)+(Db*Aa)
+    D1 <- (Da * Bb) + (Db * Aa)
+    D2 <- 2 * sqrt(Da*Db*(Det)) 
     
-    D2<-2*sqrt(Da*Db*(Det))
-    
-    if((D1>D2)&(D2>0)){
+    if((D1 > D2) & (D2 > 0)){ # instability with diffusion
       
-      k2_min<-(D1)/(2*Da*Db)
+      # cat('RD param found \n')
+      k2_min <- D1/(2*Da*Db) # probably the minimum wavenumber
       
-      jacmat<-matrix(c(Aa-Da*k2_min,Ab,Ba,Bb-Db*k2_min),byrow=TRUE,ncol=2)
+      jacmat <- matrix(c(Aa-Da*k2_min,Ab,Ba,Bb-Db*k2_min),byrow=TRUE,ncol=2)
       
       eig<-eigen(jacmat)
       
-      maxeig<-(1:2)[Re(eig$values)==max(Re(eig$values))]
+      maxeig<-(1:2)[Re(eig$values)==max(Re(eig$values))] # first two max eigenvalues 
       
-      eigvec<-Re(eig$vectors[,maxeig])
+      eigvec<-Re(eig$vectors[,maxeig]) 
       
       phase<-sign(c(eigvec[1]/eigvec[2]))
       
-      Y<-c(1,Da,Aa,Ab,Db,Ba,Bb,phase,k2_min,max(Re(eig$values)),abs(eigvec))
+      Y<-c(1, Da, Aa, Ab, Db, Ba, Bb, phase, k2_min, max(Re(eig$values)), abs(eigvec))
       
     }
-    
   }
   
   return(Y)	
@@ -95,7 +84,12 @@ generate_parameters_2c<-function(x,top){
 }
 
 
-
+##########################################
+# Function 2: 
+# Convert parameterisations of Jacobian matrix to the form of RD system used in analyses by including degradation rates, 
+# constant production rates and upper and lower reaction rate limits,
+# and scale rates to form a spatial waves in the simulation grid
+##########################################
 rdmod2c<-function(time,state,parms){
   with(as.list(parms),{
     
@@ -217,14 +211,13 @@ parameters2c<-function(par,S,L0,G0,GZ,bounds){
 
 
 
-
-pattern_search_2c<-function(param,target_k2,target_l){
-  
+pattern_search_2c<-function(param,target_k2,target_l)
+{
+  # param = par[1, ];target_k2 = 0.314719528; target_l= 0.00454855;
   test_k2<-as.numeric(param["k2"])
-  
   test_l<-as.numeric(param["l"])
   
-  scale_k2<-(sqrt(target_k2)/sqrt(test_k2))^2 #remember, these are squares!
+  scale_k2 <- (sqrt(target_k2)/sqrt(test_k2))^2  #remember, these are squares!
   
   scale_l<-target_l/test_l
   
@@ -239,7 +232,6 @@ pattern_search_2c<-function(param,target_k2,target_l){
   
   
   #run a preliminary simulation from which to calculate the period
-  
   parms<-scale_parms
   
   #equilibrium initial levels
@@ -260,14 +252,10 @@ pattern_search_2c<-function(param,target_k2,target_l){
   state    <- c(a,b)
   
   ## RUNNING the model:
-  
   times  <- seq(0, 2500, by = 10)   # output wanted at these time intervals
-  
   out <- ode.1D(y = state, times = times, func = rdmod2c, parms = parms,nspec = 2)
   
-  
   #measure period
-  
   L0<-as.list(parms)$L0
   
   #first check enough waves (ie >=3) to measure, if not scale diffusion by 2/3
