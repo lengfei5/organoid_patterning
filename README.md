@@ -1,7 +1,9 @@
 # Neuronal tube organoid pattering
 
-There are two parts:
+There are two main parts:
 
-## image analysis results
+## Prepare the data to identify nodes, potential network topology, perturbation response in the RD system:
+- RNA-seq data and TM3 data
+- Downstream image analysis from Hannah's segmentation analysis
 
-## Turing reaction diffusion modeling
+## RD simulation
