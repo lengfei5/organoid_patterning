@@ -26,6 +26,7 @@ if(RNAseq.old.time.series){
   
   dataDir = '../data/'
   
+  
   design = read.delim(paste0(dataDir, 'timeSeries_SampleMetadata.txt'), header = TRUE, sep = '\t', skip = 1, comment.char = "#")
   design = design[grep('*_Bigwig', design$Linking_id, invert = TRUE), ]
   design = design[grep('^_', design$Linking_id, invert = TRUE), ]
