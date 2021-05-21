@@ -1,6 +1,8 @@
 #Functions and scripts to:
-#1. Generate parameterisations of Jacobian matrix which satisfy the criteria for diffusion driven instability (as outlined in supplementary note) for a 3-component RD system
-#2. Convert parameterisations of Jacobian matrix to the form of RD system used in analyses by including degradation rates, constant production rates and upper and lower reaction rate limits, and scale rates to form a spatial waves in the simulation grid
+#1. Generate parameterisations of Jacobian matrix which satisfy the criteria for diffusion driven instability 
+# (as outlined in supplementary note) for a 3-component RD system
+#2. Convert parameterisations of Jacobian matrix to the form of RD system used in analyses by including degradation rates, 
+# constant production rates and upper and lower reaction rate limits, and scale rates to form a spatial waves in the simulation grid
 #3. Run simulations of inhibiting each component in RD system
 
 
@@ -15,15 +17,16 @@ registerDoMC(cores=6)
 
 #Functions
 
-
 #Function to generates a random parameter set and return it if it satisfies the criteria for a DDI (otherwise NAs are returned)
-#In output vector, for parameter sets that will give a stable pattern of waves, the first term is 1, for parameter sets that will give an oscillating pattern the first terms is -1, and for parameter sets where based on the criteria used the two cannot be distinguished the first term is 0
+#In output vector, for parameter sets that will give a stable pattern of waves, the first term is 1, 
+#for parameter sets that will give an oscillating pattern the first terms is -1, 
+# and for parameter sets where based on the criteria used the two cannot be distinguished the first term is 0
 #The next 12 terms in the output vector are the reaction rate and diffusion parameters
 #The next two terms give the phases of components B and C relative to A respectively
 #The next term give the wavelength parameter k^2 at the turning point on which conditions for DDI are evaluated (see supplementary notes)
 #The final four terms give the largest eigen value and associated eigen vectors
-
-#Note that essentially this same function was used to identify parameter sets for topology search (see emthods) except that rather than generating random parameter sets, parameter values were systematically varied as described
+#Note that essentially this same function was used to identify parameter sets for topology search (see emthods) 
+# except that rather than generating random parameter sets, parameter values were systematically varied as described
 
 generate_parameters<-function(x,top){
 	
@@ -212,7 +215,9 @@ generate_parameters<-function(x,top){
 
 
 #Model for simulating 3-component RD system on a growing domian for three species a, b and c
-#Implementation of domain growth based on apical growth in Crampin et al (2002) Bull Math Biol 64, 747-769, except the growth zone of size G0, is split into an apical non growing part (of size GZ*G0, where GZ<1) with growth occurring in the remainder of the growt zone
+#Implementation of domain growth based on apical growth in Crampin et al (2002) Bull Math Biol 64, 747-769, 
+# except the growth zone of size G0, is split into an apical non growing part (of size GZ*G0, where GZ<1) with 
+# growth occurring in the remainder of the growt zone
 #Note that for simulations used in inhibition analyses, there is no domain growth (S=0)
 
 rdmod<-function(time,state,parms){
@@ -1168,132 +1173,3 @@ perturb_summary<-function(outputs){
 	output
 	
 }
-
-
-###################
-
-#Running scripts
-
-#define topologies
-
-topo<-list(topo_3_3_f=matrix(c(1,0,-1,-1,-1,0,0,-1,-1),byrow=T,ncol=3),
-	topo_4_3_f=matrix(c(1,1,0,0,-1,-1,1,0,-1),byrow=T,ncol=3),
-	topo_5_3_f=matrix(c(-1,-1,-1,-1,-1,0,1,0,-1),byrow=T,ncol=3),
-	topo_6_3_f=matrix(c(-1,-1,-1,-1,-1,0,0,-1,-1),byrow=T,ncol=3),
-
-	topo_3_3_r=matrix(c(-1,-1,0,0,1,1,1,0,-1),byrow=T,ncol=3),
-	topo_4_3_r=matrix(c(-1,0,1,1,1,0,0,-1,-1),byrow=T,ncol=3),
-	topo_5_3_r=matrix(c(-1,-1,0,-1,-1,1,0,-1,-1),byrow=T,ncol=3),
-	topo_6_3_r=matrix(c(-1,-1,0,-1,-1,1,1,0,-1),byrow=T,ncol=3),
-
-	topo_AI_3_1=matrix(c(1,0,-1,-1,-1,0,1,1,-1),byrow=T,ncol=3),
-	topo_AI_5_2=matrix(c(1,1,-1,-1,-1,0,1,0,-1),byrow=T,ncol=3),
-	topo_AI_4_1=matrix(c(1,-1,-1,0,-1,-1,1,0,-1),byrow=T,ncol=3),
-	topo_AI_7_1=matrix(c(1,0,-1,0,-1,-1,1,1,-1),byrow=T,ncol=3),
-	topo_AI_7_2=matrix(c(1,0,-1,0,-1,-1,1,-1,-1),byrow=T,ncol=3),
-
-	topo_SD_3_1=matrix(c(-1,-1,0,0,1,1,-1,-1,-1),byrow=T,ncol=3),
-	topo_SD_5_2=matrix(c(-1,-1,0,1,1,1,0,-1,-1),byrow=T,ncol=3),
-	topo_SD_4_1=matrix(c(-1,0,1,-1,1,1,0,-1,-1),byrow=T,ncol=3),
-	topo_SD_7_1=matrix(c(-1,0,1,0,1,1,-1,-1,-1),byrow=T,ncol=3),
-	topo_SD_7_2=matrix(c(1,0,1,0,1,1,1,-1,-1),byrow=T,ncol=3))
-
-
-#X number of parameterisations to try for DDI
-#Z number of parameterisations to run for inhibition simulation
-
-X<-1:500000
-
-Z<-1000
-
-for(i in 1:18){
-	
-	fileparm<-paste("~/Desktop/Simulation output/parameters ",names(topo[i]),".txt",sep="")
-
-	fileoutput<-paste("~/Desktop/Simulation output/output ",names(topo[i]),".txt",sep="")
-
-	print(i)
-	print("parameters generate")
-
-	##########PART 1 
-	##########generate parameters
-	
-	Y<-numeric()
-	
-	print(system.time(Y<-aaply(X,1,generate_parameters,top=topo[[i]])))
-
-	colnames(Y)<-c("Type","Da","Aa","Ab","Ac","Db","Ba","Bb","Bc","Dc","Ca","Cb","Cc","phAB","phAC","k2","l","va","vb","vc")
-
-	Y<-Y[!is.na(Y[,1]),]
-
-	parsets<-Y[Y[,1]==1,]
-
-
-	##########PART 2 SCALE DATASETS
-	##########scale datasets
-	
-	print("parameters scale")
-	
-	parsetl<-length(parsets[,1])
-
-	number<-Z+50 #increase over Z incase method for scaling fails on some parameter sets 
-
-	sets<-sample(1:parsetl,number)
-
-	par<-cbind(parsets[sets,],sets)
-
-	par<-as.data.frame(par)
-
-	print(system.time(out_table<-daply(par,.(par$sets),pattern_search,target_k2= 0.314719528,target_l= 0.00454855,.parallel=F)))
-
-	#check that there are the required number of parameter sets
-	l<-(1:number)[is.na(out_table[,"phAB"])]
-
-	if(length(l)>0){
-		out_table<-out_table[-l,]
-		print("need some more please...")
-		print(names(topo[[i]]))
-		print(length(l))
-	}
-	
-	#needed to scale pattern between scaling simulations and inhibition simulations
-	out_table[,"Da"]<-out_table[,"Da"]*10*10
-	out_table[,"Db"]<-out_table[,"Db"]*10*10
-	out_table[,"Dc"]<-out_table[,"Dc"]*10*10
-	
-	
-	OT<-as.data.frame(out_table[1:Z,])
-	
-	write.table(OT,fileparm,row.names=F,sep="\t")
-
-
-	##########PART 3 
-	##########run sim
-	
-	print("simulations")
-
-	
-	range<-1:100
-	print(system.time(pert<-daply(OT[range,],.(OT[range,]$V1),multi_perturb,.parallel=T)))
-	
-	colnames(pert)<-c("threshA","threshB","threshC",
-	
-	"A_type","A_strength","A_globalAmax","A_peakAmax","A_troughAmax","A_globalBmax","A_peakBmax","A_troughBmax","A_globalCmax","A_peakCmax","A_troughCmax","A_globalAmid","A_peakAmid","A_troughAmid","A_globalBmid","A_peakBmid","A_troughBmid","A_globalCmidx","A_peakCmid","A_troughCmid","A_globalAmin","A_peakAmin","A_troughAmin","A_globalBmin","A_peakBmin","A_troughBmin","A_globalCmin","A_peakCmin","A_troughCmin",
-	
-	"B_type","B_strength","B_globalAmax","B_peakAmax","B_troughAmax","B_globalBmax","B_peakBmax","B_troughBmax","B_globalCmax","B_peakCmax","B_troughCmax","B_globalAmid","B_peakAmid","B_troughAmid","B_globalBmid","B_peakBmid","B_troughBmid","B_globalCmid","B_peakCmid","B_troughCmid","B_globalAmin","B_peakAmin","B_troughAmin","B_globalBmin","B_peakBmin","B_troughBmin","B_globalCmin","B_peakCmin","B_troughCmin",
-	
-	"C_type","C_strength","C_globalAmax","C_peakAmax","C_troughAmax","C_globalBmax","C_peakBmax","C_troughBmax","C_globalCmax","C_peakCmax","C_troughCmax","C_globalAmid","C_peakAmid","C_troughAmid","C_globalBmid","C_peakBmid","C_troughBmid","C_globalCmid","C_peakCmid","C_troughCmid","C_globalAmin","C_peakAmin","C_troughAmin","C_globalBmin","C_peakBmin","C_troughBmin","C_globalCmin","C_peakCmin","C_troughCmin")
-	
-	write.table(pert,fileoutput,row.names=T,sep="\t")
-	
-	for(j in 1:((Z/100)-1)){ #print number simulated every 100
-		
-		range_next<-range+(j*100)
-		print(system.time(pert<-daply(OT[range_next,],.(OT[range_next,]$V1),multi_perturb,.parallel=F)))
-	
-		write.table(pert,fileoutput,row.names=T,sep="\t",append=T,col.names=F)
-			
-	}
-	
-}
-
