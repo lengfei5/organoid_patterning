@@ -150,11 +150,12 @@ if(RNAseq.old.time.series){
   examples = unique(c('Foxa2', # FoxA 
                       'Lef1', 'Mapk1', rownames(rpkm)[grep('Smad', rownames(rpkm))], 
                       rownames(rpkm)[grep('Wnt|Dkk|Tcf', rownames(rpkm))],
-                      rownames(rpkm)[grep('Bmp', rownames(rpkm))], 'Nog', 'Chrd', 'Runx1', 'Runx2', 
-                      rownames(rpkm)[grep('Fgf', rownames(rpkm))], 'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5', 'Mapk10', 'Mapk4', 'Mapk8ip2', 'Spry4' 
+                      rownames(rpkm)[grep('Bmp', rownames(rpkm))], 'Nog', 'Chrd', 'Runx1', 'Runx2',  'Smad6', 'Id1', 'Id3',
+                      rownames(rpkm)[grep('Fgf', rownames(rpkm))], 
+                      'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5', 'Mapk10', 'Mapk4', 'Mapk8ip2', 'Spry4' 
   ))
   
-  pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways.pdf')
+  pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_v2.pdf')
   pdf(pdfname,  width = 10, height = 6)
   par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
   
