@@ -20,7 +20,7 @@ if(RNAseq.old.time.series){
   version.analysis = 'Rnaseq_old_Dresden'
   
   resDir = paste0("../results/RNAseq.old.by.Maria.", version.analysis)
-  RdataDir = paste0(resDir, '/Rdata')
+  RdataDir = paste0('../results/Rdata')
   if(!dir.exists(resDir)) dir.create(resDir)
   if(!dir.exists(RdataDir)) dir.create(RdataDir)
   
@@ -51,28 +51,35 @@ if(RNAseq.old.time.series){
   
   genes = counts$gene_id
   
-  
+  ## convert ens ID to gene symbol 
   annots = read.delim('/Volumes/groups/tanaka/People/current/jiwang/annotations/mouse/mm10/ensemble/Ensemble_biomart_mm10.txt', 
                       sep = '\t', header = TRUE)
   annots = annots[which(annots$Gene.type == 'protein_coding'), ]
   
   mm = match(genes, annots$Gene.stable.ID)
   
-  genes = data.frame(c(1:nrow(counts)), genes, annots$Gene.name[mm], gene.types = annots$Gene.type[mm], stringsAsFactors = FALSE)
-  genes = genes[which(!is.na(genes[, 3])), ]
-  #genes = genes[which(genes$gene.types == 'protein_coding'), ]
-  genes = genes[match(unique(genes[,3]), genes[,3]), ]
-  colnames(genes) = c('index.counts', 'ensID', 'gene', 'genetype')
-  
-  genes$length = NA
-  #sapply(genes$gene, function(g) {return(median(annots$Transcript.length..including.UTRs.and.CDS.[which(annots$Gene.name == g)]))})
-  for(n in 1:nrow(genes))
-  {
-    if(n%%100 ==0) cat(n, '\n')
-    genes$length[n] = median(annots$Transcript.length..including.UTRs.and.CDS.[which(annots$Gene.name == genes$gene[n])])
+  # extract gene lengths by calculating the median of transcript length
+  Find.gene.length = FALSE
+  if(Find.gene.length){
+    genes = data.frame(c(1:nrow(counts)), genes, annots$Gene.name[mm], gene.types = annots$Gene.type[mm], stringsAsFactors = FALSE)
+    genes = genes[which(!is.na(genes[, 3])), ]
+    #genes = genes[which(genes$gene.types == 'protein_coding'), ]
+    genes = genes[match(unique(genes[,3]), genes[,3]), ]
+    colnames(genes) = c('index.counts', 'ensID', 'gene', 'genetype')
+    
+    genes$length = NA
+    #sapply(genes$gene, function(g) {return(median(annots$Transcript.length..including.UTRs.and.CDS.[which(annots$Gene.name == g)]))})
+    for(n in 1:nrow(genes))
+    {
+      if(n%%100 ==0) cat(n, '\n')
+      genes$length[n] = median(annots$Transcript.length..including.UTRs.and.CDS.[which(annots$Gene.name == genes$gene[n])])
+    }
+    
+    saveRDS(genes, file = paste0(Rdata, 'gene_names_length.rds'))
+  }else{
+    genes = readRDS(file = paste0(RdataDir, '/gene_names_length.rds'))
   }
   
-  saveRDS(genes, file = paste0(Rdata, 'gene_names_length.rds'))
   
   counts = counts[genes[,1], -1]
   rownames(counts) = genes$gene
@@ -143,10 +150,16 @@ if(RNAseq.old.time.series){
     rpkm.noRA[,n] = apply(rpkm[, kk2], 1, median)
   }
   
+  
+  
   sorted = cbind(apply(rpkm[ , grep('s48h_RA_AF', colnames(rpkm))], 1, median), 
                  apply(rpkm[ , grep('s48h_RA_GFPp', colnames(rpkm))], 1, median),
                  apply(rpkm[ , grep('s48h_SAG_GFPp', colnames(rpkm))], 1, median))
   
+  
+  ##########################################
+  # make plots of WNT, BMP, FGF ligand, receptor, effectors and targets
+  ##########################################
   examples = unique(c('Foxa2', # FoxA 
                       'Lef1', 'Mapk1', rownames(rpkm)[grep('Smad', rownames(rpkm))], 
                       rownames(rpkm)[grep('Wnt|Dkk|Tcf', rownames(rpkm))],
@@ -154,6 +167,7 @@ if(RNAseq.old.time.series){
                       rownames(rpkm)[grep('Fgf', rownames(rpkm))], 
                       'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5', 'Mapk10', 'Mapk4', 'Mapk8ip2', 'Spry4' 
   ))
+  
   
   pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_v2.pdf')
   pdf(pdfname,  width = 10, height = 6)
