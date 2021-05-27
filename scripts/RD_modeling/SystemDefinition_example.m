@@ -13,7 +13,7 @@ f_ode=@(x,k)[k(1).*k(2).^(-2).*x(1).^2.*(1+k(2).^(-2).*x(1).^2+k(3).^(-2).*x(2).
  %__________________________________________________________________________
 %Define parameter space for sampling as k_grid
 %Example:
-ks = logspace(-1,2,3); %define the range and interval parameters should be sampled at
+ks = logspace(0,1,2); %define the range and interval parameters should be sampled
 
 for i = 1:k_length
     k_input{i} = ks;
