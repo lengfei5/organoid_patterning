@@ -171,6 +171,16 @@ w, v  =  np.linalg.eig(S)
 #inputs = [kk, xx]
 
 #%% eigenvalue computation with diffusion matrix to test if Turing instability 
+diffusing_nodes = binary_diffusor
+
+q = np.logspace(-4, 8, 50)
+
+for j in range(len(q)):
+    S2 = S - np.diag(np.multiply(d, q[j]))
+    wq,vq =  np.linalg.eig(S2)
+
+
+
 
 
 
