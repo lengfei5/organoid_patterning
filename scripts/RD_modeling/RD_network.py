@@ -143,21 +143,23 @@ f_sym = sym.Matrix(f_ode(X, None, K))
 J = f_sym.jacobian(X)
 J_func = sym.lambdify((X, K),  J)
 
-J_inputs = J.free_symbols
+#J_inputs = J.free_symbols
+S = J_func(ss, k)
+w, v  =  np.linalg.eig(S)
 
-Xoverlap = np.zeros(len(X))
-xx = []
-for i in range(len(X)):
-    if X[i] in J_inputs:
-        Xoverlap[i] = 1
-        xx.append(ss[i])
+# Xoverlap = np.zeros(len(X))
+# xx = []
+# for i in range(len(X)):
+#     if X[i] in J_inputs:
+#         Xoverlap[i] = 1
+#         xx.append(ss[i])
 
-Koverlap = np.zeros(len(K))
-kk = []
-for i in range(len(K)):
-    if K[i] in J_inputs:
-        Koverlap[i] = 1
-        kk.append(k[i])
+# Koverlap = np.zeros(len(K))
+# kk = []
+# for i in range(len(K)):
+#     if K[i] in J_inputs:
+#         Koverlap[i] = 1
+#         kk.append(k[i])
 
 #f = sy.Function('f')
 #eq = sy.Eq(f(x).diff(x, 2) - 2*f(x).diff(x) + f(x), sy.sin(x)) sy.dsolve(eq)
@@ -167,9 +169,7 @@ for i in range(len(K)):
 #J_func = sym.lambdify((y, t, mu), J)
 #J
 #inputs = [kk, xx]
-S = J_func(ss, k)
 
-w, v  =  np.linalg.eig(S)
 
 
 
