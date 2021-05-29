@@ -91,10 +91,16 @@ if(RNAseq.old.time.series){
   counts = counts[,kk]
   colnames(counts) = paste0(design$condition, '_', design$Linking_id)
   
+  save(counts, design, file = paste0(RdataDir, '/RNAseq_old_count_design.Rdata'))
+  ##########################################
+  # DESeq2 normalization
+  ##########################################
   require(ggplot2)
   require(DESeq2)
   library("dplyr")
   library("ggplot2")
+  
+  load(file = paste0(RdataDir, '/RNAseq_old_count_design.Rdata'))
   
   dds <- DESeqDataSetFromMatrix(counts, DataFrame(design), design = ~ condition)
   
