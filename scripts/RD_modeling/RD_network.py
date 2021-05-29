@@ -170,7 +170,7 @@ w, v  =  np.linalg.eig(S)
 #J
 #inputs = [kk, xx]
 
-
+#%% eigenvalue computation with diffusion matrix to test if Turing instability 
 
 
 
