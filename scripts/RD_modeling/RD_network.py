@@ -272,19 +272,148 @@ else:
 # )
 
 
-
-
-
-
-
-
-
-
-
-#%% numerical solution of RD equation
+#%% numerical solution of RD equation 
 from RD_network_functions import *
 
+def constant_diff_coeffs(c_tuple, t, x, diff_coeffs):
+    n = len(c_tuple[0])
+    return tuple([diff_coeffs[i] * np.ones(n) for i in range(len(c_tuple))])
 
+
+def asdm_rxn(as_tuple, t, mu):
+    """
+    Reaction expression for activator-substrate depletion model.
+
+    Returns the rate of production of activator and substrate, respectively.
+
+    r_a = a**2 * s - a
+    r_s = mu * (1 - a**2 * s)
+    """
+    # Unpack concentrations
+    a, s = as_tuple
+
+    # Compute and return reaction rates
+    a2s = a ** 2 * s
+    return (a2s - a, mu * (1.0 - a2s))
+
+
+# Set up steady state (using 500 grid points)
+a_0 = np.ones(500)
+s_0 = np.ones(500)
+
+# Make a small perturbation to a_0
+a_0 += 0.001 * np.random.rand(len(a_0))
+
+# Time points
+t = np.linspace(0.0, 1000.0, 100)
+
+# Physical length of system
+L = 20.0
+
+# x-coordinates for plotting
+x = np.linspace(0, L, len(a_0))
+
+# Diffusion coefficients
+diff_coeffs = (0.05, 1.0)
+
+# Reaction parameter (must be a tuple of params, even though only 1 for ASDM)
+rxn_params = (1.5,)
+
+# Solve
+conc = rd_solve(
+    (a_0, s_0),
+    t,
+    L=L,
+    derivs_0=0,
+    derivs_L=0,
+    diff_coeff_fun=constant_diff_coeffs,
+    diff_coeff_params=(diff_coeffs,),
+    rxn_fun=asdm_rxn,
+    rxn_params=rxn_params,
+)
+
+t_point = 1000000
+i = np.searchsorted(t, t_point)
+i = 98
+
+plt.plot(x, conc[0][i, :])
+plt.plot(x, conc[1][i, :],
+        color="tomato"
+    ) 
+
+# t_slider = pn.widgets.FloatSlider(
+#     name="t", start=t[0], end=t[-1], value=t[-1], step=t[1] - t[0]
+# )
+
+@pn.depends(t_slider)
+def plot_turing(t_point):
+    i = np.searchsorted(t, t_point)
+
+    p = bokeh.plotting.figure(
+        frame_width=400,
+        frame_height=200,
+        x_axis_label="x",
+        y_axis_label="a, s",
+        x_range=[0, L],
+        y_range=[0, np.concatenate(conc).max()*1.02],
+    )
+
+    p.line(x, conc[0][i, :], legend_label="activator", line_width=2)
+    p.line(
+        x,
+        conc[1][i, :],
+        color="tomato",
+        legend_label="substrate",
+        line_width=2,
+    )
+
+    return p
+
+# pn.Column(t_slider, plot_turing)
+
+# xy plot
+# bokeh.io.show(
+#     biocircuits.xyt_plot(
+#         x,
+#         conc,
+#         t,
+#         legend_names=["activator", "substrate"],
+#         palette=["#1f77b4", "tomato"],
+#     )
+# )
+
+import rdsolver
+from bokeh.io import output_notebook
+from bokeh.plotting import figure, show
+#notebook_url = 'localhost:8888'
+
+# Load a standard ASDM model
+D, beta, gamma, f, f_args, homo_ss = rdsolver.models.asdm()
+
+# Set up the space and time grid
+n = (32, 32)
+L = (50, 50)
+t = np.linspace(0, 100000, 100)
+
+# Initial condition and solve
+c0 = rdsolver.initial_condition(uniform_conc=homo_ss, n=n, L=L)
+c = rdsolver.solve(c0, t, D=D, beta=beta, gamma=gamma, f=f, f_args=f_args, L=L)
+
+# Interpolate the solution
+c_interp = rdsolver.viz.interpolate_concs(c)
+
+#plt.plot(c_interp[0, :,:,-1], c_interp[1, :,:,-1])
+plt.imshow(c_interp[:,:,:, 99])
+plt.show()
+
+# Display the final time point
+bokeh.io.show(rdsolver.viz.display_single_frame(c_interp, i = -1, frame_height=300), 
+              browser=None, notebook_handle=False)
+
+bokeh.io.show(
+    rdsolver.viz.display_notebook(t, c_interp, frame_height=300),
+    notebook_url=notebook_url,
+)
 
 
 
