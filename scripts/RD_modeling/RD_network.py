@@ -75,6 +75,7 @@ for i in list(c_init):
 
 # %% find the steady state by integration
 states = 0
+turing = 0 # 0 
 
 x0 = np.random.random(1) * np.ones(n)
 err_tole = 0.000001
@@ -108,6 +109,7 @@ ax.set_ylabel('x')
 ss = np.zeros(n)
 ss_fluc = np.zeros(n)
 nb_passThreshold = 0
+
 for i in range(n):
     ss[i] = np.mean(sol[100:149, i])
     ss_fluc[i] = np.abs(np.mean(sol[150:199, i]) - np.mean(sol[100:149, i]))
@@ -131,7 +133,7 @@ while nb_passThreshold > 0:
 if any(ss <= 0) or any([isinstance(j, complex) for j in ss]):
     state = 2 
 
-# continue to check if multiple steady states exist
+# continue to check if multiple steady states exist (to do)
 
 #%% calculate the eigenvalue of Jacobian matrix without and with diffusion matrix
 # some codes from https://www.sympy.org/scipy-2017-codegen-tutorial/notebooks/20-ordinary-differential-equations.html were 
@@ -171,16 +173,116 @@ w, v  =  np.linalg.eig(S)
 #inputs = [kk, xx]
 
 #%% eigenvalue computation with diffusion matrix to test if Turing instability 
+# disperion relation plot for specific set of parameters
 diffusing_nodes = binary_diffusor
 
-q = np.logspace(-4, 8, 50)
+k = np.linspace(0, 100, 500)
+lam_real = np.empty_like(k)
+lam_im = np.empty_like(k)
 
-for j in range(len(q)):
-    S2 = S - np.diag(np.multiply(d, q[j]))
-    wq,vq =  np.linalg.eig(S2)
+for j in range(len(k)):
+    #j = 1
+    S2 = S - np.diag(np.multiply(d, k[j]*k[j]))
+    #wk,vk =  np.linalg.eig(S2)
+    wk = np.linalg.eigvals(S2)
+    lam_real[j] = wk.real.max()
+    lam_im[j] = wk.imag[np.argmax(wk.real)]
+    
+plt.plot(k, lam_real)
+plt.axis([0, 8, -5, 5])
+plt.axhline(y=0, color='r', linestyle='-')
+plt.show()
+
+index_max = np.argmax(lam_real) 
+lam_real_max = lam_real[index_max]
+lam_im_max = lam_im[index_max]
+k_max = k[index_max]
+
+
+# define turing pattern types according to the eigenvalues (to finish)
+if lam_real_max < 0:
+    turing = 0 
+else:
+    if np.abs(lam_im_max) > 0:
+       turing = 1
+    else:
+        if lam_real_max > 0 and k_max < 0.000001:
+            turing = 3
+        else: 
+            if lam_real_max > 0 and k_max > 0.000001:
+                turing = 4
+        
+
+# def dispersion_relation(k_vals, d, mu):
+#     lam = np.empty_like(k_vals)
+#     for i, k in enumerate(k_vals):
+#         A = np.array([[1-d*k**2,          1],
+#                       [-2*mu,    -mu - k**2]])
+#         lam[i] = np.linalg.eigvals(A).real.max()
+
+#     return lam
+# d = 0.05
+# mu = 1
+# k = np.linspace(0, 10, 200)
+# lam_max_real_part = dispersion_relation(k, d, mu)
+# plt.plot(k, lam_max_real_part)
+# plt.axis([0, 10, -5, 5])
+# plt.axhline(y=0, color='r', linestyle='-')
+# plt.show()
+
+# orignial code from http://be150.caltech.edu/2020/content/lessons/20_turing.html
+# try to make panal sidebar, not used for the moment
+
+# d_slider = pn.widgets.FloatSlider(
+#     name="d", start=0.01, end=1, value=0.05, step=0.01, width=150
+# )
+
+# mu_slider = pn.widgets.FloatSlider(
+#     name="μ", start=0.01, end=2, value=1.5, step=0.005, width=150
+# )
+
+# @pn.depends(d_slider.param.value, mu_slider.param.value)
+# def plot_dispersion_relation(d, mu):
+#     d = np.linspace(0.01, 1, 150)
+#     mu = np.linspace(0.01, 2, 150)
+    
+#     d = 0.05
+#     mu = 1
+#     k = np.linspace(0, 10, 200)
+#     lam_max_real_part = dispersion_relation(k, d, mu)
+#     plt.plot(k, lam_max_real_part)
+#     plt.axis([0, 10, -5, 5])
+#     plt.axhline(y=0, color='r', linestyle='-')
+#     plt.show()
+
+#     p = bokeh.plotting.figure(
+#         frame_width=350,
+#         frame_height=200,
+#         x_axis_label="k",
+#         y_axis_label="Re[λ-max]",
+#         x_range=[0, 10],
+#     )
+#     p.line(k, lam_max_real_part, color="black", line_width=2)
+
+#     return p
+
+
+# pn.Column(
+#     pn.Row(d_slider, mu_slider), pn.Spacer(height=20), plot_dispersion_relation
+# )
 
 
 
+
+
+
+
+
+
+
+
+#%% numerical solution of RD equation
+from RD_network_functions import *
 
 
 
