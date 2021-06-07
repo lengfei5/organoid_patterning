@@ -110,8 +110,11 @@ if(RNAseq.old.time.series){
   
   cutoff.peak = 2^10
   cat(length(which(ss > cutoff.peak)), 'peaks selected \n')
+  gg.tokeep = 'Nog|Acvrl1|Acvr1|Notch|Dll|Jagn'
   
-  dds <- dds[which(ss > cutoff.peak | rownames(dds) == 'Nog'), ]
+  sels = unique(c(which(ss > cutoff.peak), grep(gg.tokeep, rownames(dds))))
+  
+  dds <- dds[sels, ]
   
   # normalization and dimensionality reduction
   dds <- estimateSizeFactors(dds)
@@ -170,12 +173,14 @@ if(RNAseq.old.time.series){
                       'Lef1', 'Mapk1', rownames(rpkm)[grep('Smad', rownames(rpkm))], 
                       rownames(rpkm)[grep('Wnt|Dkk|Tcf', rownames(rpkm))],
                       rownames(rpkm)[grep('Bmp', rownames(rpkm))], 'Nog', 'Chrd', 'Runx1', 'Runx2',  'Smad6', 'Id1', 'Id3',
+                      rownames(rpkm)[grep('Acvr', rownames(rpkm))],
                       rownames(rpkm)[grep('Fgf', rownames(rpkm))], 
-                      'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5', 'Mapk10', 'Mapk4', 'Mapk8ip2', 'Spry4' 
+                      'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5', 'Mapk10', 'Mapk4', 'Mapk8ip2', 'Spry4', 'Rbpj', 'Hes1', 'Hes5',
+                      'Hes7', 'Hey1', 'Hey2',
+                      rownames(rpkm)[grep('Notch|Jag|Dll|Dlk', rownames(rpkm))]
   ))
   
-  
-  pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_v2.pdf')
+  pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_v3.pdf')
   pdf(pdfname,  width = 10, height = 6)
   par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
   
@@ -215,14 +220,9 @@ if(RNAseq.old.time.series){
     }else{
       cat(g, 'Not Found \n')
     }
-    
   }
   
   dev.off()
   
+  
 }
-
-
-
-
-
