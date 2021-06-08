@@ -21,7 +21,6 @@ Output of function for each of given parameters (reaction, diffusion):
     stability of steady state without diffusion
     stability of steady state with diffusion
     
-
 """
 import numpy as np
 import pandas as pd
