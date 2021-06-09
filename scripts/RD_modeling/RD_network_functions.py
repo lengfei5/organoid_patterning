@@ -284,3 +284,30 @@ def check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final):
                 nb_passThreshold = nb_passThreshold + 1
     
     return  ss
+
+def Multi_steadyStates(ss0, nb_init, f_ode, k, n):
+    import itertools
+    from scipy.integrate import odeint
+    
+    ss_saved = [ss0]
+    
+    t_final = 2000
+    t = np.linspace(0, t_final, 200)
+    
+    x_init = np.logspace(-2, 4, nb_init)
+    c_init = itertools.combinations_with_replacement(x_init, n)
+    for val in c_init:
+        x0 = np.asarray(val)
+        #print(x0)
+        sol2 = odeint(f_ode, x0, t,args=(k,))
+        ss2 = check_BurnIn_steadyState(sol2, f_ode, k, n, x0, t_final)
+        
+        dists = np.ones(len(ss_saved))
+        for j in range(len(ss_saved)):
+            dists[j] = np.linalg.norm(ss2 -ss_saved[j])
+        
+        if (dists > 10**(-5)).all():
+            ss_saved.append(ss2)
+        #x0 = (*val)
+        #print(x0)
+    return ss_saved

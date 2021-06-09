@@ -118,18 +118,8 @@ ss0 = check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final)
 
 #%% double check if steady state is reache by considering the first 100 time points as BurnIn
 # define initial conditions for ODE
-import itertools
-import random
-
 nb_init = 4
-x_init = np.logspace(-2, 4, nb_init)
-c_init = itertools.combinations_with_replacement(x_init, n)
-for val in c_init:
-    print(val)
-    #x0 = (*val)
-    #print(x0)
-
-
+ss_all = Multi_steadyStates(ss0, nb_init, f_ode, k, n)
 
 # check if ss is negative or imaginary solution
 if any(ss <= 0) or any([isinstance(j, complex) for j in ss]):
