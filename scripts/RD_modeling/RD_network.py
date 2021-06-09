@@ -103,6 +103,7 @@ for i in list(c_init):
 # %% find the steady state by integration
 x0 = np.random.random(1) * np.ones(n)
 x0 = [2.3, 0.4, 1.3]
+#x0 = [0.0975, 0.0975, 0.0975]
 err_tole = 0.0000001
 
 t_final = 1000
@@ -131,9 +132,7 @@ sol[199, ]
 # # Plot states
 # state_plotter(sol.t, sol.y, 1)
 
-
 #%% double check if steady state is reache by considering the first 100 time points as BurnIn
-#np.nonzero(t > 500))
 ss = np.zeros(n)
 ss_fluc = np.zeros(n)
 nb_passThreshold = 0
@@ -169,7 +168,6 @@ if any(ss <= 0) or any([isinstance(j, complex) for j in ss]):
 import sympy as sym
 X = sym.symbols(('x0:3'))
 K = sym.symbols(('k0:15'))
-X, K
 
 f_sym = sym.Matrix(f_ode(X, None, K))
 J = f_sym.jacobian(X)
@@ -180,32 +178,6 @@ S = J_func(ss, k)
 w  =  np.linalg.eigvals(S)
 max(w), S
 
-#J_inputs = J.free_symbols
-#S = J_func(ss, k)
-#w, v  =  np.linalg.eig(S)
-
-# Xoverlap = np.zeros(len(X))
-# xx = []
-# for i in range(len(X)):
-#     if X[i] in J_inputs:
-#         Xoverlap[i] = 1
-#         xx.append(ss[i])
-
-# Koverlap = np.zeros(len(K))
-# kk = []
-# for i in range(len(K)):
-#     if K[i] in J_inputs:
-#         Koverlap[i] = 1
-#         kk.append(k[i])
-
-#f = sy.Function('f')
-#eq = sy.Eq(f(x).diff(x, 2) - 2*f(x).diff(x) + f(x), sy.sin(x)) sy.dsolve(eq)
-#y = y0, y1 = sym.symbols('y0 y1')
-#mu = sym.symbols('mu')
-#J = sym.Matrix(f_ode(y, None, mu)).jacobian(y)
-#J_func = sym.lambdify((y, t, mu), J)
-#J
-#inputs = [kk, xx]
 
 #%% eigenvalue computation with diffusion matrix to test if Turing instability 
 # disperion relation plot for specific set of parameters
@@ -213,7 +185,7 @@ diffusing_nodes = binary_diffusor
 
 d = [0.07018, 1, 0.01057]
 #d = [1.00, 1.303, 0]
-q = np.linspace(0, 4, 1000)
+q = np.linspace(0, 5, 50)
 lam_real = np.empty_like(q)
 lam_im = np.empty_like(q)
 
@@ -238,6 +210,20 @@ lam_im_max = lam_im[index_max]
 q_max = q[index_max]
 
 #%% define turing pattern types according to the eigenvalues (to finish)
+# matlab code from Scholes how to distinguish type I and II
+if max(Eig_save) > threshold % Check if any positive real eigenwert exists 
+        if Eig_save(length(Eig_save)) < max(Eig_save)-0.01*max(Eig_save)
+            %Check if Type I
+            w = 1;
+        else
+            %This is Type II
+            w = 2;
+        end
+    else 
+        %No Turing instability
+        w = 0;
+    end
+
 if lam_real_max < 0:
     turing = 0 
 else:

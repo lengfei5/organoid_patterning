@@ -14,7 +14,7 @@ function w = IsTuring(S,D,threshold)
 % - threshold (should be set to 0)
 
     q = logspace(-4,8,50); % Define wavenumbers to sample
-    
+    % q = linspace(0, 5, 50); D = [0.07018, 1.000, 0.01057]
     for j = 1:50
        S2 = S - diag(D*(q(j))); %Calculate Jacobian matrix including diffusion
        
@@ -23,6 +23,7 @@ function w = IsTuring(S,D,threshold)
        Eig_save(j) = max(real(E)); %find maximum eigenvalue
     end
     
+    % figure; plot(q, Eig_save)
     if max(Eig_save) > threshold % Check if any positive real eigenwert exists 
         if Eig_save(length(Eig_save)) < max(Eig_save)-0.01*max(Eig_save)
             %Check if Type I

@@ -2,15 +2,25 @@
 %Define name for saving data:       
 ID=strcat('/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_test/2N_testExample_',datestr(now,30)); %name of file that will be saved.
 
-n=2; %n specifies the node number
-k_length = 10; %Number of parameters to be sampled
+n=3; %n specifies the node number
+k_length = 15; %Number of parameters to be sampled
 
 %% define reactions of ODE 
 %Specify your ODE function:
-f_ode=@(x,k)[k(1).*k(2).^(-2).*x(1).^2.*(1+k(2).^(-2).*x(1).^2+k(3).^(-2).*x(2).^2).^(-1)+ k(6)+(-1).*k(8).*x(1); 
-             k(4).*k(5).^(-2).*x(1).^2.*(1+k(5).^(-2).*x(1).^2).^(-1)+ k(7) + (-1).*k(9).*x(2)];         
+%dx0dt = 55.14*x[2]**2/(18.48**2 + x[2]**2) + 0.1 - 1.341*x[0]
+%dx1dt = 29.28*x[2]**2/(15.90**2 + x[2]**2) + 0.1 - 0.3508*x[1]
+%dx2dt = 16.17*x[0]**2/(x[0]**2 + 0.6421**2)*1.316**2/(1.316**2 + x[1]**2) + 0.1 - 1.203*x[2]
 
- %__________________________________________________________________________
+% Zheng et al. 2016 Fig S1A
+f_ode=@(x,k)[55.14*x(3)^2./(18.48^2.0 + x(3)^2.) + 0.1 - 1.341*x(1);
+             29.28*x(3)^2./(15.90^2.0 + x(3)^2.) + 0.1 - 0.3508*x(2);
+             16.17*x(1)^2./(x(1)^2.0 + 0.6421^2.)*1.316^2./(1.316^2. + x(2)^2.) + 0.1 - 1.203*x(3)];
+
+%f_ode=@(x,k)[k(1).*k(2).^(-2).*x(1).^2.*(1+k(2).^(-2).*x(1).^2+k(3).^(-2).*x(2).^2).^(-1)+ k(6)+(-1).*k(8).*x(1); 
+%             k(4).*k(5).^(-2).*x(1).^2.*(1+k(5).^(-2).*x(1).^2).^(-1)+ k(7) + (-1).*k(9).*x(2)];         
+
+
+%__________________________________________________________________________
 %Define parameter space for sampling as k_grid
 %Example:
 ks = logspace(0,1,2); %define the range and interval parameters should be sampled
@@ -92,7 +102,7 @@ for i = 1:length(k_grid(1,:)) % loop over the sampled parameters
         [t1, xout1] = ode23s(@(t, x)ode(t,x,f_ode,k),tspan,y0);
     end
     
-    % figure; plot(t1,xout1(:, 1), t1, xout1(:, 2))
+    figure; plot(t1,xout1(:, 1), t1, xout1(:, 2))
     ss2 = xout1(length(xout1(:,1)),:); %Suggest steady state solution from simulation
     m = BurnInCorrection(t1,xout1); %Calculate threshold for local maxima estimation
     
