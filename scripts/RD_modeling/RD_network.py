@@ -113,20 +113,19 @@ ax.set_xlabel('t')
 ax.set_ylabel('x')
 
 sol[199, ]
+# double check if steady state is reache by considering the first 100 time points as BurnIn
 ss0 = check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final)
 
-
-#%% double check if steady state is reache by considering the first 100 time points as BurnIn
+#%% check if multiple steady states exist and save
 # define initial conditions for ODE
 nb_init = 4
-ss_all = Multi_steadyStates(ss0, nb_init, f_ode, k, n)
+ss_saved = Multi_steadyStates(ss0, nb_init, f_ode, k, n)
 
 # check if ss is negative or imaginary solution
-if any(ss <= 0) or any([isinstance(j, complex) for j in ss]):
-    state = 2 
-
-
-# continue to check if multiple steady states exist (to do)
+for i in range(len(ss_saved)):
+    ss = ss_saved[i]    
+    if any(ss <= 0) or any([isinstance(j, complex) for j in ss]):
+       ss_saved.remove(ss)
 
 #%% calculate the eigenvalue of Jacobian matrix without and with diffusion matrix
 # some codes from https://www.sympy.org/scipy-2017-codegen-tutorial/notebooks/20-ordinary-differential-equations.html were 
@@ -139,41 +138,41 @@ f_sym = sym.Matrix(f_ode(X, None, K))
 J = f_sym.jacobian(X)
 J_func = sym.lambdify((X, K),  J)
 
-#J_inputs = J.free_symbols
-S = J_func(ss, k)
-w  =  np.linalg.eigvals(S)
-max(w), S
-
-
 #%% eigenvalue computation with diffusion matrix to test if Turing instability 
 # disperion relation plot for specific set of parameters
 diffusing_nodes = binary_diffusor
-
-#d = [0.07018, 1, 0.01057]
-d = [1.00, 1.303, 0]
+d = [0.07018, 1, 0.01057]
+#d = [1.00, 1.303, 0]
 q = np.linspace(0, 5, 50)
-lam_real = np.empty_like(q)
-lam_im = np.empty_like(q)
 
-for j in range(len(q)):
-    #j = 1
-    S2 = S - np.diag(np.multiply(d, q[j]**2))
-    #wk,vk =  np.linalg.eig(S2)
-    wk = np.linalg.eigvals(S2)
-    lam_real[j] = wk.real.max()
-    lam_im[j] = wk.imag[np.argmax(wk.real)]
+for i in range(len(ss_saved)):
+    ss = ss_saved[i]
+    #J_inputs = J.free_symbols
+    S = J_func(ss, k)
+    w  =  np.linalg.eigvals(S)
+    max(w), S
+    lam_real = np.empty_like(q)
+    lam_im = np.empty_like(q)
+
+    for j in range(len(q)):
+        #j = 1
+        S2 = S - np.diag(np.multiply(d, q[j]**2))
+        #wk,vk =  np.linalg.eig(S2)
+        wk = np.linalg.eigvals(S2)
+        lam_real[j] = wk.real.max()
+        lam_im[j] = wk.imag[np.argmax(wk.real)]
     
-plt.plot(q, lam_real)
-#plt.axis([0, max(q), -1, 1])
-plt.axhline(y=0, color='r', linestyle='-')
-plt.show()
+    plt.plot(q, lam_real)
+    #plt.axis([0, max(q), -1, 1])
+    plt.axhline(y=0, color='r', linestyle='-')
+    plt.show()
 
-max(lam_real)
+    max(lam_real)
 
-index_max = np.argmax(lam_real) 
-lam_real_max = lam_real[index_max]
-lam_im_max = lam_im[index_max]
-q_max = q[index_max]
+    index_max = np.argmax(lam_real) 
+    lam_real_max = lam_real[index_max]
+    lam_im_max = lam_im[index_max]
+    q_max = q[index_max]
 
 
 #%% define turing pattern types according to the eigenvalues (to finish)
