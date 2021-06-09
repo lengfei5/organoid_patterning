@@ -27,6 +27,9 @@ import pandas as pd
 import numba
 import scipy.integrate
 from scipy.integrate import odeint
+from scipy.integrate import solve_ivp
+from RD_network_functions import state_plotter
+
 import matplotlib.pyplot as plt
 
 import biocircuits
@@ -36,33 +39,57 @@ import bokeh.plotting
 import panel as pn
 pn.extension()
 
+import math
+
 from RD_network_functions import *
+from itertools import permutations
 
-from itertools import permutations 
 
-# specify parameters
-ID = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_test/2N_testExample_python'
+#%% specify parameters
+ID = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_test/3N_testExample_python'
 
-n = 2 # nb of node
-k_length = 9 # nb of reaction parameters
+n = 3 # nb of node
+k_length = 15 # nb of reaction parameters
+
+states = 0 # steady state
+turing = 0 # patterning 
 
 # define ODE model without diffusion
-from scipy.integrate import solve_ivp
-from RD_network_functions import state_plotter
-
 def f_ode(x, t, k):
     #dRdt = np.empty(n)
-    dx1dt = k[0]*pow(k[1], -2)*pow(x[0], 2)*pow(1.0+pow(k[0],-2)*pow(x[0],2)+pow(k[2], -2)*pow(x[1], 2), -1)+k[5]-k[7]*x[0]  
-    dx2dt = k[3]*pow(k[4], -2)*pow(x[0], 2)*pow(1.0+pow(k[4],-2)*pow(x[0],2), -1) + k[6] - k[8] * x[1] 
     
-    dRdt = [dx1dt, dx2dt]
+    ## the test example from Zheng et al, 2016, Fig.S1A
+    dx0dt = 55.14*x[2]**2/(18.48**2 + x[2]**2) + 0.1 - 1.341*x[0]
+    dx1dt = 29.28*x[2]**2/(15.90**2 + x[2]**2) + 0.1 - 0.3508*x[1]
+    dx2dt = 16.17*x[0]**2/(x[0]**2 + 0.6421**2)*1.316**2/(1.316**2 + x[1]**2) + 0.1 - 1.203*x[2]
+    
+    ## the test example from Zheng et al, 2016, Fig.S1B (something not right in the formula)
+    #dx0dt = 50.86*x[0]**2/(x[0]**2 + 0.02315**2)*17.64**2/(17.64**2 + x[1]**2) + 0.1 - 0.09367*x[0]
+    #dx0dt = 50.86*(x[0]**2/(x[0]**2 + 0.02315**2) * x[1]**2/(17.64**2 + x[1]**2)) + 0.1 - 0.09367*x[0]
+    #dx1dt = 17.43*x[0]**2/(x[0]**2 + 5.230**2)*1.038**2/(1.038**2 + x[2]**2) + 0.1 - 2.699*x[1]
+    #dx1dt = 17.43*(5.230**2/(x[0]**2 + 5.230**2) * 1.038**2/(1.038**2 + x[2]**2)) + 0.1 - 2.699*x[1]
+    #dx2dt = 69.57*x[2]**2/(x[2]**2 + 1.000**2)*0.02100**2/(0.02100**2 + x[1]**2) + 0.1 - 0.1503*x[2]
+    
+    #dx0dt = k[0]*(1.0/(1.0 + pow(k[9]/x[0], 2))*1.0/(1.0 + pow(x[1]/k[10], 2))) + k[3] - k[6]*x[0]
+    #dx1dt = k[1]*(1.0/(1.0 + pow(k[11]/x[0], 2)) + 1.0/(1.0 + pow(k[12]/x[2], 2))) + k[4] - k[7]*x[1]
+    #dx2dt = k[2]*(1.0/(1.0 + pow(k[13]/x[0], 2))*1.0/(1.0 + pow(x[1]/k[14], 2))) + k[5] - k[8]*x[2]
+    
+    dRdt = [dx0dt, dx1dt, dx2dt]
     
     return dRdt
 
-# speicify k parameters, difusor and d
+#%% speicify k parameters, difusor and d
 k = np.ones(k_length)
-binary_diffusor = [1, 1]
-d = [1, 0.1]
+k[0], k[1], k[2] = 10, 10, 20 
+k[3], k[4], k[5] = 5, 5, 10
+#k[6], k[7], k[8] = math.log(2)/10, math.log(2)/5, math.log(2)/10
+k[6], k[7], k[8] = 0.1, 1, 0.1
+k[9], k[10], k[11], k[12], k[13], k[14] = 30, 50, 50, 70, 40, 80
+
+k 
+
+binary_diffusor = [0, 1, 1]
+d = [0, 2, 0.5]
 
 # define initial conditions for ODE
 x_max = 20001
@@ -72,25 +99,27 @@ c_init = permutations([1, x_int, x_max])
 for i in list(c_init): 
     print (i) 
 
-# %% find the steady state by integration
-states = 0
-turing = 0 # 0 
 
+# %% find the steady state by integration
 x0 = np.random.random(1) * np.ones(n)
-err_tole = 0.000001
+x0 = [2.3, 0.4, 1.3]
+err_tole = 0.0000001
 
 t_final = 1000
-t = np.linspace(0,t_final,200)
-sol = odeint(f_ode, x0, t,args=(k,))
+t = np.linspace(0, t_final, 200)
+sol = odeint(f_ode, x0, t, args=(k,))
 
 ## check the integration solution
 fig,ax = plt.subplots()
 ax.plot(t,sol[:,0],label='x1')
 ax.plot(t,sol[:,1],label='x2')
+ax.plot(t,sol[:,2],label='x3')
 #ax.plot(t,result[:,2],label='R0=1')
 ax.legend()
 ax.set_xlabel('t')
 ax.set_ylabel('x')
+
+sol[199, ]
 
 # tspan = np.linspace(0, 5, 100)
 # yinit = [0, -3]
@@ -103,7 +132,7 @@ ax.set_ylabel('x')
 # state_plotter(sol.t, sol.y, 1)
 
 
-# double check if steady state is reache by considering the first 100 time points as BurnIn
+#%% double check if steady state is reache by considering the first 100 time points as BurnIn
 #np.nonzero(t > 500))
 ss = np.zeros(n)
 ss_fluc = np.zeros(n)
@@ -138,15 +167,22 @@ if any(ss <= 0) or any([isinstance(j, complex) for j in ss]):
 # some codes from https://www.sympy.org/scipy-2017-codegen-tutorial/notebooks/20-ordinary-differential-equations.html were 
 # very helpful
 import sympy as sym
-X = sym.symbols(('x0:2'))
-K = sym.symbols(('k0:9'))
+X = sym.symbols(('x0:3'))
+K = sym.symbols(('k0:15'))
+X, K
+
 f_sym = sym.Matrix(f_ode(X, None, K))
 J = f_sym.jacobian(X)
 J_func = sym.lambdify((X, K),  J)
 
 #J_inputs = J.free_symbols
 S = J_func(ss, k)
-w, v  =  np.linalg.eig(S)
+w  =  np.linalg.eigvals(S)
+max(w), S
+
+#J_inputs = J.free_symbols
+#S = J_func(ss, k)
+#w, v  =  np.linalg.eig(S)
 
 # Xoverlap = np.zeros(len(X))
 # xx = []
@@ -175,30 +211,33 @@ w, v  =  np.linalg.eig(S)
 # disperion relation plot for specific set of parameters
 diffusing_nodes = binary_diffusor
 
-k = np.linspace(0, 100, 500)
-lam_real = np.empty_like(k)
-lam_im = np.empty_like(k)
+d = [0.07018, 1, 0.01057]
+#d = [1.00, 1.303, 0]
+q = np.linspace(0, 4, 1000)
+lam_real = np.empty_like(q)
+lam_im = np.empty_like(q)
 
-for j in range(len(k)):
+for j in range(len(q)):
     #j = 1
-    S2 = S - np.diag(np.multiply(d, k[j]*k[j]))
+    S2 = S - np.diag(np.multiply(d, q[j]**2))
     #wk,vk =  np.linalg.eig(S2)
     wk = np.linalg.eigvals(S2)
     lam_real[j] = wk.real.max()
     lam_im[j] = wk.imag[np.argmax(wk.real)]
     
-plt.plot(k, lam_real)
-plt.axis([0, 8, -5, 5])
+plt.plot(q, lam_real)
+#plt.axis([0, max(q), -1, 1])
 plt.axhline(y=0, color='r', linestyle='-')
 plt.show()
+
+max(lam_real)
 
 index_max = np.argmax(lam_real) 
 lam_real_max = lam_real[index_max]
 lam_im_max = lam_im[index_max]
-k_max = k[index_max]
+q_max = q[index_max]
 
-
-# define turing pattern types according to the eigenvalues (to finish)
+#%% define turing pattern types according to the eigenvalues (to finish)
 if lam_real_max < 0:
     turing = 0 
 else:
@@ -228,191 +267,4 @@ else:
 # plt.axis([0, 10, -5, 5])
 # plt.axhline(y=0, color='r', linestyle='-')
 # plt.show()
-
-# orignial code from http://be150.caltech.edu/2020/content/lessons/20_turing.html
-# try to make panal sidebar, not used for the moment
-
-# d_slider = pn.widgets.FloatSlider(
-#     name="d", start=0.01, end=1, value=0.05, step=0.01, width=150
-# )
-
-# mu_slider = pn.widgets.FloatSlider(
-#     name="μ", start=0.01, end=2, value=1.5, step=0.005, width=150
-# )
-
-# @pn.depends(d_slider.param.value, mu_slider.param.value)
-# def plot_dispersion_relation(d, mu):
-#     d = np.linspace(0.01, 1, 150)
-#     mu = np.linspace(0.01, 2, 150)
-    
-#     d = 0.05
-#     mu = 1
-#     k = np.linspace(0, 10, 200)
-#     lam_max_real_part = dispersion_relation(k, d, mu)
-#     plt.plot(k, lam_max_real_part)
-#     plt.axis([0, 10, -5, 5])
-#     plt.axhline(y=0, color='r', linestyle='-')
-#     plt.show()
-
-#     p = bokeh.plotting.figure(
-#         frame_width=350,
-#         frame_height=200,
-#         x_axis_label="k",
-#         y_axis_label="Re[λ-max]",
-#         x_range=[0, 10],
-#     )
-#     p.line(k, lam_max_real_part, color="black", line_width=2)
-
-#     return p
-
-
-# pn.Column(
-#     pn.Row(d_slider, mu_slider), pn.Spacer(height=20), plot_dispersion_relation
-# )
-
-
-#%% numerical solution of RD equation 
-from RD_network_functions import *
-
-def constant_diff_coeffs(c_tuple, t, x, diff_coeffs):
-    n = len(c_tuple[0])
-    return tuple([diff_coeffs[i] * np.ones(n) for i in range(len(c_tuple))])
-
-
-def asdm_rxn(as_tuple, t, mu):
-    """
-    Reaction expression for activator-substrate depletion model.
-
-    Returns the rate of production of activator and substrate, respectively.
-
-    r_a = a**2 * s - a
-    r_s = mu * (1 - a**2 * s)
-    """
-    # Unpack concentrations
-    a, s = as_tuple
-
-    # Compute and return reaction rates
-    a2s = a ** 2 * s
-    return (a2s - a, mu * (1.0 - a2s))
-
-
-# Set up steady state (using 500 grid points)
-a_0 = np.ones(500)
-s_0 = np.ones(500)
-
-# Make a small perturbation to a_0
-a_0 += 0.001 * np.random.rand(len(a_0))
-
-# Time points
-t = np.linspace(0.0, 1000.0, 100)
-
-# Physical length of system
-L = 20.0
-
-# x-coordinates for plotting
-x = np.linspace(0, L, len(a_0))
-
-# Diffusion coefficients
-diff_coeffs = (0.05, 1.0)
-
-# Reaction parameter (must be a tuple of params, even though only 1 for ASDM)
-rxn_params = (1.5,)
-
-# Solve
-conc = rd_solve(
-    (a_0, s_0),
-    t,
-    L=L,
-    derivs_0=0,
-    derivs_L=0,
-    diff_coeff_fun=constant_diff_coeffs,
-    diff_coeff_params=(diff_coeffs,),
-    rxn_fun=asdm_rxn,
-    rxn_params=rxn_params,
-)
-
-t_point = 1000000
-i = np.searchsorted(t, t_point)
-i = 98
-
-plt.plot(x, conc[0][i, :])
-plt.plot(x, conc[1][i, :],
-        color="tomato"
-    ) 
-
-# t_slider = pn.widgets.FloatSlider(
-#     name="t", start=t[0], end=t[-1], value=t[-1], step=t[1] - t[0]
-# )
-
-@pn.depends(t_slider)
-def plot_turing(t_point):
-    i = np.searchsorted(t, t_point)
-
-    p = bokeh.plotting.figure(
-        frame_width=400,
-        frame_height=200,
-        x_axis_label="x",
-        y_axis_label="a, s",
-        x_range=[0, L],
-        y_range=[0, np.concatenate(conc).max()*1.02],
-    )
-
-    p.line(x, conc[0][i, :], legend_label="activator", line_width=2)
-    p.line(
-        x,
-        conc[1][i, :],
-        color="tomato",
-        legend_label="substrate",
-        line_width=2,
-    )
-
-    return p
-
-# pn.Column(t_slider, plot_turing)
-
-# xy plot
-# bokeh.io.show(
-#     biocircuits.xyt_plot(
-#         x,
-#         conc,
-#         t,
-#         legend_names=["activator", "substrate"],
-#         palette=["#1f77b4", "tomato"],
-#     )
-# )
-
-import rdsolver
-from bokeh.io import output_notebook
-from bokeh.plotting import figure, show
-#notebook_url = 'localhost:8888'
-
-# Load a standard ASDM model
-D, beta, gamma, f, f_args, homo_ss = rdsolver.models.asdm()
-
-# Set up the space and time grid
-n = (32, 32)
-L = (50, 50)
-t = np.linspace(0, 100000, 100)
-
-# Initial condition and solve
-c0 = rdsolver.initial_condition(uniform_conc=homo_ss, n=n, L=L)
-c = rdsolver.solve(c0, t, D=D, beta=beta, gamma=gamma, f=f, f_args=f_args, L=L)
-
-# Interpolate the solution
-c_interp = rdsolver.viz.interpolate_concs(c)
-
-#plt.plot(c_interp[0, :,:,-1], c_interp[1, :,:,-1])
-plt.imshow(c_interp[:,:,:, 99])
-plt.show()
-
-# Display the final time point
-bokeh.io.show(rdsolver.viz.display_single_frame(c_interp, i = -1, frame_height=300), 
-              browser=None, notebook_handle=False)
-
-bokeh.io.show(
-    rdsolver.viz.display_notebook(t, c_interp, frame_height=300),
-    notebook_url=notebook_url,
-)
-
-
 
