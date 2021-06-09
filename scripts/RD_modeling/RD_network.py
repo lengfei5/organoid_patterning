@@ -79,7 +79,7 @@ def f_ode(x, t, k):
     
     return dRdt
 
-#%% speicify k parameters, difusor and d
+#%% speicify parameters k, which node is difusor and d
 k = np.ones(k_length)
 k[0], k[1], k[2] = 10, 10, 20 
 k[3], k[4], k[5] = 5, 5, 10
@@ -87,29 +87,20 @@ k[3], k[4], k[5] = 5, 5, 10
 k[6], k[7], k[8] = 0.1, 1, 0.1
 k[9], k[10], k[11], k[12], k[13], k[14] = 30, 50, 50, 70, 40, 80
 
-k 
 
 binary_diffusor = [0, 1, 1]
 d = [0, 2, 0.5]
 
-# define initial conditions for ODE
-x_max = 20001
-x_int = 10000
-c_init = permutations([1, x_int, x_max]) 
 
-for i in list(c_init): 
-    print (i) 
-
-
-# %% find the steady state by integration
+# %% find the steady state by integration (initial guess)
 x0 = np.random.random(1) * np.ones(n)
-x0 = [2.3, 0.4, 1.3]
+#x0 = [2.3, 0.4, 1.3]
 #x0 = [0.0975, 0.0975, 0.0975]
-err_tole = 0.0000001
 
 t_final = 1000
 t = np.linspace(0, t_final, 200)
 sol = odeint(f_ode, x0, t, args=(k,))
+
 
 ## check the integration solution
 fig,ax = plt.subplots()
@@ -122,44 +113,28 @@ ax.set_xlabel('t')
 ax.set_ylabel('x')
 
 sol[199, ]
+ss0 = check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final)
 
-# tspan = np.linspace(0, 5, 100)
-# yinit = [0, -3]
-# c = [4, 3, -2, 0.5]
-# # Solve differential equation
-# sol = solve_ivp(lambda t, y: f(t, y, c), 
-
-#                 [tspan[0], tspan[-1]], yinit, t_eval=tspan, rtol = 1e-5)
-# # Plot states
-# state_plotter(sol.t, sol.y, 1)
 
 #%% double check if steady state is reache by considering the first 100 time points as BurnIn
-ss = np.zeros(n)
-ss_fluc = np.zeros(n)
-nb_passThreshold = 0
+# define initial conditions for ODE
+import itertools
+import random
 
-for i in range(n):
-    ss[i] = np.mean(sol[100:149, i])
-    ss_fluc[i] = np.abs(np.mean(sol[150:199, i]) - np.mean(sol[100:149, i]))
-    if ss_fluc[i] >= err_tole:
-        nb_passThreshold = nb_passThreshold + 1
+nb_init = 4
+x_init = np.logspace(-2, 4, nb_init)
+c_init = itertools.combinations_with_replacement(x_init, n)
+for val in c_init:
+    print(val)
+    #x0 = (*val)
+    #print(x0)
 
-while nb_passThreshold > 0:
-    t_final = t_final*2
-    t = np.linspace(0,t_final,200)
-    sol = odeint(f_ode, x0, t,args=(k,))
-    ss = np.zeros(n)
-    ss_fluc = np.zeros(n)
-    nb_passThreshold = 0
-    for i in range(n):
-        ss[i] = np.mean(sol[100:149, i])
-        ss_fluc[i] = np.abs(np.mean(sol[150:199, i]) - np.mean(sol[100:149, i]))
-        if ss_fluc[i] >= err_tole:
-            nb_passThreshold = nb_passThreshold + 1
+
 
 # check if ss is negative or imaginary solution
 if any(ss <= 0) or any([isinstance(j, complex) for j in ss]):
     state = 2 
+
 
 # continue to check if multiple steady states exist (to do)
 

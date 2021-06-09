@@ -16,8 +16,6 @@ import bokeh.plotting
 import panel as pn
 import matplotlib.pyplot as plt
 
-
-
 def dc_dt(
     c,
     t,
@@ -257,3 +255,32 @@ def state_plotter(times, states, fig_num):
 
     return fig, ax
 
+def check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final):
+    from scipy.integrate import odeint
+    err_tole = 0.00001
+    ss = np.zeros(n)
+    
+    ss_fluc = np.zeros(n)
+    nb_passThreshold = 0
+
+    for i in range(n):
+        ss[i] = np.mean(sol[150:199, i])
+        ss_fluc[i] = np.abs(np.mean(sol[150:199, i]) - np.mean(sol[100:149, i]))
+        if ss_fluc[i] >= err_tole:
+            nb_passThreshold = nb_passThreshold + 1
+    nb_try = 0        
+    while nb_passThreshold > 0 and nb_try < 5:
+        nb_try = nb_try + 1
+        t_final = t_final*2
+        t = np.linspace(0, t_final, 200)
+        sol = odeint(f_ode, x0, t,args=(k,))
+        ss = np.zeros(n)
+        ss_fluc = np.zeros(n)
+        nb_passThreshold = 0
+        for i in range(n):
+            ss[i] = np.mean(sol[150:199, i])
+            ss_fluc[i] = np.abs(np.mean(sol[150:199, i]) - np.mean(sol[100:149, i]))
+            if ss_fluc[i] >= err_tole:
+                nb_passThreshold = nb_passThreshold + 1
+    
+    return  ss
