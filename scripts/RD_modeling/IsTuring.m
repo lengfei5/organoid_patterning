@@ -14,9 +14,9 @@ function w = IsTuring(S,D,threshold)
 % - threshold (should be set to 0)
 
     q = logspace(-4,8,50); % Define wavenumbers to sample
-    % q = linspace(0, 5, 50); D = [0.07018, 1.000, 0.01057]
+    % q = linspace(0, 5, 50); D = [1.000, 1.303, 0.0]
     for j = 1:50
-       S2 = S - diag(D*(q(j))); %Calculate Jacobian matrix including diffusion
+       S2 = S - diag(D*(q(j)^2)); %Calculate Jacobian matrix including diffusion
        
        E = eig(S2); %calculate eigenvalues
        
