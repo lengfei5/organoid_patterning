@@ -190,6 +190,7 @@ if max(Eig_save) > threshold % Check if any positive real eigenwert exists
         w = 0;
     end
 
+
 if lam_real_max < 0:
     turing = 0 
 else:
@@ -203,20 +204,4 @@ else:
                 turing = 4
         
 
-# def dispersion_relation(k_vals, d, mu):
-#     lam = np.empty_like(k_vals)
-#     for i, k in enumerate(k_vals):
-#         A = np.array([[1-d*k**2,          1],
-#                       [-2*mu,    -mu - k**2]])
-#         lam[i] = np.linalg.eigvals(A).real.max()
-
-#     return lam
-# d = 0.05
-# mu = 1
-# k = np.linspace(0, 10, 200)
-# lam_max_real_part = dispersion_relation(k, d, mu)
-# plt.plot(k, lam_max_real_part)
-# plt.axis([0, 10, -5, 5])
-# plt.axhline(y=0, color='r', linestyle='-')
-# plt.show()
 
