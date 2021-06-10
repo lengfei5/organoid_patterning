@@ -577,3 +577,115 @@ extract.turing.parameters = function(res.cp)
 }
 
 
+########################################################
+########################################################
+# Section : merge tables from segmentation results by Imaris
+# 
+########################################################
+########################################################
+makeTables_fromSegementation_Imaris = function()
+{
+  cyst.channel = '1'
+  floorplat.channel = '2'
+  
+  conditions.list = dir(path = dataDir, pattern = '*_Statistics', full.names = TRUE, recursive = FALSE, include.dirs = TRUE)
+  conds = basename(conditions.list)
+  conds = gsub('_Statistics', '', conds)
+  
+  source('orgnoid_functions.R')
+  
+  for(n in 1:length(conds))
+  {
+    # n = 18
+    cat(n, ' -- start ', conds[n], '\n')
+    
+    files.cyst = list.files(path = paste0(conditions.list[n], '/Surfaces_', cyst.channel,   '_Statistics'), 
+                            pattern = '*.csv', full.names = TRUE)
+    files.cyst =  files.cyst[grep('_Overall', files.cyst, invert = TRUE)]
+    
+    res1 = cat.image.parameters.per.condition(files.cyst)
+    
+    files.fp = list.files(path = paste0(conditions.list[n], '/Surfaces_', floorplat.channel,   '_Statistics'), 
+                          pattern = '*.csv', full.names = TRUE)
+    files.fp =  files.fp[grep('_Overall', files.fp, invert = TRUE)]
+    
+    res2 = cat.image.parameters.per.condition(files.fp)
+    
+    if(save.table.each.condition){
+      write.table(res1, file = paste0(resDir, '/', analysis.verison, '_condition_', conds[n], '_cyst.txt'), 
+                  sep = '\t', quote = FALSE, col.names = TRUE, row.names = FALSE)
+      write.table(res2, file = paste0(resDir, '/', analysis.verison, '_condition_', conds[n], '_floorplate.txt'), 
+                  sep = '\t', quote = FALSE, col.names = TRUE, row.names = FALSE)
+    }
+    
+    
+    source('orgnoid_functions.R')
+    
+    res = find.cyst.for.each.fp(res.cyst = res1, res.fp = res2)
+    
+    write.table(res, file = paste0(tabDir, '/', analysis.verison, '_condition_', conds[n], '_cyst_fp.txt'), 
+                sep = '\t', quote = FALSE, col.names = TRUE, row.names = FALSE)
+    
+    
+  }
+  
+  
+  # merge tables of all conditions
+  files = list.files(path = tabDir, pattern = '_cyst_fp.txt', full.names = TRUE)
+  files = files[grep(analysis.verison, files)]
+  
+  cc = c()
+  res = c()
+  for(n in 1:length(files))
+  {
+    # n = 1
+    cat(n, ' \t')
+    xx = read.table(files[n], sep = '\t', header = TRUE)
+    colnames(xx)[grep('Overlapped.Volume.Ratio', colnames(xx))] = c('Overlapped.Volume.Ratio_cyst', 'Overlapped.Volume.Ratio_fp')
+    colnames(xx)[grep('Overlapped.Volume.to.Surfaces.Unit', colnames(xx))] = c('Overlapped.Volume.to.Surfaces.Unit_cyst', 
+                                                                               'Overlapped.Volume.to.Surfaces.Unit_fp')
+    colnames(xx)[grep('Shortest.Distance.to.Surfaces', colnames(xx))] = c('Shortest.Distance.to.Surfaces_cyst', 
+                                                                          'Shortest.Distance.to.Surfaces_fp')
+    
+    c = gsub(paste0(analysis.verison, '_condition_'),'', basename(files[n]))
+    c = gsub('_cyst_fp.txt', '', c)
+    
+    if(n == 1){
+      res = xx
+    }else{
+      res = rbind(res, xx)
+      
+    }
+    cc = c(cc, rep(c, nrow(xx)))
+    cat(nrow(xx),  'row,  done \n')
+  }
+  
+  res = data.frame(condition = cc, res, stringsAsFactors = FALSE)
+  
+  
+  saveRDS(res, file = paste0(Rdata, 'mergedTable_cyst.fp_allConditions_', analysis.verison, '.rds'))
+  
+  Double.check = FALSE
+  if(Double.check){
+    res = readRDS(file = paste0(Rdata, 'mergedTable_cyst.fp_allConditions.rds'))
+    
+    jj = which(!is.na(res$ID_fp))
+    
+    head(res[jj, grep('Original.Image.Name', colnames(res))])
+    
+    length(which(as.character(res$Original.Image.Name_cyst[jj]) != as.character(res$Original.Image.Name_fp[jj])))
+    
+    res = res[which(res$condition == 'RA_LDNSB' & res$Original.Image.Name_cyst == '210217_nodrug_LDNSB_4_01_[ims1_2021-03-09T16-53-43.863]'),
+              ]
+    
+    xx = (cbind(res$OriginalID_cyst, res$OriginalID_fp, res$Distance.to.Image.Border.XY.Unit.µm_Distance.to.Image.Border.XY.Img1_cyst))
+    colnames(xx) = c('cyst.ID', 'fp.id', 'Cyst.distanct.image.board.XY')
+    
+    write.table(xx, file = paste0(resDir, '/table_for_Hannah_manualCheck_cyst_fp.assignment_refined.Assignement.txt'),
+                sep = '\t', col.names = TRUE, row.names = FALSE, quote = FALSE)
+  }
+  
+}
+
+
+
