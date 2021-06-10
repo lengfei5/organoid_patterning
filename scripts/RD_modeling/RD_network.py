@@ -49,7 +49,7 @@ from itertools import permutations
 ID = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_test/3N_testExample_python'
 
 n = 3 # nb of node
-k_length = 15 # nb of reaction parameters
+k_length = 17 # nb of reaction parameters
 
 states = 0 # steady state
 turing = 0 # patterning 
@@ -59,9 +59,9 @@ def f_ode(x, t, k):
     #dRdt = np.empty(n)
     
     ## the test example from Zheng et al, 2016, Fig.S1A
-    dx0dt = 55.14*x[2]**2/(18.48**2 + x[2]**2) + 0.1 - 1.341*x[0]
-    dx1dt = 29.28*x[2]**2/(15.90**2 + x[2]**2) + 0.1 - 0.3508*x[1]
-    dx2dt = 16.17*x[0]**2/(x[0]**2 + 0.6421**2)*1.316**2/(1.316**2 + x[1]**2) + 0.1 - 1.203*x[2]
+    #dx0dt = 55.14*x[2]**2/(18.48**2 + x[2]**2) + 0.1 - 1.341*x[0]
+    #dx1dt = 29.28*x[2]**2/(15.90**2 + x[2]**2) + 0.1 - 0.3508*x[1]
+    #dx2dt = 16.17*x[0]**2/(x[0]**2 + 0.6421**2)*1.316**2/(1.316**2 + x[1]**2) + 0.1 - 1.203*x[2]
     
     ## the test example from Zheng et al, 2016, Fig.S1B (something not right in the formula)
     #dx0dt = 50.86*x[0]**2/(x[0]**2 + 0.02315**2)*17.64**2/(17.64**2 + x[1]**2) + 0.1 - 0.09367*x[0]
@@ -70,10 +70,10 @@ def f_ode(x, t, k):
     #dx1dt = 17.43*(5.230**2/(x[0]**2 + 5.230**2) * 1.038**2/(1.038**2 + x[2]**2)) + 0.1 - 2.699*x[1]
     #dx2dt = 69.57*x[2]**2/(x[2]**2 + 1.000**2)*0.02100**2/(0.02100**2 + x[1]**2) + 0.1 - 0.1503*x[2]
     
-    ## example of FoxA2 
-    #dx0dt = k[0]*(1.0/(1.0 + pow(k[9]/x[0], 2))*1.0/(1.0 + pow(x[1]/k[10], 2))) + k[3] - k[6]*x[0]
-    #dx1dt = k[1]*(1.0/(1.0 + pow(k[11]/x[0], 2)) + 1.0/(1.0 + pow(k[12]/x[2], 2))) + k[4] - k[7]*x[1]
-    #dx2dt = k[2]*(1.0/(1.0 + pow(k[13]/x[0], 2))*1.0/(1.0 + pow(x[1]/k[14], 2))) + k[5] - k[8]*x[2]
+    ## example of FGF, BMP, FoxA2 
+    dx0dt = k[0] - k[3]*x[0] + k[6]*((x[0]**2/(x[0]**2 + k[9]**2) * x[2]**2/(x[2]**2 + k[10]**2))*k[11]**2/(k[11]**2 + x[1]**2)) 
+    dx1dt = k[1] - k[4]*x[1] + k[7]*(x[0]**2/(x[0]**2 + k[12]**2) * x[1]**2/(x[1]**2 + k[13]**2))
+    dx2dt = k[2] - k[5]*x[2] + k[8]*(x[2]**2/(x[2]**2 + k[14]**2) * x[0]**2/(x[0]**2 + k[15]**2))*k[16]**2/(k[16]**2 + x[1]**2)
     
     dRdt = [dx0dt, dx1dt, dx2dt]
     
@@ -81,15 +81,14 @@ def f_ode(x, t, k):
 
 #%% speicify parameters k, which node is difusor and d
 k = np.ones(k_length)
-k[0], k[1], k[2] = 10, 10, 20 
-k[3], k[4], k[5] = 5, 5, 10
+k[0], k[1], k[2] = 0.1, 0.1, 0.1
+k[3], k[4], k[5] = 0.3, 0.5, 0.4
 #k[6], k[7], k[8] = math.log(2)/10, math.log(2)/5, math.log(2)/10
-k[6], k[7], k[8] = 0.1, 1, 0.1
-k[9], k[10], k[11], k[12], k[13], k[14] = 30, 50, 50, 70, 40, 80
+k[6], k[7], k[8] = 30, 50, 20
+k[9], k[10], k[11], k[12], k[13], k[14], k[15], k[16] = 14, 3, 0.2, 5, 10, 1, 2, 5
 
-
-binary_diffusor = [0, 1, 1]
-d = [0, 2, 0.5]
+binary_diffusor = [1, 1, 0]
+d = [1.0, 10, 0]
 
 
 # %% find the steady state by integration (initial guess)
@@ -101,7 +100,6 @@ t_final = 1000
 t = np.linspace(0, t_final, 200)
 sol = odeint(f_ode, x0, t, args=(k,))
 
-
 ## check the integration solution
 fig,ax = plt.subplots()
 ax.plot(t,sol[:,0],label='x1')
@@ -111,8 +109,8 @@ ax.plot(t,sol[:,2],label='x3')
 ax.legend()
 ax.set_xlabel('t')
 ax.set_ylabel('x')
-
 sol[199, ]
+
 # double check if steady state is reache by considering the first 100 time points as BurnIn
 ss0 = check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final)
 
@@ -132,7 +130,7 @@ for i in range(len(ss_saved)):
 # very helpful
 import sympy as sym
 X = sym.symbols(('x0:3'))
-K = sym.symbols(('k0:15'))
+K = sym.symbols(('k0:17'))
 
 f_sym = sym.Matrix(f_ode(X, None, K))
 J = f_sym.jacobian(X)
@@ -140,12 +138,12 @@ J_func = sym.lambdify((X, K),  J)
 
 #%% eigenvalue computation with diffusion matrix to test if Turing instability 
 # disperion relation plot for specific set of parameters
-diffusing_nodes = binary_diffusor
-d = [0.07018, 1, 0.01057]
-#d = [1.00, 1.303, 0]
-q = np.linspace(0, 5, 50)
+#d = [0.07018, 1, 0.01057]
+d = [1, 10.03, 0]
+q = np.linspace(0, 100, 50)
 
 for i in range(len(ss_saved)):
+    i = 0
     ss = ss_saved[i]
     #J_inputs = J.free_symbols
     S = J_func(ss, k)
@@ -166,9 +164,9 @@ for i in range(len(ss_saved)):
     #plt.axis([0, max(q), -1, 1])
     plt.axhline(y=0, color='r', linestyle='-')
     plt.show()
-
+    
     max(lam_real)
-
+    
     index_max = np.argmax(lam_real) 
     lam_real_max = lam_real[index_max]
     lam_im_max = lam_im[index_max]

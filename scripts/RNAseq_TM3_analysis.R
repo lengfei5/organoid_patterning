@@ -80,7 +80,6 @@ if(RNAseq.old.time.series){
     genes = readRDS(file = paste0(RdataDir, '/gene_names_length.rds'))
   }
   
-  
   counts = counts[genes[,1], -1]
   rownames(counts) = genes$gene
   
