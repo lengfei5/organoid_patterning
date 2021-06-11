@@ -476,6 +476,7 @@ calcuate.fp.dist = function(xx0)
     
     if(nrow(xx0) == 1){
       rc = mean(calculate.distance(x0[1, ], yy))
+      
       d.fp = 2*pi*rc
       return(d.fp)
     }else{
@@ -547,14 +548,14 @@ extract.turing.parameters.cellProfiler = function(res.cp)
       kk = which(res.cp$ID_cyst == cyst.id[n] & res.cp$condition == c)
       
       # extract information of cyst
-      volume[n] = as.numeric(res.cp$AreaShape_Volume.cyst[kk[1]])
-      area[n] = as.numeric(res.cp$AreaShape_SurfaceArea.cyst[kk[1]])
+      volume[n] = as.numeric(res.cp$AreaShape_Volume_cyst[kk[1]])
+      area[n] = as.numeric(res.cp$AreaShape_SurfaceArea_cyst[kk[1]])
       #voxel[n] = as.numeric(res.cp$Number.of.Voxels.Unit._Number.of.Voxels.Img1_cyst[kk[1]])
       #overlap.ratio[n] = as.numeric(res.cp$Overlapped.Volume.Ratio_cyst[kk[1]])
-      olig2[n] = as.numeric(res.cp$Intensity_MeanIntensity_Olig2.cyst[kk[1]])
-      foxa2[n] = as.numeric(res.cp$Intensity_MeanIntensity_FOXA2.cyst[kk[1]])
+      olig2[n] = as.numeric(res.cp$Intensity_MeanIntensity_Olig2_cyst[kk[1]])
+      foxa2[n] = as.numeric(res.cp$Intensity_MeanIntensity_FOXA2_cyst[kk[1]])
       
-      radius[n] = as.numeric(res.cp$AreaShape_Volume.cyst[kk[1]]) # rough estimation with cyst volume
+      radius[n] = as.numeric(res.cp$AreaShape_Volume_cyst[kk[1]]) # rough estimation with cyst volume
       
       kk.fp = kk[!is.na(res.cp$ID_fp[kk])]
       #cat(length(kk.fp), 'fp \n')
@@ -563,11 +564,11 @@ extract.turing.parameters.cellProfiler = function(res.cp)
       if(length(kk.fp) == 0){ # 0 fp in the cyst
         overlap.ratio[n] = 0 
       }else{
-        overlap.ratio[n] = sum(as.numeric(res.cp$AreaShape_Volume.fp[kk.fp]))/volume[n]
+        overlap.ratio[n] = sum(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))/volume[n]
         #radius[n] = calcuate.cyst.radius(res.cp[kk.fp, ]) # calcuate this using the cyst center, fp center and fp radius
-        volume.fp[n] = median(as.numeric(res.cp$AreaShape_Volume.fp[kk.fp]))
-        foxa2.fp[n] = median(as.numeric(res.cp$Intensity_MeanIntensity_FOXA2.fp[kk.fp]))
-        radius.fp[n] = median(as.numeric(res.cp$AreaShape_Volume.fp[kk.fp]))
+        volume.fp[n] = median(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))
+        foxa2.fp[n] = median(as.numeric(res.cp$Intensity_MeanIntensity_FOXA2_fp[kk.fp]))
+        radius.fp[n] = median(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))
         
         dist.fp[n] = calcuate.fp.dist(res.cp[kk.fp, ])
         

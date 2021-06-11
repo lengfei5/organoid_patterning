@@ -126,17 +126,17 @@ if(CellProfiler){
   fp = data.frame(fp, stringsAsFactors = FALSE)
   
   # add suffix for each table in the colnames
-  colnames(image) = paste0(colnames(image), '.image')
-  colnames(cyst) = paste0(colnames(cyst), '.cyst')
-  colnames(fp) = paste0(colnames(fp), '.fp')
+  colnames(image) = paste0(colnames(image), '_image')
+  colnames(cyst) = paste0(colnames(cyst), '_cyst')
+  colnames(fp) = paste0(colnames(fp), '_fp')
   
   # merge the image and cyst tables
-  kk = match(cyst$ImageNumber.cyst, image$ImageNumber.image)
+  kk = match(cyst$ImageNumber_cyst, image$ImageNumber_image)
   cyst = data.frame(image[kk, ], cyst, stringsAsFactors = FALSE)
   
   # start to merge cyst and fp
-  cyst$ID = paste0(cyst$ImageNumber.image, '_', cyst$ObjectNumber.cyst)
-  fp$parentID = paste0(fp$ImageNumber.fp, '_', fp$Parent_organoid.fp)
+  cyst$ID = paste0(cyst$ImageNumber_image, '_', cyst$ObjectNumber_cyst)
+  fp$parentID = paste0(fp$ImageNumber_fp, '_', fp$Parent_organoid_fp)
   
   index_cyst = c()
   index_fp = c()
@@ -168,7 +168,7 @@ if(CellProfiler){
   # res = data.frame(rbind(res, xx))
   # 
   # # sort the table with image number and cyst number
-  # res = res[with(res, order(ImageNumber.cyst, ObjectNumber.cyst)),  ]
+  # res = res[with(res, order(ImageNumber_cyst, ObjectNumber_cyst)),  ]
   
   saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_', analysis.verison, '.rds'))
   
@@ -197,10 +197,10 @@ library(dplyr)
 
 res$condition = as.factor(res$condition)
 res$ID_cyst = res$ID
-res$ID_fp = paste0(res$ImageNumber.fp, '_', res$ObjectNumber.fp)
-res$ID_fp[is.na(res$ObjectNumber.fp)] = NA
-res$sphericity_cyst = pi^(1/3)*(6*res$AreaShape_Volume.cyst)^(2/3) / res$AreaShape_SurfaceArea.cyst*4/3 # mysterious factor 4/3
-res$sphericity_fp = pi^(1/3)*(6*res$AreaShape_Volume.fp)^(2/3) / res$AreaShape_SurfaceArea.fp*4/3 
+res$ID_fp = paste0(res$ImageNumber_fp, '_', res$ObjectNumber_fp)
+res$ID_fp[is.na(res$ObjectNumber_fp)] = NA
+res$sphericity_cyst = pi^(1/3)*(6*res$AreaShape_Volume_cyst)^(2/3) / res$AreaShape_SurfaceArea_cyst*4/3 # mysterious factor 4/3
+res$sphericity_fp = pi^(1/3)*(6*res$AreaShape_Volume_fp)^(2/3) / res$AreaShape_SurfaceArea_fp*4/3 
 
 ##########################################
 ## cyst filtering
@@ -208,12 +208,12 @@ res$sphericity_fp = pi^(1/3)*(6*res$AreaShape_Volume.fp)^(2/3) / res$AreaShape_S
 cond.id = paste0(res$condition, '_', res$ID_cyst)
 mm = match(unique(cond.id), cond.id)
 xx = res[mm, ]
-xx$volume.log10 = log10(xx$AreaShape_Volume.cyst)
+xx$volume.log10 = log10(xx$AreaShape_Volume_cyst)
 
-plot(4/3*4*pi*(xx$AreaShape_EquivalentDiameter.cyst/2)^2, xx$AreaShape_SurfaceArea.cyst, cex = 0.6)
+plot(4/3*4*pi*(xx$AreaShape_EquivalentDiameter_cyst/2)^2, xx$AreaShape_SurfaceArea_cyst, cex = 0.6)
 abline(0, 1, col = 'red')
 
-plot(4/3*pi*(xx$AreaShape_EquivalentDiameter.cyst/2)^3, xx$AreaShape_Volume.cyst);
+plot(4/3*pi*(xx$AreaShape_EquivalentDiameter_cyst/2)^3, xx$AreaShape_Volume_cyst);
 abline(0, 1, lwd =2.0, col = 'red')
 
 p0 = as_tibble(xx) %>% 
@@ -224,7 +224,7 @@ p0 = as_tibble(xx) %>%
   ggtitle('nb of cysts ') + 
   theme(axis.text.x = element_text(angle = 90))
   
-p1 = ggplot(xx, aes(x = condition, y=AreaShape_Volume.cyst, fill=condition)) + 
+p1 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_cyst, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
   ggtitle('cyst volume') + theme(legend.position = "none") +
   theme(axis.text.x = element_text(angle = 90))
@@ -247,7 +247,7 @@ p4 = as_tibble(xx) %>%
   ggtitle('nb of cysts ') +
   theme(axis.text.x = element_text(angle = 90))
 
-p5 = ggplot(xx, aes(x = condition, y=AreaShape_Volume.cyst, fill=condition)) + 
+p5 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_cyst, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
   ggtitle('cyst volume') + theme(legend.position = "none") +
   theme(axis.text.x = element_text(angle = 90))
@@ -275,16 +275,16 @@ cond.id = paste0(res$condition, '_', res$ID_cyst)
 mm = match(unique(cond.id), cond.id)
 xx = res[mm, ]
 
-xx$volume.log10 = log10(xx$AreaShape_Volume.fp)
+xx$volume.log10 = log10(xx$AreaShape_Volume_fp)
 
 xx = xx[which(xx$volume.log10 > 2), ]
-xx$nb.fp = 0
+xx$nb_fp = 0
 
 for(n in 1:nrow(xx))
 {
   fpc = res$ID_fp[which(res$ID_cyst == xx$ID_cyst[n])]
   if(length(fpc) > 1) {
-    xx$nb.fp[n] = length(fpc)
+    xx$nb_fp[n] = length(fpc)
   }else{
     if(!is.na(fpc)) xx$nb.fp[n] = length(fpc)
   }
@@ -318,7 +318,7 @@ p0 = as_tibble(xx) %>%
   theme(legend.position = "none")  + 
   ggtitle('nb of cysts ')
 
-p1 = ggplot(xx, aes(x = condition, y=AreaShape_Volume.cyst, fill=condition)) + 
+p1 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_cyst, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
   ggtitle('cyst volume') + theme(legend.position = "none") 
 
@@ -336,7 +336,7 @@ p4 = as_tibble(xx) %>%
   theme(legend.position = "none")  + 
   ggtitle('nb of cysts ')
 
-p5 = ggplot(xx, aes(x = condition, y=AreaShape_Volume.cyst, fill=condition)) + 
+p5 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_cyst, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
   ggtitle('cyst volume') + theme(legend.position = "none") 
 
