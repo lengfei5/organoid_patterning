@@ -506,23 +506,22 @@ calcuate.fp.dist = function(xx0)
     # rfp = (as.numeric(yy$Volume.Unit._Volume)/(4/3*pi))^(1/3)
     # rrc = median(dd + rfp)
     # return(rrc)
-    
   }else{
     stop('multiple cyst ID found !!!')
   }
 }
 
-extract.turing.parameters = function(res.cp)
+extract.turing.parameters.cellProfiler = function(res.cp)
 {
   # res.cp = res
-  cc = unique(res.cp$condition)
+  cc = as.character(unique(res.cp$condition))
   params = c()
   
   for(m in 1:length(cc))
   {
-    # m = 18
+    # m = 1
     c = cc[m]
-    cat('condition : ', c, '\n')
+    cat('condition : ', as.character(c), '\n')
     
     # parameters to extract
     cyst.id = unique(res.cp$ID_cyst[which(res.cp$condition == c)])
@@ -544,31 +543,34 @@ extract.turing.parameters = function(res.cp)
     
     for(n in 1:length(cyst.id))
     {
-      # n = 4
+      # n = 3
       kk = which(res.cp$ID_cyst == cyst.id[n] & res.cp$condition == c)
       
       # extract information of cyst
-      volume[n] = as.numeric(res.cp$Volume.Unit._Volume_cyst[kk[1]])
-      area[n] = as.numeric(res.cp$Area.Unit.µm2_Area_cyst[kk[1]])
-      voxel[n] = as.numeric(res.cp$Number.of.Voxels.Unit._Number.of.Voxels.Img1_cyst[kk[1]])
-      overlap.ratio[n] = as.numeric(res.cp$Overlapped.Volume.Ratio_cyst[kk[1]])
-      olig2[n] = as.numeric(res.cp$Intensity.Mean.Unit._Intensity.Mean.Ch2.Img1_cyst[kk[1]])
-      foxa2[n] = as.numeric(res.cp$Intensity.Mean.Unit._Intensity.Mean.Ch3.Img1_cyst[kk[1]])
+      volume[n] = as.numeric(res.cp$AreaShape_Volume.cyst[kk[1]])
+      area[n] = as.numeric(res.cp$AreaShape_SurfaceArea.cyst[kk[1]])
+      #voxel[n] = as.numeric(res.cp$Number.of.Voxels.Unit._Number.of.Voxels.Img1_cyst[kk[1]])
+      #overlap.ratio[n] = as.numeric(res.cp$Overlapped.Volume.Ratio_cyst[kk[1]])
+      olig2[n] = as.numeric(res.cp$Intensity_MeanIntensity_Olig2.cyst[kk[1]])
+      foxa2[n] = as.numeric(res.cp$Intensity_MeanIntensity_FOXA2.cyst[kk[1]])
+      
+      radius[n] = as.numeric(res.cp$AreaShape_Volume.cyst[kk[1]]) # rough estimation with cyst volume
       
       kk.fp = kk[!is.na(res.cp$ID_fp[kk])]
-      #cat(length(kk), 'fp \n')
+      #cat(length(kk.fp), 'fp \n')
+      nb.fp[n] = length(kk.fp)
       
-      if(length(kk.fp) == 0){ # no fp in the cyst
-        nb.fp[n] = 0
-        radius[n] = ((volume[n])/(4/3*pi))^(1/3) # rough estimation with cyst volume
+      if(length(kk.fp) == 0){ # 0 fp in the cyst
+        overlap.ratio[n] = 0 
       }else{
-        nb.fp[n] = length(kk.fp)
-        radius[n] = calcuate.cyst.radius(res.cp[kk.fp, ]) # calcuate this using the cyst center, fp center and fp radius
-        volume.fp[n] = median(as.numeric(res.cp$Volume.Unit._Volume_fp[kk.fp]))
-        foxa2.fp[n] = median(as.numeric(res.cp$Intensity.Mean.Unit._Intensity.Mean.Ch3.Img1_fp[kk.fp]))
-        radius.fp[n] = median((volume.fp[n])/(4/3*pi)^(1/3))
+        overlap.ratio[n] = sum(as.numeric(res.cp$AreaShape_Volume.fp[kk.fp]))/volume[n]
+        #radius[n] = calcuate.cyst.radius(res.cp[kk.fp, ]) # calcuate this using the cyst center, fp center and fp radius
+        volume.fp[n] = median(as.numeric(res.cp$AreaShape_Volume.fp[kk.fp]))
+        foxa2.fp[n] = median(as.numeric(res.cp$Intensity_MeanIntensity_FOXA2.fp[kk.fp]))
+        radius.fp[n] = median(as.numeric(res.cp$AreaShape_Volume.fp[kk.fp]))
         
         dist.fp[n] = calcuate.fp.dist(res.cp[kk.fp, ])
+        
       }
       
     }
@@ -698,6 +700,84 @@ make_mergedTables_fromSegementation_Imaris = function()
   
   
 }
+
+extract.turing.parameters.imaris = function(res.cp)
+{
+  # res.cp = res
+  cc = unique(res.cp$condition)
+  params = c()
+  
+  for(m in 1:length(cc))
+  {
+    # m = 18
+    c = cc[m]
+    cat('condition : ', c, '\n')
+    
+    # parameters to extract
+    cyst.id = unique(res.cp$ID_cyst[which(res.cp$condition == c)])
+    
+    volume = rep(NA, length(cyst.id))
+    area = rep(NA, length(cyst.id))
+    voxel = rep(NA, length(cyst.id))
+    overlap.ratio = rep(NA, length(cyst.id))
+    olig2 = rep(NA, length(cyst.id))
+    foxa2 = rep(NA, length(cyst.id))
+    
+    radius = rep(NA, length(cyst.id))
+    nb.fp = rep(NA, length(cyst.id))
+    
+    dist.fp = rep(NA, length(cyst.id))
+    volume.fp = rep(NA, length(cyst.id))
+    radius.fp = rep(NA, length(cyst.id))
+    foxa2.fp = rep(NA, length(cyst.id))
+    
+    for(n in 1:length(cyst.id))
+    {
+      # n = 4
+      kk = which(res.cp$ID_cyst == cyst.id[n] & res.cp$condition == c)
+      
+      # extract information of cyst
+      volume[n] = as.numeric(res.cp$Volume.Unit._Volume_cyst[kk[1]])
+      area[n] = as.numeric(res.cp$Area.Unit.µm2_Area_cyst[kk[1]])
+      voxel[n] = as.numeric(res.cp$Number.of.Voxels.Unit._Number.of.Voxels.Img1_cyst[kk[1]])
+      overlap.ratio[n] = as.numeric(res.cp$Overlapped.Volume.Ratio_cyst[kk[1]])
+      olig2[n] = as.numeric(res.cp$Intensity.Mean.Unit._Intensity.Mean.Ch2.Img1_cyst[kk[1]])
+      foxa2[n] = as.numeric(res.cp$Intensity.Mean.Unit._Intensity.Mean.Ch3.Img1_cyst[kk[1]])
+      
+      kk.fp = kk[!is.na(res.cp$ID_fp[kk])]
+      #cat(length(kk), 'fp \n')
+      
+      if(length(kk.fp) == 0){ # no fp in the cyst
+        nb.fp[n] = 0
+        radius[n] = ((volume[n])/(4/3*pi))^(1/3) # rough estimation with cyst volume
+      }else{
+        nb.fp[n] = length(kk.fp)
+        radius[n] = calcuate.cyst.radius(res.cp[kk.fp, ]) # calcuate this using the cyst center, fp center and fp radius
+        volume.fp[n] = median(as.numeric(res.cp$Volume.Unit._Volume_fp[kk.fp]))
+        foxa2.fp[n] = median(as.numeric(res.cp$Intensity.Mean.Unit._Intensity.Mean.Ch3.Img1_fp[kk.fp]))
+        radius.fp[n] = median((volume.fp[n])/(4/3*pi)^(1/3))
+        
+        dist.fp[n] = calcuate.fp.dist(res.cp[kk.fp, ])
+      }
+      
+    }
+    
+    params = rbind(params, cbind(rep(c, length(cyst.id)), cyst.id, nb.fp, dist.fp, foxa2.fp, radius.fp, radius, 
+                                 volume, area, voxel, overlap.ratio,
+                                 olig2, foxa2, volume.fp))
+    
+  }
+  
+  params = data.frame(params, stringsAsFactors = FALSE)
+  colnames(params) = c('condition', 'cyst.id', 'nb.fp', 'dist.fp', 'foxa2.fp', 'radius.fp',  'radius.cyst', 
+                       'volume', 'area', 'voxel', 'overlap.ratio', 'olig2', 'foxa2', 'volume.fp')
+  
+  return(params)
+  
+}
+
+
+
 
 find.metadata.from.imaris = function()
 {

@@ -98,6 +98,7 @@ if(CellProfiler){
     cat('Error : -- only foxA2 cluster with parents should be in the table \n')
   }
   
+  
   colsToKeep_cluster = c('ImageNumber', 'ObjectNumber', "Parent_organoid", 
                  "AreaShape_Volume",  "AreaShape_SurfaceArea", "AreaShape_Center_X", "AreaShape_Center_Y", 
                  "AreaShape_Center_Z", 
@@ -198,26 +199,146 @@ res$condition = as.factor(res$condition)
 res$ID_cyst = res$ID
 res$ID_fp = paste0(res$ImageNumber.fp, '_', res$ObjectNumber.fp)
 res$ID_fp[is.na(res$ObjectNumber.fp)] = NA
+res$sphericity_cyst = pi^(1/3)*(6*res$AreaShape_Volume.cyst)^(2/3) / res$AreaShape_SurfaceArea.cyst*4/3 # mysterious factor 4/3
+res$sphericity_fp = pi^(1/3)*(6*res$AreaShape_Volume.fp)^(2/3) / res$AreaShape_SurfaceArea.fp*4/3 
 
+##########################################
 ## cyst filtering
+##########################################
+cond.id = paste0(res$condition, '_', res$ID_cyst)
+mm = match(unique(cond.id), cond.id)
+xx = res[mm, ]
+xx$volume.log10 = log10(xx$AreaShape_Volume.cyst)
+
+plot(4/3*4*pi*(xx$AreaShape_EquivalentDiameter.cyst/2)^2, xx$AreaShape_SurfaceArea.cyst, cex = 0.6)
+abline(0, 1, col = 'red')
+
+plot(4/3*pi*(xx$AreaShape_EquivalentDiameter.cyst/2)^3, xx$AreaShape_Volume.cyst);
+abline(0, 1, lwd =2.0, col = 'red')
+
+p0 = as_tibble(xx) %>% 
+  group_by(condition) %>% tally() %>%
+  ggplot(aes(x = condition, y = n, fill = condition)) +
+  geom_bar(stat = "identity") +
+  theme(legend.position = "none")  + 
+  ggtitle('nb of cysts ') + 
+  theme(axis.text.x = element_text(angle = 90))
+  
+p1 = ggplot(xx, aes(x = condition, y=AreaShape_Volume.cyst, fill=condition)) + 
+  geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
+  ggtitle('cyst volume') + theme(legend.position = "none") +
+  theme(axis.text.x = element_text(angle = 90))
+
+
+p2 = ggplot(xx, aes(x = volume.log10)) +
+  geom_histogram(binwidth = 0.1)
+
+p3 = ggplot(xx, aes(x = sphericity_cyst)) +
+  geom_histogram(binwidth = 0.01)
+
+sels = which(xx$volume.log10 >=4 & xx$sphericity_cyst >=0.9)
+xx = xx[sels, ]
+
+p4 = as_tibble(xx) %>% 
+  group_by(condition) %>% tally() %>%
+  ggplot(aes(x = condition, y = n, fill = condition)) +
+  geom_bar(stat = "identity") +
+  theme(legend.position = "none")  + 
+  ggtitle('nb of cysts ') +
+  theme(axis.text.x = element_text(angle = 90))
+
+p5 = ggplot(xx, aes(x = condition, y=AreaShape_Volume.cyst, fill=condition)) + 
+  geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
+  ggtitle('cyst volume') + theme(legend.position = "none") +
+  theme(axis.text.x = element_text(angle = 90))
+
+
+pdfname = paste0(resDir, '/QC_cystFiltering_before_after.pdf')
+pdf(pdfname,  width = 25, height = 35)
+grid.arrange(p0, p1, p2, p3, p4, p5, ncol = 1) 
+dev.off()
+
+res = res[!is.na(match(res$ID_cyst, xx$ID_cyst)), ]
+
+saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cystFilering_', analysis.verison, '.rds'))
+
+##########################################
+# fp filtering
+##########################################
+res = readRDS(file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cystFilering_', analysis.verison, '.rds'))
+
+source('orgnoid_functions.R')
+params = extract.turing.parameters(res)
+
+
 cond.id = paste0(res$condition, '_', res$ID_cyst)
 mm = match(unique(cond.id), cond.id)
 xx = res[mm, ]
 
-p0 = as_tibble(res[mm, ]) %>% 
+xx$volume.log10 = log10(xx$AreaShape_Volume.fp)
+
+xx = xx[which(xx$volume.log10 > 2), ]
+xx$nb.fp = 0
+
+for(n in 1:nrow(xx))
+{
+  fpc = res$ID_fp[which(res$ID_cyst == xx$ID_cyst[n])]
+  if(length(fpc) > 1) {
+    xx$nb.fp[n] = length(fpc)
+  }else{
+    if(!is.na(fpc)) xx$nb.fp[n] = length(fpc)
+  }
+}
+
+
+xx$nb.fp = as.factor(xx$nb.fp)
+
+as_tibble(xx) %>% select(condition, nb.fp) %>%
+  group_by(condition, nb.fp) %>% tally() %>%
+  ggplot(aes(x = condition, y = n, fill = nb.fp)) +
+  geom_bar(stat = "identity") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90)) + 
+  ggtitle('nb of cysts and fp nb distribution')
+
+
+as_tibble(xx) %>% 
+  select(condition, ID_cyst) %>% # this is not needed - this is just for showing only the two columns upon checking the data
+  group_by(condition, ID_cyst) %>% 
+  tally() %>%
+  ggplot(aes(x = condition)) +
+  geom_bar() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90))
+
+p0 = as_tibble(xx) %>% 
   group_by(condition) %>% tally() %>%
   ggplot(aes(x = condition, y = n, fill = condition)) +
   geom_bar(stat = "identity") +
   theme(legend.position = "none")  + 
   ggtitle('nb of cysts ')
-aes(class, hwy)
 
 p1 = ggplot(xx, aes(x = condition, y=AreaShape_Volume.cyst, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
   ggtitle('cyst volume') + theme(legend.position = "none") 
 
+p3 = ggplot(xx, aes(x = volume.log10)) +
+  geom_histogram(binwidth = 0.05)
 
+xx = xx[which(xx$volume.log10>=2 | is.na(xx$volume.log10)), ]
 
+res = res[!is.na(match(res$ID_fp, xx$ID_fp)), ]
+
+p4 = as_tibble(xx) %>% 
+  group_by(condition) %>% tally() %>%
+  ggplot(aes(x = condition, y = n, fill = condition)) +
+  geom_bar(stat = "identity") +
+  theme(legend.position = "none")  + 
+  ggtitle('nb of cysts ')
+
+p5 = ggplot(xx, aes(x = condition, y=AreaShape_Volume.cyst, fill=condition)) + 
+  geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
+  ggtitle('cyst volume') + theme(legend.position = "none") 
 
 p1 = ggplot(xx, aes(x = condition, y=Overlapped.Volume.Ratio_cyst, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
@@ -226,12 +347,6 @@ p1 = ggplot(xx, aes(x = condition, y=Overlapped.Volume.Ratio_cyst, fill=conditio
 p2 = ggplot(xx, aes(x = condition, y=Intensity.Mean.Unit._Intensity.Mean.Ch3.Img1_cyst, fill=condition)) + 
   geom_violin() + ggtitle('FoxA2 mean intensity') + theme(legend.position = "none")
 
-pdfname = paste0(resDir, '/QC_plots_beforeFiltering.pdf')
-pdf(pdfname,  width = 25, height = 18)
-grid.arrange(p0, p1, p2, nrow = 3, ncol = 1) 
-dev.off()
-
-# filter the images touching the boarder
 res = res[which(res$Distance.to.Image.Border.XY.Unit.µm_Distance.to.Image.Border.XY.Img1_cyst > 0), ]
 
 cond.id = paste0(res$condition, '_', res$ID_cyst)
