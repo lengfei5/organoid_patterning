@@ -7,6 +7,17 @@
 # Date of creation: Fri Apr 16 15:15:20 2021
 ##########################################################################
 ##########################################################################
+
+########################################################
+########################################################
+# Section : process the segementation results from cellProfiler 
+# 
+########################################################
+########################################################
+make_mergedTable_fromSegementation_cellProfiler = function()
+{
+   
+}
 ##########################################
 # functions 
 ##########################################
@@ -579,11 +590,11 @@ extract.turing.parameters = function(res.cp)
 
 ########################################################
 ########################################################
-# Section : merge tables from segmentation results by Imaris
+# Section : merge tables from segmentation results by Imaris (NOT USED anymore !!!)
 # 
 ########################################################
 ########################################################
-makeTables_fromSegementation_Imaris = function()
+make_mergedTables_fromSegementation_Imaris = function()
 {
   cyst.channel = '1'
   floorplat.channel = '2'
@@ -685,7 +696,21 @@ makeTables_fromSegementation_Imaris = function()
                 sep = '\t', col.names = TRUE, row.names = FALSE, quote = FALSE)
   }
   
+  
 }
 
+find.metadata.from.imaris = function()
+{
+  xx = readRDS(file = paste0('../results/Rdata/RdatamergedTable_cyst.fp_allConditions.rds'))
+  design = data.frame(xx$condition, xx$Original.Image.Name_cyst, xx$Original.Image.ID_cyst, stringsAsFactors = FALSE)
+  colnames(design) = c('condition', 'Original.Image.Name', 'Original.Image.ID')
+  image.uniq = unique(design$Original.Image.Name)
+  
+  design = design[match(image.uniq, design$Original.Image.Name), ]
+  
+  saveRDS(design, file = paste0(Rdata, '/perturbation_design_hNTdrugs3_0310.rds'))
+  
+  
+}
 
 

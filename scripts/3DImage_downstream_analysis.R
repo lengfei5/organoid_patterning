@@ -23,27 +23,132 @@
 rm(list=ls())
 
 # specific input and output folders
-dataDir = '../210217_hNTdrugs3_0310outputs'
-resDir = '../results'
+dataDir = '../images/210525_CellProfiler/'
+resDir = '../results/210525_CellProfiler'
 tabDir = paste0(resDir, '/tables')
-Rdata = paste0(resDir, '/Rdata')
-analysis.verison = 'hNTdrugs3_0310_Analysis20210507'
+Rdata = paste0('../results/Rdata')
+analysis.verison = 'hNTdrugs3_0310_Analysis20210507_cellProfiler'
 
 if(!dir.exists(resDir)) dir.create(resDir)
 if(!dir.exists(tabDir)) dir.create(tabDir)
 if(!dir.exists(dataDir)) dir.create(dataDir)
+if(!dir.exists(Rdata)) dir.create(Rdata)
 
 save.table.each.condition = FALSE
-CellProfiler = FALSE
+CellProfiler = TRUE
+
+metadataCorrection = TRUE
 
 ##########################################
 # find associated fp for cyst at each condition
 ##########################################
 if(CellProfiler){
+  #make_mergedTable_fromSegementation_cellProfiler()
   
-   
+  # clean image metadata
+  image = read.csv(file = paste0(dataDir, 'image.csv'))
+  image = image[, 
+  grep('ExecutionTime|MD5|Width|PathName|Metadata|ModuleError|ImageSet_ImageSet|Series_|ProcessingStatus|Channel_|Height|Frame', 
+                       colnames(image), invert = TRUE)]
+  
+  image = data.frame(image, stringsAsFactors = FALSE)
+  # drop the absoute path of image sources ONLY if all imges were frorm the same folder
+  image = image[, grep('URL_', colnames(image), invert = TRUE)]
+  
+  # give each image an unique name
+  image$name = gsub('_isotropic_C4.tif', '', as.character(image$FileName_DNA))
+  
+  Dummy.imageNumber = image$ImageNumber[which(image$name == 'DUMMY')]
+  image = image[which(image$ImageNumber !=  Dummy.imageNumber), ]
+  
+  # extract condition from image name
+  image$conds = sapply(image$name, function(x) {xx = unlist(strsplit(as.character(x), '_')); 
+  xx = xx[-c(1, length(xx)-1, length(xx))]; paste0(xx, collapse = '.')} )
+  
+  # cyst
+  cyst = read.csv(file = paste0(dataDir, 'organoid.csv'))
+  colsToKeep = c('ImageNumber', 'ObjectNumber', 
+                 "AreaShape_Volume",  "AreaShape_SurfaceArea", 
+                 "AreaShape_Center_X", "AreaShape_Center_Y", "AreaShape_Center_Z", 
+                 "AreaShape_EquivalentDiameter", "AreaShape_MajorAxisLength", "AreaShape_MinorAxisLength",
+                 "Children_foxa2cluster_Count", 
+                 'Intensity_MeanIntensity_FOXA2', 'Intensity_IntegratedIntensity_FOXA2',
+                 "Intensity_IntegratedIntensity_Olig2", "Intensity_MeanIntensity_Olig2"
+                 )
+  kk = match(colsToKeep, colnames(cyst))
+  cyst = cyst[, kk]
+  cyst = cyst[which(cyst$ImageNumber != Dummy.imageNumber), ]
+  
+  # foxA2 clusters
+  fp = read.csv(file = paste0(dataDir, 'foxa2cluster.csv'))
+  
+  if(length(unique(fp$Children_RelateObjects_Count)) != 1  | unique(fp$Children_RelateObjects_Count) != 1){
+    cat('Error : -- only foxA2 cluster with parents should be in the table \n')
+  }
+  
+  colsToKeep_cluster = c('ImageNumber', 'ObjectNumber', "Parent_organoid", 
+                 "AreaShape_Volume",  "AreaShape_SurfaceArea", "AreaShape_Center_X", "AreaShape_Center_Y", 
+                 "AreaShape_Center_Z", 
+                 "AreaShape_EquivalentDiameter", "AreaShape_MajorAxisLength", "AreaShape_MinorAxisLength",
+                 "Distance_Centroid_organoid",  
+                 'Intensity_MeanIntensity_FOXA2', 'Intensity_IntegratedIntensity_FOXA2'
+  )
+  
+  jj = match(colsToKeep_cluster, colnames(fp))
+  fp = fp[,jj]
+  
+  fp = fp[which(fp$ImageNumber != Dummy.imageNumber), ]
+  
+  if(metadataCorrection){
+    design = readRDS(file = paste0(Rdata, '/perturbation_design_hNTdrugs3_0310.rds'))  
+  }
+  
+  save(image, cyst, fp, file = paste0(Rdata, '/image_cyst_fp_', analysis.verison, '.Rdata'))
+  
+  ##########################################
+  # merge image information and cyst first
+  # and then merge cyst and fp
+  ##########################################
+  load(file = paste0(Rdata, '/image_cyst_fp_', analysis.verison, '.Rdata'))
+  
+  # change to data.frame
+  cyst = data.frame(cyst, stringsAsFactors = FALSE)
+  image = data.frame(image, stringsAsFactors = FALSE)
+  fp = data.frame(fp, stringsAsFactors = FALSE)
+  
+  # add suffix for each table in the colnames
+  colnames(image) = paste0(colnames(image), '.image')
+  colnames(cyst) = paste0(colnames(cyst), '.cyst')
+  colnames(fp) = paste0(colnames(fp), '.fp')
+  
+  # merge the image and cyst tables
+  kk = match(cyst$ImageNumber.cyst, image$ImageNumber.image)
+  cyst = data.frame(image[kk, ], cyst, stringsAsFactors = FALSE)
+  
+  # start to merge cyst and fp
+  cyst$ID = paste0(cyst$ImageNumber.image, '_', cyst$ObjectNumber.cyst)
+  fp$parentID = paste0(fp$ImageNumber.fp, '_', fp$Parent_organoid.fp)
+  
+  # this is part of whole table in which there are only cysts with fp
+  jj = match(fp$parentID, cyst$ID)
+  res = data.frame(cyst[jj, ], fp, stringsAsFactors = FALSE) 
+  
+  # this is the second part of whole table for cysts without fp
+  kk = which(is.na(match(cyst$ID, fp$parentID)))
+  xx = matrix(NA, nrow = length(kk), ncol = ncol(fp))
+  colnames(xx) = colnames(fp)
+  xx = data.frame(cyst[kk, ], xx, stringsAsFactors = FALSE)
+  
+  # combine two parts to have whole table
+  res = data.frame(rbind(res, xx))
+  
+  # sort the table with image number and cyst number
+  res = res[with(res, order(ImageNumber.cyst, ObjectNumber.cyst)),  ]
+  
+  saveRDS(res, file = paste0(Rdata, 'mergedTable_cyst.fp_allConditions_', analysis.verison, '.rds'))
+  
 }else{
-  makeTables_fromSegementation_Imaris()
+  make_mergedTables_fromSegementation_Imaris()
   
 }
 ########################################################
@@ -149,7 +254,6 @@ for(n in 1:ncol(params))
 }
 
 conds = unique(params$condition)
-
 
 # check controls first
 conds.sels = list(
