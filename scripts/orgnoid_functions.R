@@ -197,22 +197,6 @@ find.fp.for.each.cyst = function(res.cyst, res.fp)
 # Assign fp to cyst by calculate the distances between centers
 # Used at the end
 ##########################################
-calculate.distance = function(x0, yy)
-{
-  # x0 = res.cyst[n,]; yy = res.fp[kk,]
-  dists = c()
-  for(m in 1:nrow(yy))
-  {
-    y0 = yy[m,]
-    dists = c(dists, sqrt((as.numeric(x0$Position.X.Unit.µm_Position) - as.numeric(y0$Position.X.Unit.µm_Position))^2 +
-                            (as.numeric(x0$Position.Y.Unit.µm_Position) - as.numeric(y0$Position.Y.Unit.µm_Position))^2 +
-                            (as.numeric(x0$Position.Z.Unit.µm_Position) - as.numeric(y0$Position.Z.Unit.µm_Position))^2))
-  }
-  
-  return(dists)
-  
-}
-
 find.closest.cyst = function(x0, yy)
 {
   # x0 = res.fp[n,]; yy = res.cyst[kk,]
@@ -443,13 +427,30 @@ calcuate.cyst.radius = function(xx0)
   }
 }
 
+calculate.distance = function(x0, yy)
+{
+  # x0 = res.cyst[n,]; yy = res.fp[kk,]
+  dists = c()
+  for(m in 1:nrow(yy))
+  {
+    y0 = yy[m,]
+    dists = c(dists, sqrt((as.numeric(x0$AreaShape_Center_X) - as.numeric(y0$AreaShape_Center_X))^2 +
+                            (as.numeric(x0$AreaShape_Center_Y) - as.numeric(y0$AreaShape_Center_Y))^2 +
+                            (as.numeric(x0$AreaShape_Center_Z) - as.numeric(y0$AreaShape_Center_Z))^2))
+  }
+  
+  return(dists)
+  
+}
+
+
 calculate.angle.between.two.fps = function(x, y)
 {
   # x = x0[1,]; y = yy
   if(nrow(y) == 2){
-    C = c(x$Position.X.Unit.µm_Position, x$Position.Y.Unit.µm_Position, x$Position.Z.Unit.µm_Position)
-    A = c(y$Position.X.Unit.µm_Position[1], y$Position.Y.Unit.µm_Position[1], y$Position.Z.Unit.µm_Position[1])
-    B = c(y$Position.X.Unit.µm_Position[2], y$Position.Y.Unit.µm_Position[2], y$Position.Z.Unit.µm_Position[2])
+    C = c(x$AreaShape_Center_X, x$AreaShape_Center_Y, x$AreaShape_Center_Y)
+    A = c(y$AreaShape_Center_X[1], y$AreaShape_Center_Y[1], y$AreaShape_Center_Y[1])
+    B = c(y$AreaShape_Center_X[2], y$AreaShape_Center_Y[2], y$AreaShape_Center_Y[2])
     
     a2 = sum((C-A)^2)
     b2 = sum((C-B)^2)
@@ -475,29 +476,36 @@ calcuate.fp.dist = function(xx0)
     colnames(yy) = gsub('_fp$', '', colnames(yy))
     
     if(nrow(xx0) == 1){
-      rc = mean(calculate.distance(x0[1, ], yy))
-      
+      #rc = mean(calculate.distance(x0[1, ], yy))
+      rc = xx0$Distance_Centroid_organoid_fp
       d.fp = 2*pi*rc
+      
       return(d.fp)
+      
     }else{
       if(nrow(xx0) == 2){
-        rc = median(calculate.distance(x0[1, ], yy))
+        rc = median(xx0$Distance_Centroid_organoid_fp)
         alpha = calculate.angle.between.two.fps(x0[1,], yy)
         d.fp = rc*alpha
+        
         return(d.fp)
       }else{
         dds.fp = c()
+        
         for(i in 1:nrow(yy))
         {
           dd.i = c()
           for(j in 1:nrow(yy))
           {
             if(j != i){
-              dd.i = c(dd.i, median(calculate.distance(x0[1, ], yy[c(i, j), ]))*calculate.angle.between.two.fps(x0[1,], yy[c(i, j), ]))
+              dd.i = c(dd.i, mean(c(xx0$Distance_Centroid_organoid_fp[i], xx0$Distance_Centroid_organoid_fp[j]))*
+                         calculate.angle.between.two.fps(x0[1,], yy[c(i, j), ]))
             }
           }
+          
           dd.i = dd.i[order(dd.i)]
           dds.fp = c(dds.fp, mean(dd.i[c(1:2)]))
+          
         }
         
         return(mean(dds.fp))
