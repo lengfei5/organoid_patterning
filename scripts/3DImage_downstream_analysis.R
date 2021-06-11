@@ -65,6 +65,18 @@ if(CellProfiler){
   image$conds = sapply(image$name, function(x) {xx = unlist(strsplit(as.character(x), '_')); 
   xx = xx[-c(1, length(xx)-1, length(xx))]; paste0(xx, collapse = '.')} )
   
+  if(metadataCorrection){
+    design = readRDS(file = paste0(Rdata, '/perturbation_design_hNTdrugs3_0310.rds'))
+    image$condition = NA
+    
+    for(n in 1:nrow(image))
+    {
+      kk = grep(image$name[n], design$Original.Image.Name)
+      if(length(kk) != 1) cat('Error')
+      image$condition[n] = design$condition[kk] 
+    }
+  }
+  
   # cyst
   cyst = read.csv(file = paste0(dataDir, 'organoid.csv'))
   colsToKeep = c('ImageNumber', 'ObjectNumber', 
@@ -98,10 +110,6 @@ if(CellProfiler){
   fp = fp[,jj]
   
   fp = fp[which(fp$ImageNumber != Dummy.imageNumber), ]
-  
-  if(metadataCorrection){
-    design = readRDS(file = paste0(Rdata, '/perturbation_design_hNTdrugs3_0310.rds'))  
-  }
   
   save(image, cyst, fp, file = paste0(Rdata, '/image_cyst_fp_', analysis.verison, '.Rdata'))
   
