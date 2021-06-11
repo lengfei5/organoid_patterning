@@ -137,23 +137,39 @@ if(CellProfiler){
   cyst$ID = paste0(cyst$ImageNumber.image, '_', cyst$ObjectNumber.cyst)
   fp$parentID = paste0(fp$ImageNumber.fp, '_', fp$Parent_organoid.fp)
   
-  # this is part of whole table in which there are only cysts with fp
-  jj = match(fp$parentID, cyst$ID)
-  res = data.frame(cyst[jj, ], fp, stringsAsFactors = FALSE) 
+  index_cyst = c()
+  index_fp = c()
+  for(n in 1:nrow(cyst))
+  {
+    cat(n, '\n')
+    kk = which(fp$parentID == cyst$ID[n])
+    if(length(kk) == 0){
+      index_cyst = c(index_cyst, n)
+      index_fp = c(index_fp, NA)
+    }else{
+      index_cyst = c(index_cyst, rep(n, length(kk)))
+      index_fp = c(index_fp, kk)
+    }
+  }
   
-  # this is the second part of whole table for cysts without fp
-  kk = which(is.na(match(cyst$ID, fp$parentID)))
-  xx = matrix(NA, nrow = length(kk), ncol = ncol(fp))
-  colnames(xx) = colnames(fp)
-  xx = data.frame(cyst[kk, ], xx, stringsAsFactors = FALSE)
+  res = data.frame(cyst[index_cyst, ], fp[index_fp, ], stringsAsFactors = FALSE) 
+  # # this is part of whole table in which there are only cysts with fp
+  # jj = match(fp$parentID, cyst$ID)
+  # res = data.frame(cyst[jj, ], fp, stringsAsFactors = FALSE) 
+  # 
+  # # this is the second part of whole table for cysts without fp
+  # kk = which(is.na(match(cyst$ID, fp$parentID)))
+  # xx = matrix(NA, nrow = length(kk), ncol = ncol(fp))
+  # colnames(xx) = colnames(fp)
+  # xx = data.frame(cyst[kk, ], xx, stringsAsFactors = FALSE)
+  # 
+  # # combine two parts to have whole table
+  # res = data.frame(rbind(res, xx))
+  # 
+  # # sort the table with image number and cyst number
+  # res = res[with(res, order(ImageNumber.cyst, ObjectNumber.cyst)),  ]
   
-  # combine two parts to have whole table
-  res = data.frame(rbind(res, xx))
-  
-  # sort the table with image number and cyst number
-  res = res[with(res, order(ImageNumber.cyst, ObjectNumber.cyst)),  ]
-  
-  saveRDS(res, file = paste0(Rdata, 'mergedTable_cyst.fp_allConditions_', analysis.verison, '.rds'))
+  saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_', analysis.verison, '.rds'))
   
 }else{
   make_mergedTables_fromSegementation_Imaris()
@@ -165,7 +181,7 @@ if(CellProfiler){
 # 
 ########################################################
 ########################################################
-res = readRDS(file = paste0(Rdata, 'mergedTable_cyst.fp_allConditions_', analysis.verison, '.rds'))
+res = readRDS(file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_', analysis.verison, '.rds'))
 res = data.frame(res, stringsAsFactors = FALSE)
 
 ##########################################
@@ -179,6 +195,11 @@ library(tidyr)
 library(dplyr)
 
 res$condition = as.factor(res$condition)
+res$ID_cyst = res$ID
+res$ID_fp = paste0(res$ImageNumber.fp, '_', res$ObjectNumber.fp)
+res$ID_fp[is.na(res$ObjectNumber.fp)] = NA
+
+## cyst filtering
 cond.id = paste0(res$condition, '_', res$ID_cyst)
 mm = match(unique(cond.id), cond.id)
 xx = res[mm, ]
@@ -190,11 +211,19 @@ p0 = as_tibble(res[mm, ]) %>%
   theme(legend.position = "none")  + 
   ggtitle('nb of cysts ')
 aes(class, hwy)
-p1 = ggplot(res[mm, ], aes(x = condition, y=Overlapped.Volume.Ratio_cyst, fill=condition)) + 
+
+p1 = ggplot(xx, aes(x = condition, y=AreaShape_Volume.cyst, fill=condition)) + 
+  geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
+  ggtitle('cyst volume') + theme(legend.position = "none") 
+
+
+
+
+p1 = ggplot(xx, aes(x = condition, y=Overlapped.Volume.Ratio_cyst, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
   ggtitle('cyst fraction overlapped by fp') + theme(legend.position = "none") 
 
-p2 = ggplot(res[mm, ], aes(x = condition, y=Intensity.Mean.Unit._Intensity.Mean.Ch3.Img1_cyst, fill=condition)) + 
+p2 = ggplot(xx, aes(x = condition, y=Intensity.Mean.Unit._Intensity.Mean.Ch3.Img1_cyst, fill=condition)) + 
   geom_violin() + ggtitle('FoxA2 mean intensity') + theme(legend.position = "none")
 
 pdfname = paste0(resDir, '/QC_plots_beforeFiltering.pdf')
