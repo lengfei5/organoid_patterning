@@ -199,6 +199,7 @@ res$condition = as.factor(res$condition)
 res$ID_cyst = res$ID
 res$ID_fp = paste0(res$ImageNumber_fp, '_', res$ObjectNumber_fp)
 res$ID_fp[is.na(res$ObjectNumber_fp)] = NA
+
 res$sphericity_cyst = pi^(1/3)*(6*res$AreaShape_Volume_cyst)^(2/3) / res$AreaShape_SurfaceArea_cyst*4/3 # mysterious factor 4/3
 res$sphericity_fp = pi^(1/3)*(6*res$AreaShape_Volume_fp)^(2/3) / res$AreaShape_SurfaceArea_fp*4/3 
 
@@ -210,7 +211,13 @@ mm = match(unique(cond.id), cond.id)
 xx = res[mm, ]
 xx$volume.log10 = log10(xx$AreaShape_Volume_cyst)
 
-plot(4/3*4*pi*(xx$AreaShape_EquivalentDiameter_cyst/2)^2, xx$AreaShape_SurfaceArea_cyst, cex = 0.6)
+
+plot(xx$AreaShape_Volume_cyst, xx$AreaShape_SurfaceArea_cyst)
+rr = c(0:1000)
+points(4/3*pi*rr^3, 4*pi*rr^2, type = 'l')
+points(rr^3, 6*rr^2, type = 'l')
+
+plot(4*pi*(xx$AreaShape_EquivalentDiameter_cyst/2)^2, xx$AreaShape_SurfaceArea_cyst, cex = 0.6)
 abline(0, 1, col = 'red')
 
 plot(4/3*pi*(xx$AreaShape_EquivalentDiameter_cyst/2)^3, xx$AreaShape_Volume_cyst);
@@ -268,7 +275,7 @@ saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cystFileri
 res = readRDS(file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cystFilering_', analysis.verison, '.rds'))
 
 source('orgnoid_functions.R')
-params = extract.turing.parameters(res)
+params = extract.turing.parameters.cellProfiler(res)
 
 
 cond.id = paste0(res$condition, '_', res$ID_cyst)
@@ -276,19 +283,6 @@ mm = match(unique(cond.id), cond.id)
 xx = res[mm, ]
 
 xx$volume.log10 = log10(xx$AreaShape_Volume_fp)
-
-xx = xx[which(xx$volume.log10 > 2), ]
-xx$nb_fp = 0
-
-for(n in 1:nrow(xx))
-{
-  fpc = res$ID_fp[which(res$ID_cyst == xx$ID_cyst[n])]
-  if(length(fpc) > 1) {
-    xx$nb_fp[n] = length(fpc)
-  }else{
-    if(!is.na(fpc)) xx$nb.fp[n] = length(fpc)
-  }
-}
 
 
 xx$nb.fp = as.factor(xx$nb.fp)
@@ -459,7 +453,7 @@ for(n in 1:length(conds.sels))
   
   xx = params[sels, ]
   xx = xx[which(as.numeric(as.character(xx$nb.fp))> 1), ]
-  xx = xx[which(xx$dist.fp > 300), ]
+  #xx = xx[which(xx$dist.fp > 300), ]
   
   #sels = c(1:nrow(params))
   #nb.fp = as.numeric(as.character(params$nb.fp[sels]))
@@ -475,16 +469,20 @@ for(n in 1:length(conds.sels))
     group_by(condition, nb.fp) %>% tally() %>%
     ggplot(aes(x = condition, y = n, fill = nb.fp)) +
     geom_bar(stat = "identity") +
-    theme_classic() + ggtitle('nb of cysts and fp nb distribution')
+    theme_classic() + ggtitle('nb of cysts and fp nb distribution') + 
+    theme(axis.text.x = element_text(angle = 90))
   
   p1 = ggplot(params[sels, ], aes(x = condition, y=volume, fill=condition)) + 
-    geom_violin() + ggtitle('cyst volume')
+    geom_violin() + ggtitle('cyst volume') + 
+    theme(axis.text.x = element_text(angle = 90))
   
   p2 = ggplot(params[sels, ], aes(x = condition, y=overlap.ratio, fill=condition)) + 
-    geom_violin() + ggtitle('cyst fraction overlapped by fp')
+    geom_violin() + ggtitle('cyst fraction overlapped by fp') +
+    theme(axis.text.x = element_text(angle = 90))
   
   p3 = ggplot(params[sels, ], aes(x=condition, y=radius.fp, fill=condition)) + 
-    geom_violin() + ggtitle('foxa2 radius') 
+    geom_violin() + ggtitle('foxa2 radius') +
+    theme(axis.text.x = element_text(angle = 90))
   
   p4 = ggplot(params[sels, ], aes(x = condition, y=foxa2.fp, fill=condition)) + 
     geom_violin() + ggtitle('FoxA2 mean intensity')
@@ -502,10 +500,12 @@ for(n in 1:length(conds.sels))
   #  geom_violin() + ggtitle('estimated cyst radius')
   
   p6 = ggplot(params[sels, ], aes(x=nb.fp, y=radius.cyst, color=condition, fill = condition)) +
-    geom_violin() + ggtitle('estimated cyst radius')
+    geom_violin() + ggtitle('cyst radius') +
+    theme(axis.text.x = element_text(angle = 90))
   
   p7 = ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>1)], ], aes(x=volume, y=dist.fp, color=condition)) +
-    geom_point(size = 2.5) + ggtitle('distance between fps (wavelength)')
+    geom_point(size = 2.5) + ggtitle('distance between fps (wavelength)') 
+   
   
   p8 = ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>1)], ], aes(fill=condition, y=dist.fp, x = condition)) +
     geom_violin() + ggtitle('distance between fps (wavelength)')

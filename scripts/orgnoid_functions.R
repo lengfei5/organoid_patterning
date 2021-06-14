@@ -802,9 +802,21 @@ find.metadata.from.imaris = function()
   
 }
 
+test.CPversion.surface.calculation = function()
+{
+  xx = read.csv('/Users/jiwang/workspace/imp/organoid_patterning/images/cellProfiler_test/MyExpt_organoid.csv')
+  plot(4/3*4*pi*(xx$AreaShape_EquivalentDiameter/2)^2, xx$AreaShape_SurfaceArea, cex = 0.6)
+  abline(0, 1, col = 'red')
+  
+  
+}
+
 ##########################################
 # Filtering cyst and fp after concatenating the table 
 ##########################################
+
+
+
 
 
 
