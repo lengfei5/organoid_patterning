@@ -464,10 +464,9 @@ calculate.angle.between.two.fps = function(x, y)
   } 
 }
 
-calcuate.fp.dist = function(xx0)
+calcuate.fp.dist = function(xx0, use.cyst.radius)
 {
   # xx0 = res.cp[kk.fp, ]
-  
   # first check if cyst id is unique
   if(length(unique(xx0$ID_cyst) == 1)){
     x0 = xx0[, grep('_cyst$', colnames(xx0))]
@@ -475,31 +474,38 @@ calcuate.fp.dist = function(xx0)
     colnames(x0) = gsub('_cyst$', '', colnames(x0))
     colnames(yy) = gsub('_fp$', '', colnames(yy))
     
+    ## use the cyst radius to calculate the distance between fp
+    rc = xx0$AreaShape_EquivalentDiameter_cyst[1]/2.0
+    #plot(res$AreaShape_Volume_fp.log10, res$Distance_Centroid_organoid_fp, cex = 0.2)
+    #rrs = xx0$Distance_Centroid_organoid_fp
+    #if(max(rrs)/min(rrs) > 2) cat('big difference in rc : ', unique(xx0$ID_cyst), '\n')
+    
     if(nrow(xx0) == 1){
       #rc = mean(calculate.distance(x0[1, ], yy))
-      rc = xx0$Distance_Centroid_organoid_fp
+      #rc = xx0$Distance_Centroid_organoid_fp
       d.fp = 2*pi*rc
-      
       return(d.fp)
       
     }else{
+      
       if(nrow(xx0) == 2){
-        rc = median(xx0$Distance_Centroid_organoid_fp)
+        #rc = median(xx0$Distance_Centroid_organoid_fp)
         alpha = calculate.angle.between.two.fps(x0[1,], yy)
         d.fp = rc*alpha
-        
         return(d.fp)
+        
       }else{
         dds.fp = c()
-        
         for(i in 1:nrow(yy))
         {
           dd.i = c()
           for(j in 1:nrow(yy))
           {
             if(j != i){
-              dd.i = c(dd.i, mean(c(xx0$Distance_Centroid_organoid_fp[i], xx0$Distance_Centroid_organoid_fp[j]))*
-                         calculate.angle.between.two.fps(x0[1,], yy[c(i, j), ]))
+              #dd.i = c(dd.i, mean(c(xx0$Distance_Centroid_organoid_fp[i], xx0$Distance_Centroid_organoid_fp[j]))*
+              #           calculate.angle.between.two.fps(x0[1,], yy[c(i, j), ]))
+              dd.i = c(dd.i, rc*calculate.angle.between.two.fps(x0[1,], yy[c(i, j), ]))
+              
             }
           }
           
@@ -520,10 +526,14 @@ calcuate.fp.dist = function(xx0)
   }
 }
 
-extract.turing.parameters.cellProfiler = function(res.cp)
+extract.turing.parameters.cellProfiler = function(res.cp, pixel.scale = 3)
 {
   # res.cp = res
-  cc = as.character(unique(res.cp$condition))
+  cyst.id = unique(res.cp$ID_cyst)
+  
+  condition = 
+  
+  
   params = c()
   
   for(m in 1:length(cc))
@@ -533,7 +543,7 @@ extract.turing.parameters.cellProfiler = function(res.cp)
     cat('condition : ', as.character(c), '\n')
     
     # parameters to extract
-    cyst.id = unique(res.cp$ID_cyst[which(res.cp$condition == c)])
+    
     
     volume = rep(NA, length(cyst.id))
     area = rep(NA, length(cyst.id))
@@ -548,11 +558,13 @@ extract.turing.parameters.cellProfiler = function(res.cp)
     dist.fp = rep(NA, length(cyst.id))
     volume.fp = rep(NA, length(cyst.id))
     radius.fp = rep(NA, length(cyst.id))
+    volumeSE.fp = rep(NA, length(cyst.id))
+    radiusSE.fp = rep(NA, length(cyst.id))
     foxa2.fp = rep(NA, length(cyst.id))
     
     for(n in 1:length(cyst.id))
     {
-      # n = 3
+      # n = 7
       kk = which(res.cp$ID_cyst == cyst.id[n] & res.cp$condition == c)
       
       # extract information of cyst
@@ -563,20 +575,21 @@ extract.turing.parameters.cellProfiler = function(res.cp)
       olig2[n] = as.numeric(res.cp$Intensity_MeanIntensity_Olig2_cyst[kk[1]])
       foxa2[n] = as.numeric(res.cp$Intensity_MeanIntensity_FOXA2_cyst[kk[1]])
       
-      radius[n] = as.numeric(res.cp$AreaShape_Volume_cyst[kk[1]]) # rough estimation with cyst volume
+      radius[n] = as.numeric(res.cp$AreaShape_EquivalentDiameter_cyst[kk[1]])/2 # rough estimation with cyst volume
       
       kk.fp = kk[!is.na(res.cp$ID_fp[kk])]
       #cat(length(kk.fp), 'fp \n')
       nb.fp[n] = length(kk.fp)
       
-      if(length(kk.fp) == 0){ # 0 fp in the cyst
-        overlap.ratio[n] = 0 
-      }else{
+      if(length(kk.fp) > 0){
         overlap.ratio[n] = sum(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))/volume[n]
         #radius[n] = calcuate.cyst.radius(res.cp[kk.fp, ]) # calcuate this using the cyst center, fp center and fp radius
-        volume.fp[n] = median(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))
         foxa2.fp[n] = median(as.numeric(res.cp$Intensity_MeanIntensity_FOXA2_fp[kk.fp]))
+        
+        volume.fp[n] = median(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))
+        volumeSE.fp[n] = var(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))
         radius.fp[n] = median(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))
+        radiusSE.fp[n] = var(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))
         
         dist.fp[n] = calcuate.fp.dist(res.cp[kk.fp, ])
         
@@ -593,6 +606,16 @@ extract.turing.parameters.cellProfiler = function(res.cp)
   params = data.frame(params, stringsAsFactors = FALSE)
   colnames(params) = c('condition', 'cyst.id', 'nb.fp', 'dist.fp', 'foxa2.fp', 'radius.fp',  'radius.cyst', 
                        'volume', 'area', 'voxel', 'overlap.ratio', 'olig2', 'foxa2', 'volume.fp')
+  
+  for(n in 1:ncol(params))
+  {
+    if(colnames(params)[n] == 'condition'|colnames(params)[n] == 'nb.fp'){
+      params[ ,n] = as.factor(params[,n])
+    }else{
+      params[,n] = as.numeric(params[,n])
+    }
+  }
+  
   
   return(params)
   
@@ -802,9 +825,56 @@ find.metadata.from.imaris = function()
   
 }
 
-test.CPversion.surface.calculation = function()
+test.CPversion.output.shape.metric = function()
 {
-  xx = read.csv('/Users/jiwang/workspace/imp/organoid_patterning/images/cellProfiler_test/MyExpt_organoid.csv')
+  # test the cyst from human organoid data
+  cyst = read.csv(file = paste0(dataDir, 'organoid.csv'))
+  xx = cyst
+  
+  xx$sphericity = pi^(1/3)*(6*xx$AreaShape_Volume)^(2/3)/xx$AreaShape_SurfaceArea
+  xx$R0 = sqrt(xx$AreaShape_SurfaceArea/(4*pi))
+  xx$reduced.volume = xx$AreaShape_Volume/(4/3*pi*xx$R0^3)
+  
+  par(mfrow=c(1,2)) 
+  plot(xx$AreaShape_Volume, xx$sphericity, cex = 0.3, ylim = c(0, 1), main = 'volume and sphericity',
+       xlab = 'AreaShape_Volume', ylab = 'Sphericity')
+  abline(h = 3/4, col = 'red', lwd = 2.0)
+  
+  plot(xx$AreaShape_Volume, xx$reduced.volume, cex = 0.3, ylim = c(0, 1), main = 'volume and reduced volume', 
+       xlab = 'AreaShape_Volume', ylab = 'reduced.volume')
+  abline(h = (3/4)^(3/2), col = 'red', lwd = 2.0)
+  
+  write.table(xx, file = paste0(tabDir, '/cyst_shapeTest_sphericity_reducedVolume.txt'), sep = '\t', col.names = TRUE, row.names = FALSE)
+  
+  
+  ##########################################
+  # test surface and volume in CP with perfect spheres 
+  ##########################################
+  image = read.csv(file = '/Users/jiwang/workspace/imp/organoid_patterning/images/cellProfiler_test/sphere_test2/MyExpt_Image.csv')
+  xx = read.csv(file = '/Users/jiwang/workspace/imp/organoid_patterning/images/cellProfiler_test/sphere_test2/MyExpt_organoid.csv')
+  xx = data.frame(image[match(xx$ImageNumber, image$ImageNumber)], xx)
+  xx$volume =  xx$AreaShape_Volume
+  xx$surface = xx$AreaShape_SurfaceArea
+  xx$radius = xx$AreaShape_EquivalentDiameter/2
+  #xx$sphericity = pi^(1/3)*(6*xx$volume)^(2/3)/xx$surface
+  rr = c(100, 10, 200, 25, 50)
+  
+  par(mfrow=c(1,3)) 
+  plot(rr, xx$radius, xlab = 'true values', ylab = 'estimated from CP', main = 'Rdadius', cex = 1.2); 
+  abline(0, 1, lwd = 2.0, col = 'red')
+  plot(4/3*pi*rr^3, xx$volume, xlab = 'true values', ylab = 'estimated from CP', main = 'Volume', log = 'xy', cex = 1.2);
+  abline(0, 1, lwd = 2.0, col = 'red')
+  plot(4*pi*rr^2, xx$surface, xlab = 'true values', ylab = 'estimated from CP', main = 'Surface area', log = 'xy', cex = 1.2);
+  points(seq(1, 10^6, 200), seq(1,10^6, 200)*4/3, type = 'l', col = 'blue')
+  abline(0, 1, lwd = 2.0, col = 'red')
+  #abline(0, 4/3, lwd = 2.0, col = 'red', col = )
+  
+  
+  
+  plot(xx$volume, xx$sphericity)
+  
+  plot(xx$Volume..pixel.3.)
+  
   plot(4/3*4*pi*(xx$AreaShape_EquivalentDiameter/2)^2, xx$AreaShape_SurfaceArea, cex = 0.6)
   abline(0, 1, col = 'red')
   

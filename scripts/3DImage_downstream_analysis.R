@@ -185,6 +185,8 @@ if(CellProfiler){
 res = readRDS(file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_', analysis.verison, '.rds'))
 res = data.frame(res, stringsAsFactors = FALSE)
 
+DoubleCheck.CP.surfaceArea.volume = FALSE
+
 ##########################################
 # filter cyst or/and floorplates using global parameters
 # QC plots
@@ -211,17 +213,18 @@ mm = match(unique(cond.id), cond.id)
 xx = res[mm, ]
 xx$volume.log10 = log10(xx$AreaShape_Volume_cyst)
 
-
-plot(xx$AreaShape_Volume_cyst, xx$AreaShape_SurfaceArea_cyst)
-rr = c(0:1000)
-points(4/3*pi*rr^3, 4*pi*rr^2, type = 'l')
-points(rr^3, 6*rr^2, type = 'l')
-
-plot(4*pi*(xx$AreaShape_EquivalentDiameter_cyst/2)^2, xx$AreaShape_SurfaceArea_cyst, cex = 0.6)
-abline(0, 1, col = 'red')
-
-plot(4/3*pi*(xx$AreaShape_EquivalentDiameter_cyst/2)^3, xx$AreaShape_Volume_cyst);
-abline(0, 1, lwd =2.0, col = 'red')
+if(DoubleCheck.CP.surfaceArea.volume){
+  #plot(xx$AreaShape_Volume_cyst, xx$AreaShape_SurfaceArea_cyst)
+  #rr = c(0:1000)
+  #points(4/3*pi*rr^3, 4*pi*rr^2, type = 'l')
+  #points(rr^3, 6*rr^2, type = 'l')
+  
+  #plot(4*pi*(xx$AreaShape_EquivalentDiameter_cyst/2)^2, xx$AreaShape_SurfaceArea_cyst, cex = 0.6)
+  #abline(0, 1, col = 'red')
+  
+  #plot(4/3*pi*(xx$AreaShape_EquivalentDiameter_cyst/2)^3, xx$AreaShape_Volume_cyst);
+  #abline(0, 1, lwd =2.0, col = 'red')
+}
 
 p0 = as_tibble(xx) %>% 
   group_by(condition) %>% tally() %>%
@@ -236,14 +239,17 @@ p1 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_cyst, fill=condition)) +
   ggtitle('cyst volume') + theme(legend.position = "none") +
   theme(axis.text.x = element_text(angle = 90))
 
-
 p2 = ggplot(xx, aes(x = volume.log10)) +
   geom_histogram(binwidth = 0.1)
 
 p3 = ggplot(xx, aes(x = sphericity_cyst)) +
   geom_histogram(binwidth = 0.01)
 
-sels = which(xx$volume.log10 >=4 & xx$sphericity_cyst >=0.9)
+p23 = ggplot(xx, aes(x = volume.log10, y = sphericity_cyst)) +
+  geom_point(size = 1) +
+  geom_hline(yintercept=0.85, colour = "red") + geom_vline(xintercept = 4, colour = "red")
+
+sels = which(xx$volume.log10 >=4 & xx$sphericity_cyst >=0.8)
 xx = xx[sels, ]
 
 p4 = as_tibble(xx) %>% 
@@ -261,8 +267,12 @@ p5 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_cyst, fill=condition)) +
 
 
 pdfname = paste0(resDir, '/QC_cystFiltering_before_after.pdf')
-pdf(pdfname,  width = 25, height = 35)
-grid.arrange(p0, p1, p2, p3, p4, p5, ncol = 1) 
+pdf(pdfname,  width = 20, height = 16)
+
+grid.arrange(p0, p1, ncol = 1) 
+grid.arrange(p2, p3, p23, nrow = 2) 
+grid.arrange(p4, p5, ncol = 1) 
+
 dev.off()
 
 res = res[!is.na(match(res$ID_cyst, xx$ID_cyst)), ]
@@ -274,130 +284,96 @@ saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cystFileri
 ##########################################
 res = readRDS(file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cystFilering_', analysis.verison, '.rds'))
 
-source('orgnoid_functions.R')
-params = extract.turing.parameters.cellProfiler(res)
-
-
-cond.id = paste0(res$condition, '_', res$ID_cyst)
+#params = extract.turing.parameters.cellProfiler(res)
+cond.id = paste0(res$condition, '_', res$ID_fp)
 mm = match(unique(cond.id), cond.id)
 xx = res[mm, ]
+xx = xx[!is.na(xx$ID_fp), ]
 
 xx$volume.log10 = log10(xx$AreaShape_Volume_fp)
 
-
-xx$nb.fp = as.factor(xx$nb.fp)
-
-as_tibble(xx) %>% select(condition, nb.fp) %>%
-  group_by(condition, nb.fp) %>% tally() %>%
-  ggplot(aes(x = condition, y = n, fill = nb.fp)) +
-  geom_bar(stat = "identity") +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 90)) + 
-  ggtitle('nb of cysts and fp nb distribution')
-
-
-as_tibble(xx) %>% 
-  select(condition, ID_cyst) %>% # this is not needed - this is just for showing only the two columns upon checking the data
-  group_by(condition, ID_cyst) %>% 
-  tally() %>%
-  ggplot(aes(x = condition)) +
-  geom_bar() +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90))
-
-p0 = as_tibble(xx) %>% 
-  group_by(condition) %>% tally() %>%
-  ggplot(aes(x = condition, y = n, fill = condition)) +
-  geom_bar(stat = "identity") +
-  theme(legend.position = "none")  + 
-  ggtitle('nb of cysts ')
-
-p1 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_cyst, fill=condition)) + 
+p1 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_fp, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
-  ggtitle('cyst volume') + theme(legend.position = "none") 
+  ggtitle('fp volume') + theme(legend.position = "none") +
+  theme(axis.text.x = element_text(angle = 90, size = 10))
 
-p3 = ggplot(xx, aes(x = volume.log10)) +
-  geom_histogram(binwidth = 0.05)
-
-xx = xx[which(xx$volume.log10>=2 | is.na(xx$volume.log10)), ]
-
-res = res[!is.na(match(res$ID_fp, xx$ID_fp)), ]
-
-p4 = as_tibble(xx) %>% 
-  group_by(condition) %>% tally() %>%
-  ggplot(aes(x = condition, y = n, fill = condition)) +
-  geom_bar(stat = "identity") +
-  theme(legend.position = "none")  + 
-  ggtitle('nb of cysts ')
-
-p5 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_cyst, fill=condition)) + 
+p2 = ggplot(xx, aes(x = condition, y=sphericity_fp, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
-  ggtitle('cyst volume') + theme(legend.position = "none") 
+  ggtitle('fp sphericity') + theme(legend.position = "none") +
+  theme(axis.text.x = element_text(angle = 90, size = 10))
 
-p1 = ggplot(xx, aes(x = condition, y=Overlapped.Volume.Ratio_cyst, fill=condition)) + 
+p3 = ggplot(xx, aes(x = condition, y=Intensity_MeanIntensity_FOXA2_fp, fill=condition)) + 
+  geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.1) + 
+  ggtitle('fp mean FoxA2 intensity') + theme(legend.position = "none") +
+  theme(axis.text.x = element_text(angle = 90, size = 10))
+
+p4 = ggplot(xx, aes(x = volume.log10)) +
+  geom_histogram(binwidth = 0.1)
+
+p5 = ggplot(xx, aes(x = sphericity_cyst)) +
+  geom_histogram(binwidth = 0.01)
+
+p6 = ggplot(xx, aes(x = Intensity_MeanIntensity_FOXA2_fp)) +
+  geom_histogram(binwidth = 0.001)
+
+p45 = ggplot(xx, aes(x = volume.log10, y = sphericity_fp)) +
+  geom_point(size = 0.2) +
+  #geom_hline(yintercepst=0.85, colour = "red") + 
+  geom_vline(xintercept = 1.5, colour = "red")
+
+p56 = ggplot(xx, aes(x = volume.log10, y = Intensity_MeanIntensity_FOXA2_fp)) +
+  geom_point(size = 0.2) +
+  #geom_hline(yintercept=0.01, colour = "red") + 
+  geom_vline(xintercept = 1.5, colour = "red")
+
+
+sels = which(xx$volume.log10 >=1.5) 
+xx = xx[sels, ]
+
+p7 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_fp, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
-  ggtitle('cyst fraction overlapped by fp') + theme(legend.position = "none") 
+  ggtitle('fp volume') + theme(legend.position = "none") +
+  theme(axis.text.x = element_text(angle = 90, size = 10))
 
-p2 = ggplot(xx, aes(x = condition, y=Intensity.Mean.Unit._Intensity.Mean.Ch3.Img1_cyst, fill=condition)) + 
-  geom_violin() + ggtitle('FoxA2 mean intensity') + theme(legend.position = "none")
-
-res = res[which(res$Distance.to.Image.Border.XY.Unit.µm_Distance.to.Image.Border.XY.Img1_cyst > 0), ]
-
-cond.id = paste0(res$condition, '_', res$ID_cyst)
-mm = match(unique(cond.id), cond.id)
-
-px = ggplot(xx, aes(x = Distance.to.Image.Border.XY.Unit.µm_Distance.to.Image.Border.XY.Img1_cyst)) +
-  geom_histogram(binwidth = 10)
-pxx = ggplot(res[mm, ], aes(x = Distance.to.Image.Border.XY.Unit.µm_Distance.to.Image.Border.XY.Img1_cyst)) +
-  geom_histogram(binwidth = 10)
-
-xx = res[mm, ]
-
-p0 = as_tibble(res[mm, ]) %>% 
-  group_by(condition) %>% tally() %>%
-  ggplot(aes(x = condition, y = n, fill = condition)) +
-  geom_bar(stat = "identity") +
-  theme(legend.position = "none")  + 
-  ggtitle('nb of cysts ')
-
-p1 = ggplot(res[mm, ], aes(x = condition, y=Overlapped.Volume.Ratio_cyst, fill=condition)) + 
+p8 = ggplot(xx, aes(x = condition, y=sphericity_fp, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
-  ggtitle('cyst fraction overlapped by fp') + theme(legend.position = "none") 
+  ggtitle('fp sphericity') + theme(legend.position = "none") +
+  theme(axis.text.x = element_text(angle = 90, size = 10))
 
-p2 = ggplot(res[mm, ], aes(x = condition, y=Intensity.Mean.Unit._Intensity.Mean.Ch3.Img1_cyst, fill=condition)) + 
-  geom_violin() + ggtitle('FoxA2 mean intensity') + theme(legend.position = "none")
+p9 = ggplot(xx, aes(x = condition, y=Intensity_MeanIntensity_FOXA2_fp, fill=condition)) + 
+  geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.1) + 
+  ggtitle('fp mean FoxA2 intensity') + theme(legend.position = "none") +
+  theme(axis.text.x = element_text(angle = 90, size = 10))
 
 
-pdfname = paste0(resDir, '/QC_plots_filteringImageOnBoard.pdf')
-pdf(pdfname,  width = 25, height = 25)
-grid.arrange(px, pxx, p0, p1, p2, nrow = 5, ncol = 1) 
+pdfname = paste0(resDir, '/QC_plots_fp_volumeFiltering_beforeAndAfter.pdf')
+pdf(pdfname,  width = 20, height = 20)
+
+grid.arrange(p0, p1, p3, ncol = 1) 
+grid.arrange(p4, p5, p6, nrow = 2)
+grid.arrange(p45, p56, nrow = 2)
+grid.arrange(p7, p8, p9, ncol = 1) 
+
 dev.off()
 
+res$AreaShape_Volume_fp.log10 = log10(res$AreaShape_Volume_fp)
+res = res[is.na(res$AreaShape_Volume_fp.log10) | res$AreaShape_Volume_fp.log10 >= 1.5, ]
 
-res = res[which(res$Overlapped.Volume.Ratio_fp > 0.5 | is.na(res$Overlapped.Volume.Ratio_fp)), ]
-#res = res[which(res$Overlapped.Volume.Ratio_cyst > 0.05 | is.na(res$Overlapped.Volume.Ratio_cyst)), ]
+saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cyst.fp.Filering_', analysis.verison, '.rds'))
 
-res = res[which(res$Sphericity.Unit._Sphericity_cyst > 0.8), ]
 
 ##########################################
 # extract turing-relevant parameters
-#########################################    
-
+######################################### 
+res = readRDS(file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cyst.fp.Filering_', analysis.verison, '.rds'))
 source('orgnoid_functions.R')
-params = extract.turing.parameters(res)
+
+params = extract.turing.parameters.cellProfiler(res, pixel.scale = 3)
 
 ##########################################
 # visualize the turing-model relevant parameters
 ##########################################
 
-for(n in 1:ncol(params))
-{
-  if(colnames(params)[n] == 'condition'|colnames(params)[n] == 'nb.fp'){
-    params[ ,n] = as.factor(params[,n])
-  }else{
-    params[,n] = as.numeric(params[,n])
-  }
-}
 
 conds = unique(params$condition)
 
