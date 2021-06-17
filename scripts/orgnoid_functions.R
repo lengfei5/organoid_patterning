@@ -467,6 +467,7 @@ calculate.angle.between.two.fps = function(x, y)
 calcuate.fp.dist = function(xx0, use.cyst.radius)
 {
   # xx0 = res.cp[kk.fp, ]
+  
   # first check if cyst id is unique
   if(length(unique(xx0$ID_cyst) == 1)){
     x0 = xx0[, grep('_cyst$', colnames(xx0))]
@@ -475,7 +476,20 @@ calcuate.fp.dist = function(xx0, use.cyst.radius)
     colnames(yy) = gsub('_fp$', '', colnames(yy))
     
     ## use the cyst radius to calculate the distance between fp
-    rc = xx0$AreaShape_EquivalentDiameter_cyst[1]/2.0
+    dist.ratio = xx0$Distance_Centroid_organoid_fp/(xx0$AreaShape_EquivalentDiameter_cyst[1]/2.0)
+    rc = xx0$Distance_Centroid_organoid_fp
+    
+    # remove outliers of fp.to.cyst.distance with ratio thresholding
+    rc = rc[which(dist.ratio>=0.5 & dist.ratio <=1.2)]
+    extremeValue = 0
+    if(length(rc)<1){
+      extremeValue = 1
+      #cat(xx0$ID_cyst[1],  ' fp.to.cyst.distance have extreme ratios\n')
+      
+      rc = xx0$Distance_Centroid_organoid_fp    
+    }
+    
+    rc = median(rc)
     #plot(res$AreaShape_Volume_fp.log10, res$Distance_Centroid_organoid_fp, cex = 0.2)
     #rrs = xx0$Distance_Centroid_organoid_fp
     #if(max(rrs)/min(rrs) > 2) cat('big difference in rc : ', unique(xx0$ID_cyst), '\n')
@@ -484,7 +498,7 @@ calcuate.fp.dist = function(xx0, use.cyst.radius)
       #rc = mean(calculate.distance(x0[1, ], yy))
       #rc = xx0$Distance_Centroid_organoid_fp
       d.fp = 2*pi*rc
-      return(d.fp)
+      return(c(d.fp, extremeValue))
       
     }else{
       
@@ -492,7 +506,7 @@ calcuate.fp.dist = function(xx0, use.cyst.radius)
         #rc = median(xx0$Distance_Centroid_organoid_fp)
         alpha = calculate.angle.between.two.fps(x0[1,], yy)
         d.fp = rc*alpha
-        return(d.fp)
+        return(c(d.fp, extremeValue))
         
       }else{
         dds.fp = c()
@@ -514,64 +528,103 @@ calcuate.fp.dist = function(xx0, use.cyst.radius)
           
         }
         
-        return(mean(dds.fp))
+        return(c(mean(dds.fp), extremeValue))
         
       } 
     }
+    
     # rfp = (as.numeric(yy$Volume.Unit._Volume)/(4/3*pi))^(1/3)
     # rrc = median(dd + rfp)
     # return(rrc)
+    
   }else{
     stop('multiple cyst ID found !!!')
   }
+  
 }
 
-extract.turing.parameters.cellProfiler = function(res.cp, pixel.scale = 3)
+extract.turing.parameters.cellProfiler = function(res.cp, cyst.overlapRatio.threshold = 0.01, pixel.scale = 3)
 {
   # res.cp = res
   cyst.id = unique(res.cp$ID_cyst)
   cc = res.cp$condition[match(cyst.id, res.cp$ID_cyst)]
   params =  data.frame(matrix(NA, nrow = length(cyst.id), ncol = 14))
-  colnames(params) = c('nb.fp', 'dist.fp', 'foxa2.fp',  'radius.cyst', 'radius.fp', 'radiusSE.fp',
-                       'volume', 'area', 'voxel', 'overlap.ratio', 'olig2', 'foxa2', 'volume.fp', 'volumeSE.fp')
+  colnames(params) = c('nb.fp', 'dist.fp', 'dist.fp.extremeValue', 'foxa2.fp',  'radius.cyst', 'radius.fp', 'radiusSE.fp',
+                       'volume', 'surface.area', 'overlap.ratio', 'olig2', 'foxa2', 'volume.fp', 'volumeSE.fp')
   rownames(params) = cyst.id
+  
+  # plot(res$AreaShape_EquivalentDiameter_fp/2, (res$Distance_Centroid_organoid_fp )/(res$AreaShape_EquivalentDiameter_cyst/2), 
+  #      cex = 0.3, log = 'x');
+  # #abline(h = c( 0.8), col ='red', lwd = 2.0)
+  # rr = 10^seq(0, 5, length.out = 100)
+  # points(rr, 1-rr/27, type = 'l', col = 'blue', lwd = 4.0)
   
   for(n in 1:length(cyst.id))
   {
-    # n = 7
+    # n = 677; n = which(cyst.id == '107_11')
     if(n%%100 == 0) cat('cyst nb : ', n, '\n')
     kk = which(res.cp$ID_cyst == cyst.id[n])
     
     # extract information of cyst
     params$volume[n] = as.numeric(res.cp$AreaShape_Volume_cyst[kk[1]])
-    params$area[n] = as.numeric(res.cp$AreaShape_SurfaceArea_cyst[kk[1]])
-    params$olig2[n] = as.numeric(res.cp$Intensity_MeanIntensity_Olig2_cyst[kk[1]])
-    params$foxa2[n] = as.numeric(res.cp$Intensity_MeanIntensity_FOXA2_cyst[kk[1]])
+    params$surface.area[n] = as.numeric(res.cp$AreaShape_SurfaceArea_cyst[kk[1]])
+    params$olig2[n] = as.numeric(res.cp$Intensity_MeanIntensity_Olig2_cyst[kk[1]]) * res.cp$Scaling_Olig2_image[kk[1]]
+    params$foxa2[n] = as.numeric(res.cp$Intensity_MeanIntensity_FOXA2_cyst[kk[1]]) * res.cp$Scaling_FOXA2_image[kk[1]]
     
     params$radius.cyst[n] = as.numeric(res.cp$AreaShape_EquivalentDiameter_cyst[kk[1]])/2 # rough estimation with cyst volume
     
     kk.fp = kk[!is.na(res.cp$ID_fp[kk])]
-    #cat(length(kk.fp), 'fp \n')
-    params$nb.fp[n] = length(kk.fp)
-    
     if(length(kk.fp) > 0){
+      fp.cyst.ratio = sum(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))/params$volume[n]
+    }
+    
+   
+    if(length(kk.fp) > 0 & fp.cyst.ratio > cyst.overlapRatio.threshold){
+      params$nb.fp[n] = length(kk.fp)
       params$overlap.ratio[n] = sum(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))/params$volume[n]
+      
       #radius[n] = calcuate.cyst.radius(res.cp[kk.fp, ]) # calcuate this using the cyst center, fp center and fp radius
-      params$foxa2.fp[n] = median(as.numeric(res.cp$Intensity_MeanIntensity_FOXA2_fp[kk.fp]))
+      params$foxa2.fp[n] = median(as.numeric(res.cp$Intensity_MeanIntensity_FOXA2_fp[kk.fp])) * res.cp$Scaling_FOXA2_image[kk[1]]
       
       params$volume.fp[n] = median(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))
-      params$volumeSE.fp[n] = var(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))
-      params$radius.fp[n] = median(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))
-      params$radiusSE.fp[n] = var(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))
+      params$radius.fp[n] = median(as.numeric(res.cp$AreaShape_EquivalentDiameter_fp[kk.fp]/2))
       
-      params$dist.fp[n] = calcuate.fp.dist(res.cp[kk.fp, ])
+      if(length(kk.fp)>1){
+        params$volumeSE.fp[n] = sd(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))
+        params$radiusSE.fp[n] = sd(as.numeric(res.cp$AreaShape_EquivalentDiameter_fp[kk.fp]/2))
+      }
       
+      cyst.fp.dist = calcuate.fp.dist(res.cp[kk.fp, ])
+      params$dist.fp[n] = cyst.fp.dist[1]
+      params$dist.fp.extremeValue[n] = cyst.fp.dist[2]
+      
+    }else{
+      params$nb.fp[n] = 0
+      params$overlap.ratio[n] = sum(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))/params$volume[n]
     }
   }
   
-  params$radius
+  # convert pixels to um
+  params$dist.fp = params$dist.fp * pixel.scale
+  params$radius.cyst = params$radius.cyst * pixel.scale
+  params$radius.fp = params$radius.fp * pixel.scale
+  params$radiusSE.fp = params$radiusSE.fp*pixel.scale
+  params$volume = params$volume*pixel.scale^3
+  params$volume.fp = params$volume.fp * pixel.scale^3
+  params$volumeSE.fp = params$volumeSE.fp*pixel.scale^3
+  
+  params$surface.area = params$surface.area*pixel.scale^2/(4/3) # unknow factor from CP
   
   params = data.frame(condition = cc, params, stringsAsFactors = TRUE)
+  
+  for(n in 1:ncol(params))
+  {
+    if(colnames(params)[n] == 'condition'|colnames(params)[n] == 'nb.fp'){
+      params[ ,n] = as.factor(params[,n])
+    }else{
+      params[,n] = as.numeric(params[,n])
+    }
+  }
   
  
   return(params)

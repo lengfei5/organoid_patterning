@@ -295,7 +295,8 @@ xx$volume.log10 = log10(xx$AreaShape_Volume_fp)
 p1 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_fp, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
   ggtitle('fp volume') + theme(legend.position = "none") +
-  theme(axis.text.x = element_text(angle = 90, size = 10))
+  theme(axis.text.x = element_text(angle = 90, size = 10)) +
+  scale_y_continuous(trans='log10')
 
 p2 = ggplot(xx, aes(x = condition, y=sphericity_fp, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
@@ -375,17 +376,6 @@ params = extract.turing.parameters.cellProfiler(res, pixel.scale = 3)
 ##########################################
 conds = unique(params$condition)
 
-for(n in 1:ncol(params))
-{
-  if(colnames(params)[n] == 'condition'|colnames(params)[n] == 'nb.fp'){
-    params[ ,n] = as.factor(params[,n])
-  }else{
-    params[,n] = as.numeric(params[,n])
-  }
-}
-
-
-
 # check controls first
 conds.sels = list(
   # controls 
@@ -394,61 +384,30 @@ conds.sels = list(
               params$condition == 'RA_LDNonly'|
           params$condition == 'RA_noLDNnoSB'),
   
-  which(params$condition == "RA_LDNSB"| 
-          params$condition == 'FGF_LDNSB'|
-          params$condition == 'PD_LDNSB'), # Fgf perturbation 
-  
-  which(params$condition == "RA_LDNSB"|
-          params$condition == 'Chir3_LDNSB'|
-          params$condition == 'Chir6_LDNSB'|
-          params$condition == 'IWP2_LDNSBb'|
-          params$condition == 'XAV_LDNSB'), # Wnt perturbation
-  
-  which(params$condition == "RA_LDNSB"|
-          params$condition == 'BMP4_SBonlyb'| # BMP perturbation
-          params$condition == 'RA_SBonly'
+  which(params$condition == "RA_LDNSB"| # control
+          params$condition == 'FGF_LDNSB'| # FGF single perburbation
+          params$condition == 'PD_LDNSB'|
+          params$condition == 'BMP4_SBonlyb'| # BMP single perturbation
+          params$condition == 'RA_SBonly'|
+          params$condition == 'FGF_SBonlyb'| # BMP FGF perturbation
+          params$condition == 'PD_SBonly'
           )
-  
-  # which(params$condition == "RA_LDNSB"|
-  #         params$condition == 'XAV_SBonly'| # BMP perturbation
-  #         params$condition == 'IWP2_SBonly'|
-  #         params$condition == 'Chir3_SBonly'|
-  #         params$condition == 'Chir6_SBonly'
-  # ), 
-  # 
-  # which(params$condition == "RA_LDNSB"|
-  #         params$condition == 'FGF_SBonlyb'| # BMP perturbation
-  #         params$condition == 'PD_SBonly'|
-  #         params$condition == 'Chir3_SBonly'|
-  #         params$condition == 'Chir6_SBonly'
-  # )
-  
 )
 
 
 pdfname = paste0(resDir, '/Organoid_perturbation_singlePerturbation.pdf')
-pdf(pdfname,  width = 20, height = 10)
+pdf(pdfname,  width = 20, height = 16)
 
 for(n in 1:length(conds.sels))
 {
   # n = 1
   sels = conds.sels[[n]]
   nb.fp = as.numeric(as.character(params$nb.fp[sels]))
-  sels = sels[which(nb.fp>=0 & nb.fp<15)]
+  sels = sels[which(nb.fp>=0 & nb.fp<=10)]
   
-  xx = params[sels, ]
-  xx = xx[which(as.numeric(as.character(xx$nb.fp))> 1), ]
+  #xx = params[sels, ]
+  #xx = xx[which(as.numeric(as.character(xx$nb.fp))> 1), ]
   #xx = xx[which(xx$dist.fp > 300), ]
-  
-  #sels = c(1:nrow(params))
-  #nb.fp = as.numeric(as.character(params$nb.fp[sels]))
-  #sels = sels[which(nb.fp>=0 & nb.fp<10)]
-  
-  # general overview
-  # p0 = as_tibble(params[sels, ]) %>% group_by(condition) %>% tally() %>%
-  #   ggplot(aes(x = condition, y = n, fill = condition)) +
-  #   geom_bar(stat = "identity") +
-  #   theme_classic() + ggtitle('nb of cyst')
   
   p0 = as_tibble(params[sels, ]) %>% 
     group_by(condition, nb.fp) %>% tally() %>%
@@ -457,15 +416,14 @@ for(n in 1:length(conds.sels))
     theme_classic() + ggtitle('nb of cysts and fp nb distribution') 
   
   p1 = ggplot(params[sels, ], aes(x = condition, y=volume, fill=condition)) + 
-    geom_violin() + ggtitle('cyst volume') + 
-    theme(axis.text.x = element_text(angle = 90))
-  
+    geom_violin() + ggtitle('cyst volume') 
+    
   p2 = ggplot(params[sels, ], aes(x = condition, y=overlap.ratio, fill=condition)) + 
-    geom_violin() + ggtitle('cyst fraction overlapped by fp')
+    geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2) + 
+    ggtitle('cyst fraction overlapped by fp')
   
   p3 = ggplot(params[sels, ], aes(x=condition, y=radius.fp, fill=condition)) + 
-    geom_violin() + ggtitle('foxa2 radius') +
-    theme(axis.text.x = element_text(angle = 90))
+    geom_violin() + ggtitle('foxa2 radius')
   
   p4 = ggplot(params[sels, ], aes(x = condition, y=foxa2.fp, fill=condition)) + 
     geom_violin() + ggtitle('FoxA2 mean intensity')
@@ -473,36 +431,20 @@ for(n in 1:length(conds.sels))
   p5 = ggplot(params[sels, ], aes(fill=condition, y=olig2 , x = condition)) + 
     geom_violin() + ggtitle('Olig2 mean intensity')
   
-  # parameters relevant to Turing model
-  #ggplot(params[sels, ], aes(x=area, y = radius.cyst, color=condition, fill = condition)) +
-  #  geom_point() + ggtitle('estimated cyst radius')
-  
-  #ggplot(params[sels, ], aes(x=area, y = nb.fp, color=condition, fill = condition)) +
-  
-  #p1 = ggplot(xx, aes(x=radius.cyst.group, y=nb.fp, fill=condition)) +
-  #  geom_violin() + ggtitle('estimated cyst radius')
-  
   p6 = ggplot(params[sels, ], aes(x=nb.fp, y=volume, color=condition, fill = condition)) +
-    geom_violin() + ggtitle('cyst volume')
+    geom_violin() + ggtitle('size dependency of fp nb')
   
   p7 = ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>1)], ], aes(x=volume, y=dist.fp, color=condition)) +
     geom_point(size = 2.5) + ggtitle('distance between fps (wavelength)') 
    
-  ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>1)], ], 
+  p8 = ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>1)], ], 
          aes(x=condition, y=dist.fp, color=condition, fill = condition)) +
     geom_violin() + ggtitle('distance between fps (wavelength)') 
   
-  params$curvature = 1/(params$radius^2)
-  ggplot(params[sels, ], aes(x=area, y=curvature, color=condition, size = nb.fp)) +
-    geom_point()  
-    geom_violin() + ggtitle('cyst volume')
+    
+  grid.arrange(p0, p1, p2, p5,  nrow = 2, ncol = 2)
   
-  p8 = ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>1)], ], aes(fill=condition, y=dist.fp, x = condition)) +
-    geom_violin() + ggtitle('distance between fps (wavelength)')
-  
-  grid.arrange(p0, p6, p7, p8, p1, p2, p3, p4, p5,  nrow = 3, ncol = 3)
-  
-  #grid.arrange(p2, p3, nrow = 1, ncol = 2)
+  grid.arrange(p6, p7, p8, p4, p3,  nrow = 2, ncol = 3)
   
 }
 
