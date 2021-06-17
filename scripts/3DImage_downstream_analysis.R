@@ -369,11 +369,12 @@ saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cyst.fp.Fi
 res = readRDS(file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cyst.fp.Filering_', analysis.verison, '.rds'))
 source('orgnoid_functions.R')
 
-params = extract.turing.parameters.cellProfiler(res, pixel.scale = 3)
+params = extract.turing.parameters.cellProfiler(res, pixel.scale = 3, cyst.overlapRatio.threshold = 0.05)
 
 ##########################################
 # visualize the turing-model relevant parameters
 ##########################################
+#library(tidyquant)
 conds = unique(params$condition)
 
 # check controls first
@@ -395,8 +396,8 @@ conds.sels = list(
 )
 
 
-pdfname = paste0(resDir, '/Organoid_perturbation_singlePerturbation.pdf')
-pdf(pdfname,  width = 20, height = 16)
+pdfname = paste0(resDir, '/Organoid_perturbation_Control.BMP.FGF_CP.pdf')
+pdf(pdfname,  width = 20, height = 12)
 
 for(n in 1:length(conds.sels))
 {
@@ -443,8 +444,8 @@ for(n in 1:length(conds.sels))
   
     
   grid.arrange(p0, p1, p2, p5,  nrow = 2, ncol = 2)
-  
-  grid.arrange(p6, p7, p8, p4, p3,  nrow = 2, ncol = 3)
+  grid.arrange(p7, p8, p4, p3,  nrow = 2, ncol = 2)
+  grid.arrange(p6, p7,  nrow = 2, ncol = 1)
   
 }
 

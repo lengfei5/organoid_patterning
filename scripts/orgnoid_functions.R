@@ -464,7 +464,7 @@ calculate.angle.between.two.fps = function(x, y)
   } 
 }
 
-calcuate.fp.dist = function(xx0, use.cyst.radius)
+calcuate.fp.dist = function(xx0, use.cyst.radius, refine.rc = FALSE, use.global.rc = FALSE)
 {
   # xx0 = res.cp[kk.fp, ]
   
@@ -474,36 +474,42 @@ calcuate.fp.dist = function(xx0, use.cyst.radius)
     yy = xx0[, grep('_fp$', colnames(xx0))]
     colnames(x0) = gsub('_cyst$', '', colnames(x0))
     colnames(yy) = gsub('_fp$', '', colnames(yy))
-    
-    ## use the cyst radius to calculate the distance between fp
-    dist.ratio = xx0$Distance_Centroid_organoid_fp/(xx0$AreaShape_EquivalentDiameter_cyst[1]/2.0)
-    rc = xx0$Distance_Centroid_organoid_fp
-    
-    # remove outliers of fp.to.cyst.distance with ratio thresholding
-    rc = rc[which(dist.ratio>=0.5 & dist.ratio <=1.2)]
     extremeValue = 0
-    if(length(rc)<1){
-      extremeValue = 1
-      #cat(xx0$ID_cyst[1],  ' fp.to.cyst.distance have extreme ratios\n')
+    
+    if(use.global.rc){
+      ## use the cyst radius to calculate the distance between fp
+      dist.ratio = xx0$Distance_Centroid_organoid_fp/(xx0$AreaShape_EquivalentDiameter_cyst[1]/2.0)
+      rc = xx0$Distance_Centroid_organoid_fp
       
-      rc = xx0$Distance_Centroid_organoid_fp    
+      if(refine.rc){
+        # filtering outliers of fp.to.cyst.distance with ratio thresholding if there are > 3 fp
+        if(length(rc>=3)){
+          rc = rc[which(dist.ratio>=0.5 & dist.ratio <=1.2)] 
+        }
+        
+        if(length(rc)<1){
+          extremeValue = 1
+          #cat(xx0$ID_cyst[1],  ' fp.to.cyst.distance have extreme ratios\n')
+          rc = xx0$Distance_Centroid_organoid_fp    
+        }
+      }
+      
+      rc = median(rc)
+      #plot(res$AreaShape_Volume_fp.log10, res$Distance_Centroid_organoid_fp, cex = 0.2)
+      #rrs = xx0$Distance_Centroid_organoid_fp
+      #if(max(rrs)/min(rrs) > 2) cat('big difference in rc : ', unique(xx0$ID_cyst), '\n')
     }
-    
-    rc = median(rc)
-    #plot(res$AreaShape_Volume_fp.log10, res$Distance_Centroid_organoid_fp, cex = 0.2)
-    #rrs = xx0$Distance_Centroid_organoid_fp
-    #if(max(rrs)/min(rrs) > 2) cat('big difference in rc : ', unique(xx0$ID_cyst), '\n')
-    
+   
     if(nrow(xx0) == 1){
       #rc = mean(calculate.distance(x0[1, ], yy))
-      #rc = xx0$Distance_Centroid_organoid_fp
+      if(!use.global.rc) rc = xx0$Distance_Centroid_organoid_fp
       d.fp = 2*pi*rc
       return(c(d.fp, extremeValue))
       
     }else{
       
       if(nrow(xx0) == 2){
-        #rc = median(xx0$Distance_Centroid_organoid_fp)
+        if(!use.global.rc) rc = median(xx0$Distance_Centroid_organoid_fp)
         alpha = calculate.angle.between.two.fps(x0[1,], yy)
         d.fp = rc*alpha
         return(c(d.fp, extremeValue))
@@ -516,10 +522,12 @@ calcuate.fp.dist = function(xx0, use.cyst.radius)
           for(j in 1:nrow(yy))
           {
             if(j != i){
-              #dd.i = c(dd.i, mean(c(xx0$Distance_Centroid_organoid_fp[i], xx0$Distance_Centroid_organoid_fp[j]))*
-              #           calculate.angle.between.two.fps(x0[1,], yy[c(i, j), ]))
-              dd.i = c(dd.i, rc*calculate.angle.between.two.fps(x0[1,], yy[c(i, j), ]))
-              
+              if(!use.global.rc){
+                dd.i = c(dd.i, mean(c(xx0$Distance_Centroid_organoid_fp[i], xx0$Distance_Centroid_organoid_fp[j]))*
+                           calculate.angle.between.two.fps(x0[1,], yy[c(i, j), ]))
+              }else{
+                dd.i = c(dd.i, rc*calculate.angle.between.two.fps(x0[1,], yy[c(i, j), ])) 
+              }
             }
           }
           
@@ -543,7 +551,8 @@ calcuate.fp.dist = function(xx0, use.cyst.radius)
   
 }
 
-extract.turing.parameters.cellProfiler = function(res.cp, cyst.overlapRatio.threshold = 0.01, pixel.scale = 3)
+extract.turing.parameters.cellProfiler = function(res.cp, cyst.overlapRatio.threshold = 0.01, pixel.scale = 3,
+                                                  refine.rc = FALSE)
 {
   # res.cp = res
   cyst.id = unique(res.cp$ID_cyst)
@@ -594,7 +603,7 @@ extract.turing.parameters.cellProfiler = function(res.cp, cyst.overlapRatio.thre
         params$radiusSE.fp[n] = sd(as.numeric(res.cp$AreaShape_EquivalentDiameter_fp[kk.fp]/2))
       }
       
-      cyst.fp.dist = calcuate.fp.dist(res.cp[kk.fp, ])
+      cyst.fp.dist = calcuate.fp.dist(res.cp[kk.fp, ], refine.rc = refine.rc)
       params$dist.fp[n] = cyst.fp.dist[1]
       params$dist.fp.extremeValue[n] = cyst.fp.dist[2]
       
