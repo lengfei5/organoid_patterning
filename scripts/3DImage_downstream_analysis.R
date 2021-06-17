@@ -373,9 +373,18 @@ params = extract.turing.parameters.cellProfiler(res, pixel.scale = 3)
 ##########################################
 # visualize the turing-model relevant parameters
 ##########################################
-
-
 conds = unique(params$condition)
+
+for(n in 1:ncol(params))
+{
+  if(colnames(params)[n] == 'condition'|colnames(params)[n] == 'nb.fp'){
+    params[ ,n] = as.factor(params[,n])
+  }else{
+    params[,n] = as.numeric(params[,n])
+  }
+}
+
+
 
 # check controls first
 conds.sels = list(
@@ -425,7 +434,7 @@ for(n in 1:length(conds.sels))
   # n = 1
   sels = conds.sels[[n]]
   nb.fp = as.numeric(as.character(params$nb.fp[sels]))
-  sels = sels[which(nb.fp>=0 & nb.fp<10)]
+  sels = sels[which(nb.fp>=0 & nb.fp<15)]
   
   xx = params[sels, ]
   xx = xx[which(as.numeric(as.character(xx$nb.fp))> 1), ]
@@ -445,16 +454,14 @@ for(n in 1:length(conds.sels))
     group_by(condition, nb.fp) %>% tally() %>%
     ggplot(aes(x = condition, y = n, fill = nb.fp)) +
     geom_bar(stat = "identity") +
-    theme_classic() + ggtitle('nb of cysts and fp nb distribution') + 
-    theme(axis.text.x = element_text(angle = 90))
+    theme_classic() + ggtitle('nb of cysts and fp nb distribution') 
   
   p1 = ggplot(params[sels, ], aes(x = condition, y=volume, fill=condition)) + 
     geom_violin() + ggtitle('cyst volume') + 
     theme(axis.text.x = element_text(angle = 90))
   
   p2 = ggplot(params[sels, ], aes(x = condition, y=overlap.ratio, fill=condition)) + 
-    geom_violin() + ggtitle('cyst fraction overlapped by fp') +
-    theme(axis.text.x = element_text(angle = 90))
+    geom_violin() + ggtitle('cyst fraction overlapped by fp')
   
   p3 = ggplot(params[sels, ], aes(x=condition, y=radius.fp, fill=condition)) + 
     geom_violin() + ggtitle('foxa2 radius') +
@@ -475,13 +482,20 @@ for(n in 1:length(conds.sels))
   #p1 = ggplot(xx, aes(x=radius.cyst.group, y=nb.fp, fill=condition)) +
   #  geom_violin() + ggtitle('estimated cyst radius')
   
-  p6 = ggplot(params[sels, ], aes(x=nb.fp, y=radius.cyst, color=condition, fill = condition)) +
-    geom_violin() + ggtitle('cyst radius') +
-    theme(axis.text.x = element_text(angle = 90))
+  p6 = ggplot(params[sels, ], aes(x=nb.fp, y=volume, color=condition, fill = condition)) +
+    geom_violin() + ggtitle('cyst volume')
   
   p7 = ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>1)], ], aes(x=volume, y=dist.fp, color=condition)) +
     geom_point(size = 2.5) + ggtitle('distance between fps (wavelength)') 
    
+  ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>1)], ], 
+         aes(x=condition, y=dist.fp, color=condition, fill = condition)) +
+    geom_violin() + ggtitle('distance between fps (wavelength)') 
+  
+  params$curvature = 1/(params$radius^2)
+  ggplot(params[sels, ], aes(x=area, y=curvature, color=condition, size = nb.fp)) +
+    geom_point()  
+    geom_violin() + ggtitle('cyst volume')
   
   p8 = ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>1)], ], aes(fill=condition, y=dist.fp, x = condition)) +
     geom_violin() + ggtitle('distance between fps (wavelength)')
