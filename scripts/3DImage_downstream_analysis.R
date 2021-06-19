@@ -205,6 +205,12 @@ res$ID_fp[is.na(res$ObjectNumber_fp)] = NA
 res$sphericity_cyst = pi^(1/3)*(6*res$AreaShape_Volume_cyst)^(2/3) / res$AreaShape_SurfaceArea_cyst*4/3 # mysterious factor 4/3
 res$sphericity_fp = pi^(1/3)*(6*res$AreaShape_Volume_fp)^(2/3) / res$AreaShape_SurfaceArea_fp*4/3 
 
+## Old filtering for Imaris segemetation
+#res = res[which(res$Distance.to.Image.Border.XY.Unit.µm_Distance.to.Image.Border.XY.Img1_cyst > 0), ]
+#res = res[which(res$Overlapped.Volume.Ratio_fp > 0.5 | is.na(res$Overlapped.Volume.Ratio_fp)), ]
+#res = res[which(res$Sphericity.Unit._Sphericity_cyst > 0.8), ]
+
+
 ##########################################
 ## cyst filtering
 ##########################################
@@ -249,7 +255,7 @@ p23 = ggplot(xx, aes(x = volume.log10, y = sphericity_cyst)) +
   geom_point(size = 1) +
   geom_hline(yintercept=0.85, colour = "red") + geom_vline(xintercept = 4, colour = "red")
 
-sels = which(xx$volume.log10 >=4 & xx$sphericity_cyst >=0.8)
+sels = which(xx$volume.log10 >=4 & xx$sphericity_cyst >=0.9)
 xx = xx[sels, ]
 
 p4 = as_tibble(xx) %>% 
@@ -291,6 +297,17 @@ xx = res[mm, ]
 xx = xx[!is.na(xx$ID_fp), ]
 
 xx$volume.log10 = log10(xx$AreaShape_Volume_fp)
+xx$volume.ratio = (xx$AreaShape_Volume_fp/xx$AreaShape_Volume_cyst)
+xx$volume.ratio.log10 = log10(xx$AreaShape_Volume_fp/xx$AreaShape_Volume_cyst)
+xx$dist.cyst.radius.ratio = xx$Distance_Centroid_organoid_fp/(xx$AreaShape_EquivalentDiameter_cyst/2)
+
+ggplot(xx, aes(x = volume.log10, y = volume.ratio.log10)) +
+  geom_point(size = 0.2) + 
+  geom_hline(yintercept = log10(0.002), colour = "red") + 
+  geom_vline(xintercept = 2, colour = "red")
+
+
+xx = xx[which(xx$volume.log10 >=2 & xx$volume.ratio>=10^-2.5), ]
 
 p1 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_fp, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
@@ -311,25 +328,28 @@ p3 = ggplot(xx, aes(x = condition, y=Intensity_MeanIntensity_FOXA2_fp, fill=cond
 p4 = ggplot(xx, aes(x = volume.log10)) +
   geom_histogram(binwidth = 0.1)
 
-p5 = ggplot(xx, aes(x = sphericity_cyst)) +
-  geom_histogram(binwidth = 0.01)
+p5 = ggplot(xx, aes(x = sphericity_fp)) +
+  geom_histogram(binwidth = 0.02)
 
 p6 = ggplot(xx, aes(x = Intensity_MeanIntensity_FOXA2_fp)) +
   geom_histogram(binwidth = 0.001)
 
+
 p45 = ggplot(xx, aes(x = volume.log10, y = sphericity_fp)) +
   geom_point(size = 0.2) +
   #geom_hline(yintercepst=0.85, colour = "red") + 
-  geom_vline(xintercept = 1.5, colour = "red")
+  geom_vline(xintercept = 1.5, colour = "red") + 
+  geom_vline(xintercept = 2, colour = "red")
 
 p56 = ggplot(xx, aes(x = volume.log10, y = Intensity_MeanIntensity_FOXA2_fp)) +
   geom_point(size = 0.2) +
   #geom_hline(yintercept=0.01, colour = "red") + 
-  geom_vline(xintercept = 1.5, colour = "red")
+  geom_vline(xintercept = 1.5, colour = "red") + 
+  geom_vline(xintercept = 2, colour = "red")
 
 
-sels = which(xx$volume.log10 >=1.5) 
-xx = xx[sels, ]
+#sels = which(xx$volume.log10 >=2) 
+#xx = xx[sels, ]
 
 p7 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_fp, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
@@ -357,8 +377,8 @@ grid.arrange(p7, p8, p9, ncol = 1)
 
 dev.off()
 
-res$AreaShape_Volume_fp.log10 = log10(res$AreaShape_Volume_fp)
-res = res[is.na(res$AreaShape_Volume_fp.log10) | res$AreaShape_Volume_fp.log10 >= 1.5, ]
+#res$AreaShape_Volume_fp.log10 = log10(res$AreaShape_Volume_fp)
+res = res[which(is.na(res$ID_fp) | !is.na(match(res$ID_fp, xx$ID_fp))), ]
 
 saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cyst.fp.Filering_', analysis.verison, '.rds'))
 
@@ -367,9 +387,11 @@ saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cyst.fp.Fi
 # extract turing-relevant parameters
 ######################################### 
 res = readRDS(file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cyst.fp.Filering_', analysis.verison, '.rds'))
-source('orgnoid_functions.R')
 
-params = extract.turing.parameters.cellProfiler(res, pixel.scale = 3, cyst.overlapRatio.threshold = 0.05)
+source('orgnoid_functions.R')
+cat(length(unique(res$ID_cyst)), ' cysts and ', length(unique(res$ID_fp)) -1, 'fps\n')
+
+params = extract.turing.parameters.cellProfiler(res, pixel.scale = 3, cyst.overlapRatio.threshold = 0.01)
 
 ##########################################
 # visualize the turing-model relevant parameters
@@ -379,10 +401,9 @@ conds = unique(params$condition)
 
 # check controls first
 conds.sels = list(
-  # controls 
   which(params$condition == "RA_LDNSB"|
               params$condition == 'noRA_LDNSB'| 
-              params$condition == 'RA_LDNonly'|
+              params$condition == 'RA_LDNonly'| # controls 
           params$condition == 'RA_noLDNnoSB'),
   
   which(params$condition == "RA_LDNSB"| # control
@@ -396,7 +417,7 @@ conds.sels = list(
 )
 
 
-pdfname = paste0(resDir, '/Organoid_perturbation_Control.BMP.FGF_CP.pdf')
+pdfname = paste0(resDir, '/Organoid_perturbation_Control.BMP.FGF_CP_V2.pdf')
 pdf(pdfname,  width = 20, height = 12)
 
 for(n in 1:length(conds.sels))
@@ -405,10 +426,6 @@ for(n in 1:length(conds.sels))
   sels = conds.sels[[n]]
   nb.fp = as.numeric(as.character(params$nb.fp[sels]))
   sels = sels[which(nb.fp>=0 & nb.fp<=10)]
-  
-  #xx = params[sels, ]
-  #xx = xx[which(as.numeric(as.character(xx$nb.fp))> 1), ]
-  #xx = xx[which(xx$dist.fp > 300), ]
   
   p0 = as_tibble(params[sels, ]) %>% 
     group_by(condition, nb.fp) %>% tally() %>%

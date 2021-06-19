@@ -100,6 +100,7 @@ if(RNAseq.old.time.series){
   library("ggplot2")
   
   load(file = paste0(RdataDir, '/RNAseq_old_count_design.Rdata'))
+  genes = readRDS(file = paste0(RdataDir, '/gene_names_length.rds'))
   
   dds <- DESeqDataSetFromMatrix(counts, DataFrame(design), design = ~ condition)
   
@@ -176,10 +177,11 @@ if(RNAseq.old.time.series){
                       rownames(rpkm)[grep('Fgf', rownames(rpkm))], 
                       'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5', 'Mapk10', 'Mapk4', 'Mapk8ip2', 'Spry4', 'Rbpj', 'Hes1', 'Hes5',
                       'Hes7', 'Hey1', 'Hey2',
-                      rownames(rpkm)[grep('Notch|Jag|Dll|Dlk', rownames(rpkm))]
+                      rownames(rpkm)[grep('Notch|Jag|Dll|Dlk', rownames(rpkm))], 
+                      rownames(rpkm)[grep('Tgf', rownames(rpkm))]
   ))
   
-  pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_v3.pdf')
+  pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_v4.pdf')
   pdf(pdfname,  width = 10, height = 6)
   par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
   
