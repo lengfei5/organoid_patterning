@@ -330,10 +330,16 @@ load(file = paste0(RdataDir, '/design.detailed_RawUMI_', version.analysis, '.Rda
 #raw = as.matrix(all[, -1])
 #rownames(raw) = all$gene
 #sels = which(design$batch != 1)
-sels = which(design$SampleID != '161040' & design$SampleID != '161039')
+sels = which(design$SampleID != '161040')
 
 design.matrix = design[sels, ]
+design = design[sels, ]
+rm(design)
+
 raw = all[, sels]
+design.matrix$condition.replicate = paste0(design.matrix$condition, '_', design.matrix$triplicate.nb)
+colnames(raw) = paste0(design.matrix$condition.replicate, '_', design.matrix$cells, '_', design.matrix$SampleID)
+
 
 dds <- DESeqDataSetFromMatrix(raw, DataFrame(design.matrix), design = ~ conds)
 
@@ -341,79 +347,45 @@ ss = rowSums(counts(dds))
 
 hist(log2(ss), breaks = 200, main = 'log2(sum of reads for each gene)')
 
+# use UQ normalization from edgeR
+library(edgeR)
+dge2 <- DGEList(raw)
+dge2 <- calcNormFactors(dge2, method = "upperquartile")
+#dge2$samples
+
+sizefactors.UQ = as.data.frame(dge2$samples) 
+sizefactors.UQ = sizefactors.UQ$lib.size * sizefactors.UQ$norm.factors/median(sizefactors.UQ$lib.size)
+
 cutoff.gene = 100
 cat(length(which(ss > cutoff.gene)), 'genes selected \n')
+
 
 dds <- dds[ss > cutoff.gene, ]
 
 # normalization and dimensionality reduction
-dds <- estimateSizeFactors(dds)
+sizeFactors(dds) = sizefactors.UQ
 fpm = fpm(dds, robust = TRUE)
 
 #save(fpm, design, file = paste0(tfDir, '/RNAseq_fpm_fitered.cutoff.', cutoff.gene, '.Rdata'))
-
 vsd <- varianceStabilizingTransformation(dds, blind = FALSE)
 
 pca=plotPCA(vsd, intgroup = c('condition', 'cells'), returnData = TRUE, ntop = 500)
 #print(pca)
 pca2save = as.data.frame(pca)
-
 ggp = ggplot(data=pca2save, aes(PC1, PC2, label = name, color= condition, shape = cells))  + 
   geom_point(size=4) + 
-  geom_text(hjust = 0.2, nudge_y = 0.4, size=3)
+  geom_text(hjust = 0.2, nudge_y = 0.25, size=3)
 
-plot(ggp) + ggsave(paste0(resDir, "/PCAplot_ntop500.pdf"), width=12, height = 8)
+plot(ggp) + ggsave(paste0(resDir, "/PCAplot_withControls_UQ.norm_ntop500.pdf"), width=18, height = 12)
 
 
-Test.pooling.negative.positive.cells = FALSE
-if(Test.pooling.negative.positive.cells){
-  fpm = fpm(dds, robust = TRUE)
-  design.matrix$condition.replicate = paste0(design.matrix$condition, '_', design.matrix$triplicate.nb)
-  
-  rrs = readRDS(file = paste0(RdataDir, 'facs_positive_negative_ratios.rds'))
-  rrs$Tube.Name = as.character(rrs$Tube.Name)
-  rrs$Tube.Name = gsub('[-]', '_', rrs$Tube.Name)
-  rrs$Tube.Name = gsub('Fgf', 'FGF', rrs$Tube.Name)
-  rrs$Tube.Name = gsub('PD03', 'PD', rrs$Tube.Name)
-  rrs$Tube.Name = gsub('Chiron', 'CHIR', rrs$Tube.Name)
-  
-  pools = matrix(NA, nrow = nrow(fpm), ncol = length(unique(design.matrix$condition.rep)))
-  colnames(pools) = unique(design.matrix$condition.rep)
-  rownames(pools) = rownames(fpm)
-  
-  for(n in 1:ncol(pools))
-  {
-    # n = 1
-    ratio = rrs$GFP_pos..Parent[which(rrs$Tube.Name == colnames(pools)[n])]/100  
-    cat(n, ' - ', colnames(pools)[n], '- positive cell ratio ', ratio,  '\n')
-    jj1 = which(design.matrix$condition.replicate == colnames(pools)[n] & design.matrix$cells == 'Foxa2.pos')
-    jj2 = which(design.matrix$condition.replicate == colnames(pools)[n] & design.matrix$cells == 'Foxa2.neg')
-    
-    pools[,n] = ratio * fpm[,jj1] + (1 - ratio) * fpm[, jj2]
-    
-  }
-  
-  cc.pools = colnames(pools)
-  cc.pools = sapply(cc.pools, function(x) unlist(strsplit(as.character(x), '_'))[1])
-  
-  library(factoextra)
-  ntop = 3000
-  xx = as.matrix(log2(pools + 2^-4))
-  vars = apply(xx, 1, var)
-  xx = xx[order(-vars), ]
-  xx = xx[1:ntop, ]
-    
-  res.pca <- prcomp(t(xx), scale = TRUE)
-  #res.var <- get_pca_var(res.pca)
-  
-  fviz_pca_ind(res.pca,
-               col.ind = "cos2", # Color by the quality of representation
-               gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
-               repel = TRUE     # Avoid text overlapping
-  )
-  
-}
-  
+ggp = ggplot(data=pca2save[grep('N2B27', pca2save$condition, invert = TRUE), ], 
+             aes(PC1, PC2, label = name, color= condition, shape = cells))  + 
+  geom_point(size=4) + 
+  geom_text(hjust = 0.2, nudge_y = 0.25, size=3)
+
+plot(ggp) + ggsave(paste0(resDir, "/PCAplot_withoutControls_UQ.norm_ntop500.pdf"), width=18, height = 12)
+
 ##########################################
 # first check the normalized signals  
 ##########################################
@@ -485,6 +457,124 @@ for(g in examples)
 
 dev.off()
 
+
+Test.pooling.negative.positive.cells = FALSE
+if(Test.pooling.negative.positive.cells){
+  fpm = fpm(dds, robust = TRUE)
+  
+  rrs = readRDS(file = paste0(RdataDir, 'facs_positive_negative_ratios.rds'))
+  rrs$Tube.Name = as.character(rrs$Tube.Name)
+  rrs$Tube.Name = gsub('[-]', '_', rrs$Tube.Name)
+  rrs$Tube.Name = gsub('Fgf', 'FGF', rrs$Tube.Name)
+  rrs$Tube.Name = gsub('PD03', 'PD', rrs$Tube.Name)
+  rrs$Tube.Name = gsub('Chiron', 'CHIR', rrs$Tube.Name)
+  
+  pools = matrix(NA, nrow = nrow(fpm), ncol = length(unique(design.matrix$condition.rep)))
+  colnames(pools) = unique(design.matrix$condition.rep)
+  rownames(pools) = rownames(fpm)
+  
+  for(n in 1:ncol(pools))
+  {
+    # n = 1
+    ratio = rrs$GFP_pos..Parent[which(rrs$Tube.Name == colnames(pools)[n])]/100  
+    
+    jj1 = which(design.matrix$condition.replicate == colnames(pools)[n] & design.matrix$cells == 'Foxa2.pos')
+    jj2 = which(design.matrix$condition.replicate == colnames(pools)[n] & design.matrix$cells == 'Foxa2.neg')
+    
+    if(length(jj1) == 1 & length(jj2) == 1){
+      cat(n, ' - ', colnames(pools)[n], '- positive cell ratio ', ratio,  ' with column ', jj1, jj2, '\n')
+      pools[,n] = ratio * fpm[,jj1] + (1 - ratio) * fpm[, jj2]
+    }
+      
+    
+  }
+  
+  cc.pools = colnames(pools)
+  cc.pools = sapply(cc.pools, function(x) unlist(strsplit(as.character(x), '_'))[1])
+  
+  library(factoextra)
+  ntop = 500
+  xx = as.matrix(log2(pools[, -10] + 2^-4))
+  vars = apply(xx, 1, var)
+  xx = xx[order(-vars), ]
+  xx = xx[1:ntop, ]
+    
+  res.pca <- prcomp(t(xx), scale = TRUE)
+  #res.var <- get_pca_var(res.pca)
+  
+  fviz_pca_ind(res.pca,
+               col.ind = "cos2", # Color by the quality of representation
+               gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+               repel = TRUE     # Avoid text overlapping
+  )
+  
+  g = 'Foxa2'
+  j = grep(g, rownames(pools))
+  
+  log2(fpm[j, grep('neg', colnames(fpm))] + 2^-6)
+  log2(fpm[j, grep('pos', colnames(fpm))] + 2^-6)
+  log2(pools[j, ] + 2^-6)
+  
+  ##########################################
+  # first check the normalized signals  
+  ##########################################
+  #fpm = fpm(dds, robust = TRUE)
+  #fpm = log2(fpm + 2^-4)
+  
+  fpm = as.matrix(log2(pools[, -10] + 2^-4))
+  reps = colnames(fpm)
+  reps = sapply(reps, function(x) unlist(strsplit(as.character(x), '_'))[2])
+  cc.pools = colnames(fpm)
+  cc.pools = sapply(cc.pools, function(x) unlist(strsplit(as.character(x), '_'))[1])
+  
+  examples = unique(c('Foxa2', # FoxA 
+                      'Lef1', 'Mapk1', rownames(fpm)[grep('Smad', rownames(fpm))], 
+                      rownames(fpm)[grep('Wnt|Dkk|Tcf', rownames(fpm))],
+                      rownames(fpm)[grep('Bmp', rownames(fpm))], 'Nog', 'Chrd', 'Runx1', 'Runx2',  'Smad6', 'Id1', 'Id3',
+                      rownames(fpm)[grep('Acvr', rownames(fpm))],
+                      rownames(fpm)[grep('Fgf', rownames(fpm))], 
+                      'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5', 'Mapk10', 'Mapk4', 'Mapk8ip2', 'Spry4', 'Rbpj', 'Hes1', 'Hes5',
+                      'Hes7', 'Hey1', 'Hey2',
+                      rownames(fpm)[grep('Notch|Jag|Dll|Dlk', rownames(fpm))], 
+                      rownames(fpm)[grep('Tgf', rownames(fpm))]
+  ))
+  
+  #n = which(rownames(fpm) == 'Foxa2')
+  pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive.vs.negative_POOLed_v1.pdf')
+  pdf(pdfname,  width = 10, height = 6)
+  par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
+  
+  level_order = c('N2B27', 'RA', 'BMP', 'LDN', 'FGF', 'PD', 'CHIR', 'IWR', 'IWP2')
+  
+  for(g in examples)
+  {
+    # g = 'Nog'
+    kk = which(rownames(fpm) == g)
+    
+    if(length(kk) > 0){
+      cat(g, '\n')
+      
+      #xx = data.frame(cpm = fpm[kk, ], condition = design.matrix$condition.rep,
+      #                cells = design.matrix$cells, replicate= design.matrix$Triplicate.No.)
+      
+      xx = data.frame(cpm = fpm[kk, ], condition = cc.pools, rep = reps)
+      
+      p0 = ggplot(xx,  aes(x = factor(condition, levels = level_order), y = cpm, color = rep, fill = condition)) +
+        geom_bar(stat = "identity", position="dodge") +
+        geom_hline(yintercept = 2, colour = "blue") + 
+        ggtitle(g)  + 
+        theme(axis.text.x = element_text(angle = 90, size = 10))
+      plot(p0)
+      
+    }else{
+      cat(g, 'Not Found \n')
+    }
+  }
+  
+  dev.off()
+  
+  
+}
 
 
 ##########################################
