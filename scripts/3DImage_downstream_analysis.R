@@ -210,7 +210,6 @@ res$sphericity_fp = pi^(1/3)*(6*res$AreaShape_Volume_fp)^(2/3) / res$AreaShape_S
 #res = res[which(res$Overlapped.Volume.Ratio_fp > 0.5 | is.na(res$Overlapped.Volume.Ratio_fp)), ]
 #res = res[which(res$Sphericity.Unit._Sphericity_cyst > 0.8), ]
 
-
 ##########################################
 ## cyst filtering
 ##########################################
@@ -245,13 +244,19 @@ p1 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_cyst, fill=condition)) +
   ggtitle('cyst volume') + theme(legend.position = "none") +
   theme(axis.text.x = element_text(angle = 90))
 
+ggplot(xx, aes(x = condition, y=sphericity_cyst, fill=condition)) + 
+  geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
+  ggtitle('cyst volume') + theme(legend.position = "none") +
+  theme(axis.text.x = element_text(angle = 90))
+
+
 p2 = ggplot(xx, aes(x = volume.log10)) +
   geom_histogram(binwidth = 0.1)
 
 p3 = ggplot(xx, aes(x = sphericity_cyst)) +
   geom_histogram(binwidth = 0.01)
 
-p23 = ggplot(xx, aes(x = volume.log10, y = sphericity_cyst)) +
+p23 = ggplot(xx, aes(x = volume.log10, y = sphericity_cyst, color = condition)) +
   geom_point(size = 1) +
   geom_hline(yintercept=0.85, colour = "red") + geom_vline(xintercept = 4, colour = "red")
 
@@ -267,6 +272,11 @@ p4 = as_tibble(xx) %>%
   theme(axis.text.x = element_text(angle = 90))
 
 p5 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_cyst, fill=condition)) + 
+  geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
+  ggtitle('cyst volume') + theme(legend.position = "none") +
+  theme(axis.text.x = element_text(angle = 90))
+
+ggplot(xx, aes(x = condition, y=sphericity_cyst, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
   ggtitle('cyst volume') + theme(legend.position = "none") +
   theme(axis.text.x = element_text(angle = 90))
@@ -304,10 +314,10 @@ xx$dist.cyst.radius.ratio = xx$Distance_Centroid_organoid_fp/(xx$AreaShape_Equiv
 ggplot(xx, aes(x = volume.log10, y = volume.ratio.log10)) +
   geom_point(size = 0.2) + 
   geom_hline(yintercept = log10(0.002), colour = "red") + 
-  geom_vline(xintercept = 2, colour = "red")
+  geom_vline(xintercept = 2, colour = "red") + 
+  geom_vline(xintercept = 2.5, colour = "red")
 
 
-xx = xx[which(xx$volume.log10 >=2 & xx$volume.ratio>=10^-2.5), ]
 
 p1 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_fp, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
@@ -334,7 +344,6 @@ p5 = ggplot(xx, aes(x = sphericity_fp)) +
 p6 = ggplot(xx, aes(x = Intensity_MeanIntensity_FOXA2_fp)) +
   geom_histogram(binwidth = 0.001)
 
-
 p45 = ggplot(xx, aes(x = volume.log10, y = sphericity_fp)) +
   geom_point(size = 0.2) +
   #geom_hline(yintercepst=0.85, colour = "red") + 
@@ -347,11 +356,11 @@ p56 = ggplot(xx, aes(x = volume.log10, y = Intensity_MeanIntensity_FOXA2_fp)) +
   geom_vline(xintercept = 1.5, colour = "red") + 
   geom_vline(xintercept = 2, colour = "red")
 
+#xx = xx[which(xx$volume.log10 >=2 & xx$volume.ratio>=10^-2.5), ]
 
-#sels = which(xx$volume.log10 >=2) 
-#xx = xx[sels, ]
+xx = xx[which(xx$volume.log10 > 2.5), ]
 
-p7 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_fp, fill=condition)) + 
+p7 = ggplot(xx, aes(x = condition, y=volume.log10, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
   ggtitle('fp volume') + theme(legend.position = "none") +
   theme(axis.text.x = element_text(angle = 90, size = 10))
@@ -417,7 +426,7 @@ conds.sels = list(
 )
 
 
-pdfname = paste0(resDir, '/Organoid_perturbation_Control.BMP.FGF_CP_V2.pdf')
+pdfname = paste0(resDir, '/Organoid_perturbation_Control.BMP.FGF_CP_v3.pdf')
 pdf(pdfname,  width = 20, height = 12)
 
 for(n in 1:length(conds.sels))

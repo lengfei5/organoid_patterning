@@ -585,9 +585,10 @@ extract.turing.parameters.cellProfiler = function(res.cp, cyst.overlapRatio.thre
     kk.fp = kk[!is.na(res.cp$ID_fp[kk])]
     if(length(kk.fp) > 0){
       fp.cyst.ratio = sum(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))/params$volume[n]
+    }else{
+      fp.cyst.ratio = 0
     }
     
-   
     if(length(kk.fp) > 0 & fp.cyst.ratio > cyst.overlapRatio.threshold){
       params$nb.fp[n] = length(kk.fp)
       params$overlap.ratio[n] = sum(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))/params$volume[n]

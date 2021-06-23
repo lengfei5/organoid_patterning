@@ -387,36 +387,76 @@ ggp = ggplot(data=pca2save[grep('N2B27', pca2save$condition, invert = TRUE), ],
 plot(ggp) + ggsave(paste0(resDir, "/PCAplot_withoutControls_UQ.norm_ntop500.pdf"), width=18, height = 12)
 
 ##########################################
-# first check the normalized signals  
+# first check the normalized signals in positive and negative cells across conditions  
 ##########################################
-#fpm = fpm(dds, robust = TRUE)
-#fpm = log2(fpm + 2^-4)
+# examples = unique(c('Foxa2', # FoxA 
+#                     'Lef1', 'Mapk1', rownames(fpm)[grep('Smad', rownames(fpm))], 
+#                     rownames(fpm)[grep('Wnt|Dkk|Tcf', rownames(fpm))],
+#                     rownames(fpm)[grep('Bmp', rownames(fpm))], 'Nog', 'Chrd', 'Runx1', 'Runx2',  'Smad6', 'Id1', 'Id3',
+#                     rownames(fpm)[grep('Acvr', rownames(fpm))],
+#                     rownames(fpm)[grep('Fgf', rownames(fpm))], 
+#                     'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5', 'Mapk10', 'Mapk4', 'Mapk8ip2', 'Spry4', 'Rbpj', 'Hes1', 'Hes5',
+#                     'Hes7', 'Hey1', 'Hey2',
+#                     rownames(fpm)[grep('Notch|Jag|Dll|Dlk', rownames(fpm))], 
+#                     rownames(fpm)[grep('Tgf', rownames(fpm))]
+# ))
 
-fpm = pools
+require(openxlsx)
+xx.files = list.files(path = '../data', pattern =  'xlsx', full.names = TRUE)
+xx.files = xx.files[grep('GO_term', xx.files, invert = FALSE)]
 
-examples = unique(c('Foxa2', # FoxA 
-                    'Lef1', 'Mapk1', rownames(fpm)[grep('Smad', rownames(fpm))], 
-                    rownames(fpm)[grep('Wnt|Dkk|Tcf', rownames(fpm))],
-                    rownames(fpm)[grep('Bmp', rownames(fpm))], 'Nog', 'Chrd', 'Runx1', 'Runx2',  'Smad6', 'Id1', 'Id3',
-                    rownames(fpm)[grep('Acvr', rownames(fpm))],
-                    rownames(fpm)[grep('Fgf', rownames(fpm))], 
-                    'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5', 'Mapk10', 'Mapk4', 'Mapk8ip2', 'Spry4', 'Rbpj', 'Hes1', 'Hes5',
-                    'Hes7', 'Hey1', 'Hey2',
-                    rownames(fpm)[grep('Notch|Jag|Dll|Dlk', rownames(fpm))], 
-                    rownames(fpm)[grep('Tgf', rownames(fpm))]
-))
+ggs = read.xlsx(paste0('../data/gene_list_for_TM3Seq.xlsx'), sheet = 1, colNames = FALSE)
+colnames(ggs) = c('pathway', 'gene')
+ggs = ggs[, c(2, 1)]
+
+p = ggs$pathway[1]
+for(n in 2:nrow(ggs))
+{
+  if(is.na(ggs$pathway[n])) {
+    ggs$pathway[n] = p  
+  }else{
+    if(ggs$pathway[n] != p) p = ggs$pathway[n]
+  }
+}
+
+ggs = rbind(c('Foxa2', NA), ggs)
+
+for(n in 1:length(xx.files))
+{
+  # n = 1
+  xx = read.xlsx(xx.files[n])
+  xx = unique(xx$Symbol)
+  xx = cbind(xx, rep(unlist(strsplit(as.character(gsub('.xlsx', '', basename(xx.files[n]))), '_'))[4], length(xx)))
+  colnames(xx) = c('gene', 'pathway')
+  ggs = rbind(ggs, xx)
+}
+
+gg.unique = unique(ggs$gene)
+ggs = ggs[match(gg.unique, ggs$gene), ]
+
+#write.csv(ggs, file = paste0(resDir, '/genes_signalingPathways.csv'), row.names = FALSE)
+
+examples = ggs$gene
 
 #n = which(rownames(fpm) == 'Foxa2')
-pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive.vs.negative_POOLed_v1.pdf')
+pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive.vs.negative_v3.pdf')
 pdf(pdfname,  width = 10, height = 6)
 par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
 
-reps = colnames(pools)
-reps = sapply(reps, function(x) unlist(strsplit(as.character(x), '_'))[2])
+fpm = fpm(dds, robust = TRUE)
+
+cells = sapply(colnames(fpm), function(x) unlist(strsplit(as.character(x), '_'))[3])
+cc = sapply(colnames(fpm), function(x) paste0(unlist(strsplit(as.character(x), '_'))[1:2], collapse = '_'))
+level_order = apply(expand.grid(c(1:3), c('N2B27', 'RA', 'BMP', 'LDN', 'FGF', 'PD', 'CHIR', 'IWR', 'IWP2')), 
+                    1, function(x) paste(x[2], x[1], sep="_"))
+                     
+
+#fpm = as.matrix(log2(fpm + 2^-4))
+
 
 for(g in examples)
 {
-  # g = 'Foxa2'
+  # g = 'Nog'
   kk = which(rownames(fpm) == g)
   
   if(length(kk) > 0){
@@ -425,34 +465,18 @@ for(g in examples)
     #xx = data.frame(cpm = fpm[kk, ], condition = design.matrix$condition.rep,
     #                cells = design.matrix$cells, replicate= design.matrix$Triplicate.No.)
     
-    xx = data.frame(cpm = fpm[kk, ], condition = cc.pools, rep = reps)
+    xx = data.frame(cpm = fpm[kk, ], cc = cc,  cells = cells)
     
-    p0 = ggplot(xx,  aes(x = condition, y = cpm, color = rep, fill = condition)) +
+    p0 = ggplot(xx,  aes(x = factor(cc, levels = level_order), y = cpm, color = cc, fill = cells)) +
       geom_bar(stat = "identity", position="dodge") +
-      geom_hline(yintercept = 2, colour = "blue") + 
+      geom_hline(yintercept = 2^2, colour = "blue") + 
       ggtitle(g)  + 
-      theme(axis.text.x = element_text(angle = 90, size = 10))
+      theme(axis.text.x = element_text(angle = 90, size = 10)) +
+      guides(color = FALSE)
     plot(p0)
     
-    # plot(c(0, 1), type = 'n', xlim = c(-18, 60), ylim = range(c(fpm[kk, ], 0, 1)), main = g, 
-    #      ylab = 'log2(fpm)', xlab = 'time')
-    # points(tt, fpm.RA[kk, ], col = 'darkblue', type = 'l', pch = 16, lwd = 2.0)
-    # points(tt, fpm.RA[kk, ], col = 'darkblue', type = 'p', pch = 16)
-    # 
-    # points(tt, fpm.noRA[kk, ], col = 'darkred', type = 'l', lwd = 1.0)
-    # points(tt, fpm.noRA[kk, ], col = 'darkred', type = 'p', pch = 1)
-    # 
-    # points(48, sorted[kk, 1], col = 'darkblue', type = 'p', cex = 2.0, pch = 21, bg = 'magenta')
-    # points(48, sorted[kk, 2], col = 'darkblue', type = 'p', cex = 2.0, pch = 21, bg = 'darkgreen')
-    # #points(48, sorted[kk, 3], col = 'darkorange', type = 'p', cex = 2.0, pch = 18)
-    # 
-    #abline(h = c(0, 1), col = 'darkgray', lwd = 2.0)
-    #legend('topleft', legend = c('RA', 'no.RA', 's48h.RA.AF', 's48h.RA.GFPp'), bty = 'n', 
-    #       col = c('darkblue', 'darkred', 'magenta', 'darkgreen'), lwd =2.0, pch = c(16, 1, 16, 16), lty = c(1, 1, 0, 0))
-    
-  }else{
-    cat(g, 'Not Found \n')
   }
+  
 }
 
 dev.off()
@@ -548,7 +572,7 @@ if(Test.pooling.negative.positive.cells){
   
   for(g in examples)
   {
-    # g = 'Nog'
+    # g = '3'
     kk = which(rownames(fpm) == g)
     
     if(length(kk) > 0){
@@ -566,13 +590,11 @@ if(Test.pooling.negative.positive.cells){
         theme(axis.text.x = element_text(angle = 90, size = 10))
       plot(p0)
       
-    }else{
-      cat(g, 'Not Found \n')
     }
+   
   }
   
   dev.off()
-  
   
 }
 
