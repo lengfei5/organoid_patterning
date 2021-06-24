@@ -191,45 +191,47 @@ design$conds = paste0(design$condition, '_', design$cells)
 
 # prepare the data table 
 Dir_umi = paste0(dataDir, "htseq_counts_BAMs_umi")
-#Dir_read = paste0(dataDir, "htseq_counts_BAMs")
+Dir_read = paste0(dataDir, "htseq_counts_BAMs")
 
-aa <- list.files(path = Dir_umi, pattern = "*umiDedup.txt", full.names = TRUE)
-aa = merge.countTables.htseq(aa)
-#colnames(aa1)[-1] = paste0(colnames(aa1)[-1], ".UMI")
+aa1 <- list.files(path = Dir_umi, pattern = "*umiDedup.txt", full.names = TRUE)
+aa1 = merge.countTables.htseq(aa1)
+colnames(aa1)[-1] = paste0(colnames(aa1)[-1], ".UMI")
 
-#aa2 <- list.files(path = Dir_read, pattern = "*.txt", full.names = TRUE)
-#aa2 = merge.countTables.htseq(aa2)
-#colnames(aa2)[-1] = paste0(colnames(aa2)[-1], ".readCount")
+aa2 <- list.files(path = Dir_read, pattern = "*.txt", full.names = TRUE)
+aa2 = merge.countTables.htseq(aa2)
+colnames(aa2)[-1] = paste0(colnames(aa2)[-1], ".readCount")
 
-#aa <- Reduce(function(dtf1, dtf2) merge(dtf1, dtf2, by = "gene", all = TRUE), list(aa1, aa2))
+aa <- Reduce(function(dtf1, dtf2) merge(dtf1, dtf2, by = "gene", all = TRUE), list(aa1, aa2))
 
 ## compare read counts vs. umi counts
-# source(RNAfunctions)
-# Compare.UMI.vs.readCounts = TRUE
-# if(Compare.UMI.vs.readCounts){
-#   pdfname = paste0(resDir, "readCounts_vs_UMI_normalized", version.analysis, ".pdf")
-#   pdf(pdfname, width = 10, height = 8)
-#   
-#   compare.readCount.UMI(design, aa, normalized = FALSE)
-#   
-#   dev.off()
-# }
+source(RNA.functions)
+Compare.UMI.vs.readCounts = TRUE
+if(Compare.UMI.vs.readCounts){
+    pdfname = paste0(resDir, "/readCounts_vs_UMI_normalized", version.analysis, ".pdf")
+    pdf(pdfname, width = 10, height = 8)
 
-# if(Counts.to.Use == 'readCounts'){
-#   all = process.countTable(all=aa, design = design, special.column = ".readCount", ensToGeneSymbol = TRUE)
-# }else{
-#   if(Counts.to.Use == "UMI"){
-#     all = process.countTable(all=aa, design = design, special.column = "UMI", ensToGeneSymbol = TRUE)
-#   }else{
-#     cat("Error : no counts found for ", Counts.to.Use, "for miRNAs \n")
-#   }
-# }
+    compare.readCount.UMI(design[, c(1:3)], aa, normalized = FALSE)
 
-all = process.countTable(all=aa, design = design[,c(1, 14)], special.column = NULL, ensToGeneSymbol = FALSE)
+    dev.off()
+}
+
+
+if(Counts.to.Use == 'readCounts'){
+   all = process.countTable(all=aa, design = design, special.column = ".readCount", ensToGeneSymbol = TRUE)
+ }else{
+   if(Counts.to.Use == "UMI"){
+     all = process.countTable(all=aa, design = design, special.column = "UMI", ensToGeneSymbol = TRUE)
+   }else{
+     cat("Error : no counts found for ", Counts.to.Use, "for miRNAs \n")
+   }
+ }
+
+
+all = process.countTable(all=all, design = design[,c(1, 14)], special.column = NULL, ensToGeneSymbol = FALSE)
 
 all = all[grep('^__', all$gene, invert = TRUE), ]
 
-save(design, all, file=paste0(RdataDir, '/Design_Raw_readCounts', version.analysis, '.Rdata'))
+save(design, all, file=paste0(RdataDir, '/Design_Raw_readCounts', Counts.to.Use,  version.analysis, '.Rdata'))
 
 ########################################################
 ########################################################
@@ -241,7 +243,8 @@ save(design, all, file=paste0(RdataDir, '/Design_Raw_readCounts', version.analys
 ##########################################
 # gene names converted from ensID to gene symbol 
 ##########################################
-load(file=paste0(RdataDir, '/Design_Raw_readCounts', version.analysis, '.Rdata'))
+save(design, all, file=paste0(RdataDir, '/Design_Raw_readCounts', Counts.to.Use,  version.analysis, '.Rdata'))
+
 
 design$cells[grep('[+]', design$cells)] = 'Foxa2.pos'
 design$cells[grep('[-]', design$cells)] = 'Foxa2.neg'
@@ -285,12 +288,12 @@ if(Add.more.sample.details){
   
 }
 
-save(design, all, file = paste0(RdataDir, '/design.detailed_RawUMI_', version.analysis, '.Rdata'))
+save(design, all, file = paste0(RdataDir, '/design.detailed_RawUMI_', Counts.to.Use, version.analysis, '.Rdata'))
 
 ##########################################
 # QCs of replicates and conditions
 ##########################################
-load(file = paste0(RdataDir, '/design.detailed_RawUMI_', version.analysis, '.Rdata'))
+load(file = paste0(RdataDir, '/design.detailed_RawUMI_', Counts.to.Use, version.analysis, '.Rdata'))
 
 QC.for.cpm = FALSE
 if(QC.for.cpm){
@@ -325,7 +328,7 @@ require(ggplot2)
 require(DESeq2)
 library("dplyr")
 
-load(file = paste0(RdataDir, '/design.detailed_RawUMI_', version.analysis, '.Rdata'))
+load(file = paste0(RdataDir, '/design.detailed_RawUMI_', Counts.to.Use, version.analysis, '.Rdata'))
 
 #raw = as.matrix(all[, -1])
 #rownames(raw) = all$gene
@@ -347,7 +350,7 @@ ss = rowSums(counts(dds))
 
 hist(log2(ss), breaks = 200, main = 'log2(sum of reads for each gene)')
 
-dd0 = dds[ss > quantile(ss, probs = 0.75) , ]
+dd0 = dds[ss > quantile(ss, probs = 0.6) , ]
 dd0 = estimateSizeFactors(dd0)
 sizefactors.UQ = sizeFactors(dd0)
 
@@ -375,15 +378,14 @@ fpm = fpm(dds, robust = TRUE)
 #save(fpm, design, file = paste0(tfDir, '/RNAseq_fpm_fitered.cutoff.', cutoff.gene, '.Rdata'))
 vsd <- varianceStabilizingTransformation(dds, blind = FALSE)
 
-pca=plotPCA(vsd, intgroup = c('condition', 'cells'), returnData = TRUE, ntop = 500)
-#print(pca)
+pca=plotPCA(vsd, intgroup = c('condition', 'cells'), returnData = TRUE, ntop = 1000)
+#print(pca)d
 pca2save = as.data.frame(pca)
 ggp = ggplot(data=pca2save, aes(PC1, PC2, label = name, color= condition, shape = cells))  + 
   geom_point(size=4) + 
   geom_text(hjust = 0.2, nudge_y = 0.25, size=3)
 
 plot(ggp) + ggsave(paste0(resDir, "/PCAplot_withControls_UQ.norm_ntop500.pdf"), width=18, height = 12)
-
 
 ggp = ggplot(data=pca2save[grep('N2B27', pca2save$condition, invert = TRUE), ], 
              aes(PC1, PC2, label = name, color= condition, shape = cells))  + 
@@ -464,22 +466,24 @@ ggs = ggs[order(ggs$pathway), ]
 # first check the normalized signals in positive and negative cells across conditions  
 ##########################################
 examples = ggs$gene
-
-#n = which(rownames(fpm) == 'Foxa2')
-pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive_negative_v5.pdf')
-pdf(pdfname,  width = 20, height = 8)
-#par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
-
 fpm = fpm(dds, robust = TRUE)
+fpm.cutoff = 2^2
+logscale = TRUE
+if(logscale){
+  fpm = as.matrix(log2(fpm + 2^-4))
+  fpm.cutoff = 2
+}
 
 cells = sapply(colnames(fpm), function(x) unlist(strsplit(as.character(x), '_'))[3])
 cc = sapply(colnames(fpm), function(x) paste0(unlist(strsplit(as.character(x), '_'))[1:2], collapse = '_'))
 cond = sapply(colnames(fpm), function(x) paste0(unlist(strsplit(as.character(x), '_'))[1]))
 level_order = apply(expand.grid(c(1:3), c('N2B27', 'RA', 'BMP', 'LDN', 'FGF', 'PD', 'CHIR', 'IWR', 'IWP2')), 
                     1, function(x) paste(x[2], x[1], sep="_"))
-                     
 
-#fpm = as.matrix(log2(fpm + 2^-4))
+#n = which(rownames(fpm) == 'Foxa2')
+pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive_negative_v6_log2scale.pdf')
+pdf(pdfname,  width = 20, height = 8)
+#par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
 
 for(g in examples)
 {
@@ -488,23 +492,23 @@ for(g in examples)
   
   if(length(kk) > 0){
     cat(g, '\n')
-    
-    xx = data.frame(cpm = fpm[kk, ], cc = cc,  cells = cells, cond = cond)
+    cpm = fpm[kk, ]
+    if(logscale) cpm[which(cpm < 0)] = 0
+    xx = data.frame(cpm = cpm, cc = cc,  cells = cells, cond = cond)
     
     p0 = ggplot(xx[which(xx$cells == 'Foxa2.pos'), ],  aes(x = factor(cc, levels = level_order), y = cpm, color = cells, fill = cond)) +
       geom_bar(stat = "identity", position="dodge") +
-      geom_hline(yintercept = 2^2, colour = "blue") + 
+      geom_hline(yintercept = fpm.cutoff, colour = "blue") + 
       ggtitle(g)  + 
       theme(axis.text.x = element_text(angle = 90, size = 10))
     
     p1 = ggplot(xx[which(xx$cells == 'Foxa2.neg'), ],  aes(x = factor(cc, levels = level_order), y = cpm, color = cells, fill = cond)) +
       geom_bar(stat = "identity", position="dodge") +
-      geom_hline(yintercept = 2^2, colour = "blue") + 
+      geom_hline(yintercept = fpm.cutoff, colour = "blue") + 
       ggtitle(g)  + 
       theme(axis.text.x = element_text(angle = 90, size = 10))
     
     grid.arrange(p0, p1,  nrow = 1, ncol = 2)
-    
     
   }
   
@@ -513,14 +517,13 @@ for(g in examples)
 dev.off()
 
 
+
 ########################################################
 ########################################################
 # Section : test pooling of positive and negative cells
 # 
 ########################################################
 ########################################################
-
-
 Test.pooling.negative.positive.cells = FALSE
 if(Test.pooling.negative.positive.cells){
   fpm = fpm(dds, robust = TRUE)
@@ -552,12 +555,15 @@ if(Test.pooling.negative.positive.cells){
     
   }
   
+  
+  pools = pools[, which(colnames(pools) != 'LDN_1')]
+  
   cc.pools = colnames(pools)
   cc.pools = sapply(cc.pools, function(x) unlist(strsplit(as.character(x), '_'))[1])
   
   library(factoextra)
-  ntop = 500
-  xx = as.matrix(log2(pools[, -10] + 2^-4))
+  ntop = 300
+  xx = as.matrix(log2(pools + 2^-4))
   vars = apply(xx, 1, var)
   xx = xx[order(-vars), ]
   xx = xx[1:ntop, ]
@@ -571,6 +577,8 @@ if(Test.pooling.negative.positive.cells){
                repel = TRUE     # Avoid text overlapping
   )
   
+  save(pools, cc.pools, file = paste0(RdataDir, '/TM3_positive.negative.pooled_', Counts.to.Use, version.analysis, '.Rdata'))
+  
   g = 'Foxa2'
   j = grep(g, rownames(pools))
   
@@ -578,62 +586,6 @@ if(Test.pooling.negative.positive.cells){
   log2(fpm[j, grep('pos', colnames(fpm))] + 2^-6)
   log2(pools[j, ] + 2^-6)
   
-  ##########################################
-  # first check the normalized signals  
-  ##########################################
-  #fpm = fpm(dds, robust = TRUE)
-  #fpm = log2(fpm + 2^-4)
-  
-  fpm = as.matrix(log2(pools[, -10] + 2^-4))
-  reps = colnames(fpm)
-  reps = sapply(reps, function(x) unlist(strsplit(as.character(x), '_'))[2])
-  cc.pools = colnames(fpm)
-  cc.pools = sapply(cc.pools, function(x) unlist(strsplit(as.character(x), '_'))[1])
-  
-  examples = unique(c('Foxa2', # FoxA 
-                      'Lef1', 'Mapk1', rownames(fpm)[grep('Smad', rownames(fpm))], 
-                      rownames(fpm)[grep('Wnt|Dkk|Tcf', rownames(fpm))],
-                      rownames(fpm)[grep('Bmp', rownames(fpm))], 'Nog', 'Chrd', 'Runx1', 'Runx2',  'Smad6', 'Id1', 'Id3',
-                      rownames(fpm)[grep('Acvr', rownames(fpm))],
-                      rownames(fpm)[grep('Fgf', rownames(fpm))], 
-                      'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5', 'Mapk10', 'Mapk4', 'Mapk8ip2', 'Spry4', 'Rbpj', 'Hes1', 'Hes5',
-                      'Hes7', 'Hey1', 'Hey2',
-                      rownames(fpm)[grep('Notch|Jag|Dll|Dlk', rownames(fpm))], 
-                      rownames(fpm)[grep('Tgf', rownames(fpm))]
-  ))
-  
-  #n = which(rownames(fpm) == 'Foxa2')
-  pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive.vs.negative_POOLed_v1.pdf')
-  pdf(pdfname,  width = 10, height = 6)
-  par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
-  
-  level_order = c('N2B27', 'RA', 'BMP', 'LDN', 'FGF', 'PD', 'CHIR', 'IWR', 'IWP2')
-  
-  for(g in examples)
-  {
-    # g = '3'
-    kk = which(rownames(fpm) == g)
-    
-    if(length(kk) > 0){
-      cat(g, '\n')
-      
-      #xx = data.frame(cpm = fpm[kk, ], condition = design.matrix$condition.rep,
-      #                cells = design.matrix$cells, replicate= design.matrix$Triplicate.No.)
-      
-      xx = data.frame(cpm = fpm[kk, ], condition = cc.pools, rep = reps)
-      
-      p0 = ggplot(xx,  aes(x = factor(condition, levels = level_order), y = cpm, color = rep, fill = condition)) +
-        geom_bar(stat = "identity", position="dodge") +
-        geom_hline(yintercept = 2, colour = "blue") + 
-        ggtitle(g)  + 
-        theme(axis.text.x = element_text(angle = 90, size = 10))
-      plot(p0)
-      
-    }
-   
-  }
-  
-  dev.off()
   
 }
 
