@@ -327,6 +327,7 @@ if(QC.for.cpm){
 require(ggplot2)
 require(DESeq2)
 library("dplyr")
+Counts.to.Use = 'UMI'
 
 load(file = paste0(RdataDir, '/design.detailed_RawUMI_', Counts.to.Use, version.analysis, '.Rdata'))
 
@@ -397,81 +398,92 @@ plot(ggp) + ggsave(paste0(resDir, "/PCAplot_withoutControls_UQ.norm_ntop500.pdf"
 ##########################################
 # edit a list of genes in FGF, BMP and Wnt 
 ##########################################
-# examples = unique(c('Foxa2', # FoxA 
-#                     'Lef1', 'Mapk1', rownames(fpm)[grep('Smad', rownames(fpm))], 
-#                     rownames(fpm)[grep('Wnt|Dkk|Tcf', rownames(fpm))],
-#                     rownames(fpm)[grep('Bmp', rownames(fpm))], 'Nog', 'Chrd', 'Runx1', 'Runx2',  'Smad6', 'Id1', 'Id3',
-#                     rownames(fpm)[grep('Acvr', rownames(fpm))],
-#                     rownames(fpm)[grep('Fgf', rownames(fpm))], 
-#                     'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5', 'Mapk10', 'Mapk4', 'Mapk8ip2', 'Spry4', 'Rbpj', 'Hes1', 'Hes5',
-#                     'Hes7', 'Hey1', 'Hey2',
-#                     rownames(fpm)[grep('Notch|Jag|Dll|Dlk', rownames(fpm))], 
-#                     rownames(fpm)[grep('Tgf', rownames(fpm))]
-# ))
-
-require(openxlsx)
-xx.files = list.files(path = '../data', pattern =  'xlsx', full.names = TRUE)
-xx.files = xx.files[grep('GO_term', xx.files, invert = FALSE)]
-
-ggs = read.xlsx(paste0('../data/gene_list_for_TM3Seq.xlsx'), sheet = 1, colNames = FALSE)
-colnames(ggs) = c('pathway', 'gene')
-ggs = ggs[, c(2, 1)]
-
-p = ggs$pathway[1]
-for(n in 2:nrow(ggs))
-{
-  if(is.na(ggs$pathway[n])) {
-    ggs$pathway[n] = p  
-  }else{
-    if(ggs$pathway[n] != p) p = ggs$pathway[n]
+Manual.curate.geneList.pathways = FALSE
+if(Manual.curate.geneList.pathways){
+  # examples = unique(c('Foxa2', # FoxA 
+  #                     'Lef1', 'Mapk1', rownames(fpm)[grep('Smad', rownames(fpm))], 
+  #                     rownames(fpm)[grep('Wnt|Dkk|Tcf', rownames(fpm))],
+  #                     rownames(fpm)[grep('Bmp', rownames(fpm))], 'Nog', 'Chrd', 'Runx1', 'Runx2',  'Smad6', 'Id1', 'Id3',
+  #                     rownames(fpm)[grep('Acvr', rownames(fpm))],
+  #                     rownames(fpm)[grep('Fgf', rownames(fpm))], 
+  #                     'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5', 'Mapk10', 'Mapk4', 'Mapk8ip2', 'Spry4', 'Rbpj', 'Hes1', 'Hes5',
+  #                     'Hes7', 'Hey1', 'Hey2',
+  #                     rownames(fpm)[grep('Notch|Jag|Dll|Dlk', rownames(fpm))], 
+  #                     rownames(fpm)[grep('Tgf', rownames(fpm))]
+  # ))
+  
+  require(openxlsx)
+  xx.files = list.files(path = '../data', pattern =  'xlsx', full.names = TRUE)
+  xx.files = xx.files[grep('GO_term', xx.files, invert = FALSE)]
+  
+  ggs = read.xlsx(paste0('../data/gene_list_for_TM3Seq.xlsx'), sheet = 1, colNames = FALSE)
+  colnames(ggs) = c('pathway', 'gene')
+  ggs = ggs[, c(2, 1)]
+  
+  p = ggs$pathway[1]
+  for(n in 2:nrow(ggs))
+  {
+    if(is.na(ggs$pathway[n])) {
+      ggs$pathway[n] = p  
+    }else{
+      if(ggs$pathway[n] != p) p = ggs$pathway[n]
+    }
   }
-}
-
-ggs = rbind(c('Foxa2', NA), ggs)
-
-for(n in 1:length(xx.files))
-{
-  # n = 1
-  xx = read.xlsx(xx.files[n])
-  xx = unique(xx$Symbol)
-  xx = cbind(xx, rep(unlist(strsplit(as.character(gsub('.xlsx', '', basename(xx.files[n]))), '_'))[4], length(xx)))
+  
+  ggs = rbind(c('Foxa2', NA), ggs)
+  
+  for(n in 1:length(xx.files))
+  {
+    # n = 1
+    xx = read.xlsx(xx.files[n])
+    xx = unique(xx$Symbol)
+    xx = cbind(xx, rep(unlist(strsplit(as.character(gsub('.xlsx', '', basename(xx.files[n]))), '_'))[4], length(xx)))
+    colnames(xx) = c('gene', 'pathway')
+    ggs = rbind(ggs, xx)
+  }
+  
+  gg.unique = unique(ggs$gene)
+  ggs = ggs[match(gg.unique, ggs$gene), ]
+  
+  xx = read.xlsx('../data/pbio.2002117.s012.xlsx')
+  xx = xx[, c(2,3)]
+  xx = xx[!is.na(xx$geneName), ]
   colnames(xx) = c('gene', 'pathway')
+  
+  firstup <- function(x) {
+    x <- tolower(x)
+    substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+    x
+  }
+  
+  xx$gene = sapply(xx$gene, firstup)
   ggs = rbind(ggs, xx)
+  gg.unique = unique(ggs$gene)
+  ggs = ggs[match(gg.unique, ggs$gene), ]
+  ggs = ggs[order(ggs$pathway), ]
+  
+  saveRDS(ggs, file = paste0(RdataDir, '/TM3_examplesGenes.rds'))
+  
+  #write.csv(ggs, file = paste0(resDir, '/genes_signalingPathways.csv'), row.names = FALSE)
+  
 }
-
-gg.unique = unique(ggs$gene)
-ggs = ggs[match(gg.unique, ggs$gene), ]
-
-xx = read.xlsx('../data/pbio.2002117.s012.xlsx')
-xx = xx[, c(2,3)]
-xx = xx[!is.na(xx$geneName), ]
-colnames(xx) = c('gene', 'pathway')
-
-firstup <- function(x) {
-  x <- tolower(x)
-  substr(x, 1, 1) <- toupper(substr(x, 1, 1))
-  x
-}
-
-xx$gene = sapply(xx$gene, firstup)
-ggs = rbind(ggs, xx)
-gg.unique = unique(ggs$gene)
-ggs = ggs[match(gg.unique, ggs$gene), ]
-ggs = ggs[order(ggs$pathway), ]
-
-
-#write.csv(ggs, file = paste0(resDir, '/genes_signalingPathways.csv'), row.names = FALSE)
 
 ##########################################
 # first check the normalized signals in positive and negative cells across conditions  
 ##########################################
+ggs = readRDS(file = paste0(resDir, '/genes_signalingPathways.csv'), row.names = FALSE)
 examples = ggs$gene
 fpm = fpm(dds, robust = TRUE)
-fpm.cutoff = 2^2
+
+#load(file = paste0(RdataDir, '/TM3_positive.negative.pooled_', Counts.to.Use, version.analysis, '.Rdata'))
+
+fpm.cutoff = 2^2.5
+
 logscale = TRUE
 if(logscale){
   fpm = as.matrix(log2(fpm + 2^-4))
-  fpm.cutoff = 2
+  fpm.cutoff = 2.5
+  #pools = as.matrix(log2(pools + 2^-4))
 }
 
 cells = sapply(colnames(fpm), function(x) unlist(strsplit(as.character(x), '_'))[3])
@@ -487,7 +499,7 @@ pdf(pdfname,  width = 20, height = 8)
 
 for(g in examples)
 {
-  # g = 'Nog'
+  # g = 'Bmp3'
   kk = which(rownames(fpm) == g)
   
   if(length(kk) > 0){
@@ -498,7 +510,7 @@ for(g in examples)
     
     p0 = ggplot(xx[which(xx$cells == 'Foxa2.pos'), ],  aes(x = factor(cc, levels = level_order), y = cpm, color = cells, fill = cond)) +
       geom_bar(stat = "identity", position="dodge") +
-      geom_hline(yintercept = fpm.cutoff, colour = "blue") + 
+      geom_hline(yintercept = 3, colour = "blue") + 
       ggtitle(g)  + 
       theme(axis.text.x = element_text(angle = 90, size = 10))
     
@@ -508,9 +520,18 @@ for(g in examples)
       ggtitle(g)  + 
       theme(axis.text.x = element_text(angle = 90, size = 10))
     
-    grid.arrange(p0, p1,  nrow = 1, ncol = 2)
+    # yy = pools[kk, ]
+    # if(logscale) yy[which(yy < 0)] = 0
+    # yy = data.frame(cpm = yy, cc = colnames(pools), cells = rep('pooled', length(yy)), cond = cc.pools) 
+    # p2 = ggplot(yy,  aes(x = factor(cc, levels = level_order), y = cpm, color = cells, fill = cond)) +
+    #   geom_bar(stat = "identity", position="dodge") +
+    #   geom_hline(yintercept = fpm.cutoff, colour = "blue") + 
+    #   ggtitle(g)  + 
+    #   theme(axis.text.x = element_text(angle = 90, size = 10))
+    grid.arrange(p0, p1, nrow = 1, ncol = 2)
     
   }
+  
   
 }
 
