@@ -347,14 +347,20 @@ ss = rowSums(counts(dds))
 
 hist(log2(ss), breaks = 200, main = 'log2(sum of reads for each gene)')
 
-# use UQ normalization from edgeR
-library(edgeR)
-dge2 <- DGEList(raw)
-dge2 <- calcNormFactors(dge2, method = "upperquartile")
-#dge2$samples
+dd0 = dds[ss > quantile(ss, probs = 0.75) , ]
+dd0 = estimateSizeFactors(dd0)
+sizefactors.UQ = sizeFactors(dd0)
 
-sizefactors.UQ = as.data.frame(dge2$samples) 
-sizefactors.UQ = sizefactors.UQ$lib.size * sizefactors.UQ$norm.factors/median(sizefactors.UQ$lib.size)
+plot(sizeFactors(dd0), colSums(counts(dds)), log = 'xy')
+text(sizeFactors(dd0), colSums(counts(dds)), colnames(dd0), cex =0.4)
+
+# use UQ normalization from edgeR
+#library(edgeR)
+#dge2 <- DGEList(raw)
+#dge2 <- calcNormFactors(dge2, method = "upperquartile")
+#dge2$samples
+#sizefactors.UQ = as.data.frame(dge2$samples) 
+#sizefactors.UQ = sizefactors.UQ$lib.size * sizefactors.UQ$norm.factors/median(sizefactors.UQ$lib.size)
 
 cutoff.gene = 100
 cat(length(which(ss > cutoff.gene)), 'genes selected \n')
@@ -387,7 +393,7 @@ ggp = ggplot(data=pca2save[grep('N2B27', pca2save$condition, invert = TRUE), ],
 plot(ggp) + ggsave(paste0(resDir, "/PCAplot_withoutControls_UQ.norm_ntop500.pdf"), width=18, height = 12)
 
 ##########################################
-# first check the normalized signals in positive and negative cells across conditions  
+# edit a list of genes in FGF, BMP and Wnt 
 ##########################################
 # examples = unique(c('Foxa2', # FoxA 
 #                     'Lef1', 'Mapk1', rownames(fpm)[grep('Smad', rownames(fpm))], 
@@ -434,25 +440,46 @@ for(n in 1:length(xx.files))
 gg.unique = unique(ggs$gene)
 ggs = ggs[match(gg.unique, ggs$gene), ]
 
+xx = read.xlsx('../data/pbio.2002117.s012.xlsx')
+xx = xx[, c(2,3)]
+xx = xx[!is.na(xx$geneName), ]
+colnames(xx) = c('gene', 'pathway')
+
+firstup <- function(x) {
+  x <- tolower(x)
+  substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+  x
+}
+
+xx$gene = sapply(xx$gene, firstup)
+ggs = rbind(ggs, xx)
+gg.unique = unique(ggs$gene)
+ggs = ggs[match(gg.unique, ggs$gene), ]
+ggs = ggs[order(ggs$pathway), ]
+
+
 #write.csv(ggs, file = paste0(resDir, '/genes_signalingPathways.csv'), row.names = FALSE)
 
+##########################################
+# first check the normalized signals in positive and negative cells across conditions  
+##########################################
 examples = ggs$gene
 
 #n = which(rownames(fpm) == 'Foxa2')
-pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive.vs.negative_v3.pdf')
-pdf(pdfname,  width = 10, height = 6)
-par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
+pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive_negative_v5.pdf')
+pdf(pdfname,  width = 20, height = 8)
+#par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
 
 fpm = fpm(dds, robust = TRUE)
 
 cells = sapply(colnames(fpm), function(x) unlist(strsplit(as.character(x), '_'))[3])
 cc = sapply(colnames(fpm), function(x) paste0(unlist(strsplit(as.character(x), '_'))[1:2], collapse = '_'))
+cond = sapply(colnames(fpm), function(x) paste0(unlist(strsplit(as.character(x), '_'))[1]))
 level_order = apply(expand.grid(c(1:3), c('N2B27', 'RA', 'BMP', 'LDN', 'FGF', 'PD', 'CHIR', 'IWR', 'IWP2')), 
                     1, function(x) paste(x[2], x[1], sep="_"))
                      
 
 #fpm = as.matrix(log2(fpm + 2^-4))
-
 
 for(g in examples)
 {
@@ -462,24 +489,36 @@ for(g in examples)
   if(length(kk) > 0){
     cat(g, '\n')
     
-    #xx = data.frame(cpm = fpm[kk, ], condition = design.matrix$condition.rep,
-    #                cells = design.matrix$cells, replicate= design.matrix$Triplicate.No.)
+    xx = data.frame(cpm = fpm[kk, ], cc = cc,  cells = cells, cond = cond)
     
-    xx = data.frame(cpm = fpm[kk, ], cc = cc,  cells = cells)
-    
-    p0 = ggplot(xx,  aes(x = factor(cc, levels = level_order), y = cpm, color = cc, fill = cells)) +
+    p0 = ggplot(xx[which(xx$cells == 'Foxa2.pos'), ],  aes(x = factor(cc, levels = level_order), y = cpm, color = cells, fill = cond)) +
       geom_bar(stat = "identity", position="dodge") +
       geom_hline(yintercept = 2^2, colour = "blue") + 
       ggtitle(g)  + 
-      theme(axis.text.x = element_text(angle = 90, size = 10)) +
-      guides(color = FALSE)
-    plot(p0)
+      theme(axis.text.x = element_text(angle = 90, size = 10))
+    
+    p1 = ggplot(xx[which(xx$cells == 'Foxa2.neg'), ],  aes(x = factor(cc, levels = level_order), y = cpm, color = cells, fill = cond)) +
+      geom_bar(stat = "identity", position="dodge") +
+      geom_hline(yintercept = 2^2, colour = "blue") + 
+      ggtitle(g)  + 
+      theme(axis.text.x = element_text(angle = 90, size = 10))
+    
+    grid.arrange(p0, p1,  nrow = 1, ncol = 2)
+    
     
   }
   
 }
 
 dev.off()
+
+
+########################################################
+########################################################
+# Section : test pooling of positive and negative cells
+# 
+########################################################
+########################################################
 
 
 Test.pooling.negative.positive.cells = FALSE
