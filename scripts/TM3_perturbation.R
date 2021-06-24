@@ -395,6 +395,36 @@ ggp = ggplot(data=pca2save[grep('N2B27', pca2save$condition, invert = TRUE), ],
 
 plot(ggp) + ggsave(paste0(resDir, "/PCAplot_withoutControls_UQ.norm_ntop500.pdf"), width=18, height = 12)
 
+
+########################################################
+########################################################
+# Section : some comparison
+# 
+########################################################
+########################################################
+dds = estimateDispersions(dds)
+plotDispEsts(dds)
+
+dds1 = dds[, grep('pos', colnames(dds))]
+dds1$conds <- droplevels(dds1$conds)
+dds1 <- estimateDispersions(dds1)
+plotDispEsts(dds1)
+dds1 = nbinomLRT(dds1, reduced = ~ 1)
+res1 <- as.data.frame(results(dds1))
+res1 = res1[order(res1$pvalue), ]
+
+dds2 = dds[, grep('neg', colnames(dds))]
+dds2$conds <- droplevels(dds2$conds)
+dds2 <- estimateDispersions(dds)
+plotDispEsts(dds2)
+dds2 = nbinomLRT(dds2, reduced = ~ 1)
+res2 <- as.data.frame(results(dds2))
+res2 = res2[order(res2$pvalue), ]
+
+
+ggs.signif = unique(c(rownames(res1)[which(res1$pvalue < 0.01 & abs(res1$log2FoldChange) > 0.5)], 
+                      rownames(res2)[which(res2$pvalue < 0.001 & abs(res2$log2FoldChange) > 0.5)]))
+
 ##########################################
 # edit a list of genes in FGF, BMP and Wnt 
 ##########################################
@@ -430,17 +460,23 @@ if(Manual.curate.geneList.pathways){
     }
   }
   
-  ggs = rbind(c('Foxa2', NA), ggs)
-  
-  for(n in 1:length(xx.files))
-  {
-    # n = 1
-    xx = read.xlsx(xx.files[n])
-    xx = unique(xx$Symbol)
-    xx = cbind(xx, rep(unlist(strsplit(as.character(gsub('.xlsx', '', basename(xx.files[n]))), '_'))[4], length(xx)))
-    colnames(xx) = c('gene', 'pathway')
-    ggs = rbind(ggs, xx)
+  Add.GoTerm.gene.list = TRUE
+  if(Add.GoTerm.gene.list){
+    for(n in 1:length(xx.files))
+    {
+      # n = 1
+      xx = read.xlsx(xx.files[n])
+      xx = unique(xx$Symbol)
+      xx = cbind(xx, rep(unlist(strsplit(as.character(gsub('.xlsx', '', basename(xx.files[n]))), '_'))[4], length(xx)))
+      colnames(xx) = c('gene', 'pathway')
+      ggs = rbind(ggs, xx)
+    }
   }
+  
+  ggs = rbind(c('Id3', 'BMP'), ggs)
+  ggs = rbind(c('Id1', 'BMP'), ggs)
+  ggs = rbind(c('Smad6', 'BMP'), ggs)
+  ggs = rbind(c('Foxa2', NA), ggs)
   
   gg.unique = unique(ggs$gene)
   ggs = ggs[match(gg.unique, ggs$gene), ]
@@ -462,7 +498,7 @@ if(Manual.curate.geneList.pathways){
   ggs = ggs[match(gg.unique, ggs$gene), ]
   ggs = ggs[order(ggs$pathway), ]
   
-  saveRDS(ggs, file = paste0(RdataDir, '/TM3_examplesGenes.rds'))
+  saveRDS(ggs, file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
   
   #write.csv(ggs, file = paste0(resDir, '/genes_signalingPathways.csv'), row.names = FALSE)
   
@@ -471,8 +507,10 @@ if(Manual.curate.geneList.pathways){
 ##########################################
 # first check the normalized signals in positive and negative cells across conditions  
 ##########################################
-ggs = readRDS(file = paste0(resDir, '/genes_signalingPathways.csv'), row.names = FALSE)
+ggs = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
 examples = ggs$gene
+
+examples = ggs.signif
 fpm = fpm(dds, robust = TRUE)
 
 #load(file = paste0(RdataDir, '/TM3_positive.negative.pooled_', Counts.to.Use, version.analysis, '.Rdata'))
@@ -493,7 +531,7 @@ level_order = apply(expand.grid(c(1:3), c('N2B27', 'RA', 'BMP', 'LDN', 'FGF', 'P
                     1, function(x) paste(x[2], x[1], sep="_"))
 
 #n = which(rownames(fpm) == 'Foxa2')
-pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive_negative_v6_log2scale.pdf')
+pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive_negative_v8_log2scale_significantGenes.pdf')
 pdf(pdfname,  width = 20, height = 8)
 #par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
 
@@ -510,7 +548,7 @@ for(g in examples)
     
     p0 = ggplot(xx[which(xx$cells == 'Foxa2.pos'), ],  aes(x = factor(cc, levels = level_order), y = cpm, color = cells, fill = cond)) +
       geom_bar(stat = "identity", position="dodge") +
-      geom_hline(yintercept = 3, colour = "blue") + 
+      geom_hline(yintercept = fpm.cutoff, colour = "blue") + 
       ggtitle(g)  + 
       theme(axis.text.x = element_text(angle = 90, size = 10))
     
@@ -530,13 +568,11 @@ for(g in examples)
     #   theme(axis.text.x = element_text(angle = 90, size = 10))
     grid.arrange(p0, p1, nrow = 1, ncol = 2)
     
+     
   }
-  
-  
 }
 
 dev.off()
-
 
 
 ########################################################
