@@ -30,6 +30,7 @@ if(!dir.exists(RdataDir)) dir.create(RdataDir)
 dataDir = '/Volumes/groups/tanaka/People/current/jiwang/projects/patterning_organoid/R11601/'
 
 Collect.QCs.stat = TRUE
+Counts.to.Use = "UMI"
 
 ##########################################
 # prepare design matrix, count table and QC table
@@ -183,7 +184,7 @@ if(Sequence.saturation.analysis){
 source(RNA.functions)
 source(RNA.QC.functions)
 
-Counts.to.Use = "UMI"
+
 design = readRDS(file = paste0(RdataDir, 'sampleInfo_QC.stats.rds'))
 
 colnames(design)[1] = 'SampleID'
@@ -326,6 +327,7 @@ if(QC.for.cpm){
 ##########################################
 require(ggplot2)
 require(DESeq2)
+require(gridExtra)
 library("dplyr")
 Counts.to.Use = 'UMI'
 
@@ -366,7 +368,7 @@ text(sizeFactors(dd0), colSums(counts(dds)), colnames(dd0), cex =0.4)
 #sizefactors.UQ = as.data.frame(dge2$samples) 
 #sizefactors.UQ = sizefactors.UQ$lib.size * sizefactors.UQ$norm.factors/median(sizefactors.UQ$lib.size)
 
-cutoff.gene = 100
+cutoff.gene = 50
 cat(length(which(ss > cutoff.gene)), 'genes selected \n')
 
 
@@ -395,6 +397,89 @@ ggp = ggplot(data=pca2save[grep('N2B27', pca2save$condition, invert = TRUE), ],
 
 plot(ggp) + ggsave(paste0(resDir, "/PCAplot_withoutControls_UQ.norm_ntop500.pdf"), width=18, height = 12)
 
+##########################################
+# test the relationship between perturbation of positive and negative cells, pooled cells, and time seires and day 5 sorted cells 
+##########################################
+Compare.with.pooledCells.timeSeries.sortedDay5 = FALSE
+if(Compare.with.pooledCells.timeSeries.sortedDay5){
+  fpm = fpm(dds, robust = TRUE)
+  cpm = log2(fpm + 2^-4)
+  cc = paste0(design.matrix$condition, '_', design.matrix$cells)
+  
+  #load(file = paste0(RdataDir, '/TM3_positive.negative.pooled_', Counts.to.Use, version.analysis, '.Rdata'))
+  load(file = paste0(RdataDir, '/TM3_pooled.positive.negative_', Counts.to.Use, version.analysis, '.Rdata'))
+  cc.pools = paste0(cc.pools, '_pooled')
+  pools = log2(pools + 2^-4)
+  colnames(pools) = paste0(colnames(pools), '.pooled')
+  
+  cpm = cbind(cpm, pools)
+  cc = c(cc, cc.pools)
+  
+  load(file = paste0('../results/Rdata/RNAseqOld_design_dds_fpm.Rdata'))
+  kk = grep('RA', design0$condition)
+  
+  cc0 = as.character(design0$condition[kk])
+  xx = log2(fpm0[, kk] + 2^-4) 
+  
+  bc = c(rep(1, length(cc)), rep(0, length(cc0)))
+  cc[which(cc == 'RA_pooled')] = '12h_RA'
+  cc[which(cc == 'N2B27_pooled')] = 'before_RA'
+  cc = c(cc, as.character(cc0))
+  mm = match(rownames(cpm), rownames(xx))
+  
+  cpm = cpm[which(!is.na(mm)), ]
+  xx = xx[mm[which(!is.na(mm))], ]
+  
+  cpm = cbind(cpm, xx)
+  
+  jj = c(grep('N2B27|pos|neg|pooled', cc, invert = TRUE), grep("RA_Foxa2.pos|RA_Foxa2.neg|N2B27", cc))
+  
+  cc = cc[jj]
+  cpm = cpm[,jj]
+  bc = bc[jj]
+  
+  require("sva")
+  bc = as.factor(bc)
+  mod = model.matrix(~ as.factor(conds), data = data.frame(conds = cc))
+  
+  yy = ComBat(dat=cpm, batch=bc, mod=mod, par.prior=TRUE, ref.batch = 0)    
+  
+  #yy = cpm
+  ntop = 2000
+  xx = as.matrix(yy)
+  vars = apply(xx, 1, var)
+  xx = xx[order(-vars), ]
+  xx = xx[1:ntop, ]
+  #par(mfrow = c(2,2))
+  #pairs(xx[, c(1:4)])
+  #plot.pair.comparison.plot(xx[, c(1:4)], linear.scale = FALSE)
+  #plot.pair.comparison.plot(xx[, c(9:16)], linear.scale = FALSE)
+  
+  res.pca <- prcomp(t(xx), scale = TRUE)
+  pcas = data.frame(res.pca$x[, c(1:2)], condition = cc)
+  pcas = data.frame(pcas, name = rownames(pcas))
+  
+  ggplot(data=pcas, 
+         aes(PC1, PC2, color= condition, label = name))  + 
+    geom_point(size=3) + 
+    geom_text(hjust = 1, nudge_y = 0.5, size=3) + 
+    ggsave(paste0(resDir, "/PCAplot_ElenaRNAseq_pooledRA.pos.neg.pdf"), width=18, height = 12)
+  
+  #plot(res.pca$x[, c(1,2)])
+  # fviz_pca_ind(res.pca,
+  #              col.ind = "cos2", # Color by the quality of representation
+  #              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+  #              repel = TRUE     # Avoid text overlapping
+  #)
+  
+  # comapre the foxa2 positive and negative cells for RA in day3 and day5
+  
+  xx1 = apply(cpm[, grep('s48h_RA_GFPp', colnames(cpm))], 1, median)- apply(cpm[ ,grep('s48h_RA_AF', colnames(cpm))], 1, median) 
+  xx2 = apply(cpm[, grep('RA_[[:digit:]]_Foxa2.pos', colnames(cpm))], 1, median) - 
+    apply(cpm[, grep('RA_[[:digit:]]_Foxa2.neg', colnames(cpm))], 1, median) 
+  
+  
+}
 
 ########################################################
 ########################################################
@@ -510,10 +595,11 @@ if(Manual.curate.geneList.pathways){
 ggs = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
 examples = ggs$gene
 
-examples = ggs.signif
+#examples = ggs.signif
 fpm = fpm(dds, robust = TRUE)
 
 #load(file = paste0(RdataDir, '/TM3_positive.negative.pooled_', Counts.to.Use, version.analysis, '.Rdata'))
+load(file = paste0(RdataDir, '/TM3_pooled.positive.negative_', Counts.to.Use, version.analysis, '.Rdata'))
 
 fpm.cutoff = 2^2.5
 
@@ -521,7 +607,7 @@ logscale = TRUE
 if(logscale){
   fpm = as.matrix(log2(fpm + 2^-4))
   fpm.cutoff = 2.5
-  #pools = as.matrix(log2(pools + 2^-4))
+  pools = as.matrix(log2(pools + 2^-4))
 }
 
 cells = sapply(colnames(fpm), function(x) unlist(strsplit(as.character(x), '_'))[3])
@@ -531,14 +617,15 @@ level_order = apply(expand.grid(c(1:3), c('N2B27', 'RA', 'BMP', 'LDN', 'FGF', 'P
                     1, function(x) paste(x[2], x[1], sep="_"))
 
 #n = which(rownames(fpm) == 'Foxa2')
-pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive_negative_v8_log2scale_significantGenes.pdf')
-pdf(pdfname,  width = 20, height = 8)
+pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive_negative.pooled_v9_log2scale_pathways.pdf')
+pdf(pdfname,  width = 20, height = 16)
 #par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
 
 for(g in examples)
 {
-  # g = 'Bmp3'
+  # g = 'Foxa2'
   kk = which(rownames(fpm) == g)
+  kk2 = which(rownames(pools) == g)
   
   if(length(kk) > 0){
     cat(g, '\n')
@@ -558,18 +645,21 @@ for(g in examples)
       ggtitle(g)  + 
       theme(axis.text.x = element_text(angle = 90, size = 10))
     
-    # yy = pools[kk, ]
-    # if(logscale) yy[which(yy < 0)] = 0
-    # yy = data.frame(cpm = yy, cc = colnames(pools), cells = rep('pooled', length(yy)), cond = cc.pools) 
-    # p2 = ggplot(yy,  aes(x = factor(cc, levels = level_order), y = cpm, color = cells, fill = cond)) +
-    #   geom_bar(stat = "identity", position="dodge") +
-    #   geom_hline(yintercept = fpm.cutoff, colour = "blue") + 
-    #   ggtitle(g)  + 
-    #   theme(axis.text.x = element_text(angle = 90, size = 10))
-    grid.arrange(p0, p1, nrow = 1, ncol = 2)
+    #grid.arrange(p0, p1, nrow = 1, ncol = 2)
     
-     
+    yy = pools[kk2, ]
+    if(logscale) yy[which(yy < 0)] = 0
+    yy = data.frame(cpm = yy, cc = colnames(pools), cells = rep('pooled', length(yy)), cond = cc.pools)
+    p2 = ggplot(yy,  aes(x = factor(cc, levels = level_order), y = cpm, color = cells, fill = cond)) +
+      geom_bar(stat = "identity", position="dodge") +
+      geom_hline(yintercept = fpm.cutoff, colour = "blue") +
+      ggtitle(g)  +
+      theme(axis.text.x = element_text(angle = 90, size = 10))
+    
+    grid.arrange(p0, p1, p2, nrow = 2, ncol = 2)
+    
   }
+  
 }
 
 dev.off()
@@ -593,7 +683,7 @@ if(Test.pooling.negative.positive.cells){
   rrs$Tube.Name = gsub('Chiron', 'CHIR', rrs$Tube.Name)
   
   pools = matrix(NA, nrow = nrow(fpm), ncol = length(unique(design.matrix$condition.rep)))
-  colnames(pools) = unique(design.matrix$condition.rep)
+  colnames(pools) = unique(design.matrix$condition.replicate)
   rownames(pools) = rownames(fpm)
   
   for(n in 1:ncol(pools))
@@ -612,14 +702,13 @@ if(Test.pooling.negative.positive.cells){
     
   }
   
-  
   pools = pools[, which(colnames(pools) != 'LDN_1')]
   
   cc.pools = colnames(pools)
   cc.pools = sapply(cc.pools, function(x) unlist(strsplit(as.character(x), '_'))[1])
   
   library(factoextra)
-  ntop = 300
+  ntop = 500
   xx = as.matrix(log2(pools + 2^-4))
   vars = apply(xx, 1, var)
   xx = xx[order(-vars), ]
@@ -634,7 +723,7 @@ if(Test.pooling.negative.positive.cells){
                repel = TRUE     # Avoid text overlapping
   )
   
-  save(pools, cc.pools, file = paste0(RdataDir, '/TM3_positive.negative.pooled_', Counts.to.Use, version.analysis, '.Rdata'))
+  save(pools, cc.pools, file = paste0(RdataDir, '/TM3_pooled.positive.negative_', Counts.to.Use, version.analysis, '.Rdata'))
   
   g = 'Foxa2'
   j = grep(g, rownames(pools))

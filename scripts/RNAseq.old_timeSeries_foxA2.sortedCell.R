@@ -7,7 +7,7 @@
 # Date of creation: Wed May 12 15:13:46 2021
 ##########################################################################
 ##########################################################################
-
+rm(list = ls())
 version.analysis = 'Rnaseq_old_Dresden'
 
 resDir = paste0("../results/RNAseq.old.by.Maria.", version.analysis)
@@ -99,7 +99,7 @@ ss = rowSums(counts(dds))
 
 hist(log2(ss), breaks = 200, main = 'log2(sum of reads for each gene)')
 
-cutoff.peak = 2^10
+cutoff.peak = 100
 cat(length(which(ss > cutoff.peak)), 'peaks selected \n')
 gg.tokeep = 'Nog|Acvrl1|Acvr1|Notch|Dll|Jagn'
 
@@ -113,6 +113,28 @@ fpm = fpm(dds, robust = TRUE)
 ss = colSums(counts(dds))
 plot(sizeFactors(dds), ss/10^6)
 
+dds0 = dds
+fpm0 = fpm
+design0 = design
+
+save(design0, dds0, fpm0, file = paste0(RdataDir, '/RNAseqOld_design_dds_fpm.Rdata'))
+
+vsd <- varianceStabilizingTransformation(dds, blind = FALSE)
+
+
+kk = grep('RA', design$condition)
+pca=plotPCA(vsd[,kk], intgroup = c('condition'), returnData = TRUE, ntop = 500)
+pca2save = as.data.frame(pca)
+ggp = ggplot(data=pca2save, aes(PC1, PC2, label = name, color= condition))  + 
+  geom_point(size=4) + 
+  geom_text(hjust = 0.3, nudge_y = 0.4, size=3)
+
+plot(ggp)
+
+
+##########################################
+# normalized by gene length
+##########################################
 ll = genes$length[match(rownames(fpm), genes$gene)]
 
 rpkm = fpm
