@@ -1,7 +1,7 @@
 ##########################################################################
 ##########################################################################
 # Project: Organoid patterning project
-# Script purpose:
+# Script purpose: analyze the time series RNA-seq data by Elena and sorted cells Foxa2+ at day 5
 # Usage example: 
 # Author: Jingkui Wang (jingkui.wang@imp.ac.at)
 # Date of creation: Wed May 12 15:13:46 2021
