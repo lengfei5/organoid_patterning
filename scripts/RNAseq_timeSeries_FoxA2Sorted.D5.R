@@ -87,8 +87,7 @@ save(counts, design, file = paste0(RdataDir, '/RNAseq_old_count_design.Rdata'))
 ##########################################
 require(ggplot2)
 require(DESeq2)
-library("dplyr")
-library("ggplot2")
+require(dplyr)
 
 load(file = paste0(RdataDir, '/RNAseq_old_count_design.Rdata'))
 genes = readRDS(file = paste0(RdataDir, '/gene_names_length.rds'))
