@@ -17,7 +17,12 @@ if(!dir.exists(RdataDir)) dir.create(RdataDir)
 
 dataDir = '../data/'
 
-
+########################################################
+########################################################
+# Section : import data and metadata
+# 
+########################################################
+########################################################
 design = read.delim(paste0(dataDir, 'timeSeries_SampleMetadata.txt'), header = TRUE, sep = '\t', skip = 1, comment.char = "#")
 design = design[grep('*_Bigwig', design$Linking_id, invert = TRUE), ]
 design = design[grep('^_', design$Linking_id, invert = TRUE), ]
@@ -27,6 +32,8 @@ design.sorted = design.sorted[grep('*_Bigwig', design.sorted$Linking_id, invert 
 design.sorted = design.sorted[grep('^_', design.sorted$Linking_id, invert = TRUE), ]
 
 design = rbind(design, design.sorted)
+
+
 
 cc = unique(design$condition)
 length(unique(design$condition))
@@ -38,13 +45,22 @@ ggs = counts.sorted$gene_id
 ggs = sapply(ggs, function(x) unlist(strsplit(as.character(x), '[|]'))[1])
 counts.sorted$gene_id = ggs
 
-counts = cbind(counts, counts.sorted[match(counts$gene_id, counts.sorted$gene_id), -1])
+mm = match(counts$gene_id, counts.sorted$gene_id)
+counts = cbind(counts, counts.sorted[mm, -1])
 
+rm(design.sorted)
+rm(counts.sorted)
+
+save(counts, design, file = paste0(RdataDir, '/RNAseq_timeSeries_sortedDay5_count_design.Rdata'))
+
+##########################################
+# annnotation: convert ens ID to gene symbol 
+##########################################
+load(file = paste0(RdataDir, '/RNAseq_timeSeries_sortedDay5_count_design.Rdata'))
 genes = counts$gene_id
 
-## convert ens ID to gene symbol 
-annots = read.delim('/Volumes/groups/tanaka/People/current/jiwang/annotations/mouse/mm10/ensemble/Ensemble_biomart_mm10.txt', 
-                    sep = '\t', header = TRUE)
+annots = read.delim('/Volumes/groups/tanaka/People/current/jiwang/Genomes/mouse/mm10_ens/ens_BioMart_GRCm38.p6.txt', sep = '\t', 
+                    header = TRUE)
 annots = annots[which(annots$Gene.type == 'protein_coding'), ]
 
 mm = match(genes, annots$Gene.stable.ID)
@@ -54,19 +70,19 @@ Find.gene.length = FALSE
 if(Find.gene.length){
   genes = data.frame(c(1:nrow(counts)), genes, annots$Gene.name[mm], gene.types = annots$Gene.type[mm], stringsAsFactors = FALSE)
   genes = genes[which(!is.na(genes[, 3])), ]
-  #genes = genes[which(genes$gene.types == 'protein_coding'), ]
+  
   genes = genes[match(unique(genes[,3]), genes[,3]), ]
   colnames(genes) = c('index.counts', 'ensID', 'gene', 'genetype')
   
   genes$length = NA
-  #sapply(genes$gene, function(g) {return(median(annots$Transcript.length..including.UTRs.and.CDS.[which(annots$Gene.name == g)]))})
   for(n in 1:nrow(genes))
   {
     if(n%%100 ==0) cat(n, '\n')
     genes$length[n] = median(annots$Transcript.length..including.UTRs.and.CDS.[which(annots$Gene.name == genes$gene[n])])
   }
   
-  saveRDS(genes, file = paste0(Rdata, 'gene_names_length.rds'))
+  saveRDS(genes, file = paste0(RdataDir, 'RNAseq_timeSeries_Foxa2.pos.day5_gene_names_length_.rds'))
+  
 }else{
   genes = readRDS(file = paste0(RdataDir, '/gene_names_length.rds'))
 }
@@ -81,16 +97,19 @@ kk = match(design$Linking_id, colnames(counts))
 counts = counts[,kk]
 colnames(counts) = paste0(design$condition, '_', design$Linking_id)
 
-save(counts, design, file = paste0(RdataDir, '/RNAseq_old_count_design.Rdata'))
-##########################################
-# DESeq2 normalization
-##########################################
+save(counts, design, genes, file = paste0(RdataDir, '/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol.Rdata'))
+
+########################################################
+########################################################
+# Section :  DESeq2 normalization
+# 
+########################################################
+########################################################
 require(ggplot2)
 require(DESeq2)
 require(dplyr)
 
-load(file = paste0(RdataDir, '/RNAseq_old_count_design.Rdata'))
-genes = readRDS(file = paste0(RdataDir, '/gene_names_length.rds'))
+load(file = paste0(RdataDir, '/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol.Rdata'))
 
 dds <- DESeqDataSetFromMatrix(counts, DataFrame(design), design = ~ condition)
 
@@ -100,7 +119,7 @@ hist(log2(ss), breaks = 200, main = 'log2(sum of reads for each gene)')
 
 cutoff.peak = 100
 cat(length(which(ss > cutoff.peak)), 'peaks selected \n')
-gg.tokeep = 'Nog|Acvrl1|Acvr1|Notch|Dll|Jagn'
+gg.tokeep = 'Nog|Acvrl1|Acvr1|Notch|Dll|Jagn|Gdf|Bmp|Fgf|Wnt'
 
 sels = unique(c(which(ss > cutoff.peak), grep(gg.tokeep, rownames(dds))))
 
@@ -121,15 +140,15 @@ save(design0, dds0, fpm0, file = paste0(RdataDir, '/RNAseqOld_design_dds_fpm.Rda
 vsd <- varianceStabilizingTransformation(dds, blind = FALSE)
 
 
-kk = grep('RA', design$condition)
+#kk = grep('RA', design$condition)
+kk = c(1:nrow(design))
 pca=plotPCA(vsd[,kk], intgroup = c('condition'), returnData = TRUE, ntop = 500)
 pca2save = as.data.frame(pca)
 ggp = ggplot(data=pca2save, aes(PC1, PC2, label = name, color= condition))  + 
-  geom_point(size=4) + 
-  geom_text(hjust = 0.3, nudge_y = 0.4, size=3)
+  geom_point(size=3) + 
+  geom_text(hjust = 0.3, nudge_y = 0.4, size=4)
 
-plot(ggp)
-
+plot(ggp) + ggsave(paste0(resDir, "/PCAplot_RA.noRA.timeSeries_Foxa2pos.pdf"), width=18, height = 12)
 
 ##########################################
 # normalized by gene length
@@ -172,7 +191,6 @@ for(n in 1:length(tt))
 }
 
 
-
 sorted = cbind(apply(rpkm[ , grep('s48h_RA_AF', colnames(rpkm))], 1, median), 
                apply(rpkm[ , grep('s48h_RA_GFPp', colnames(rpkm))], 1, median),
                apply(rpkm[ , grep('s48h_SAG_GFPp', colnames(rpkm))], 1, median))
@@ -183,8 +201,8 @@ sorted = cbind(apply(rpkm[ , grep('s48h_RA_AF', colnames(rpkm))], 1, median),
 ##########################################
 examples = unique(c('Foxa2', # FoxA 
                     'Lef1', 'Mapk1', rownames(rpkm)[grep('Smad', rownames(rpkm))], 
-                    rownames(rpkm)[grep('Wnt|Dkk|Tcf', rownames(rpkm))],
-                    rownames(rpkm)[grep('Bmp', rownames(rpkm))], 'Nog', 'Chrd', 'Runx1', 'Runx2',  'Smad6', 'Id1', 'Id3',
+                    rownames(rpkm)[grep('Wnt|Dkk|Tcf|Axin|Ctnnb', rownames(rpkm))],
+                    rownames(rpkm)[grep('Bmp|Gdf', rownames(rpkm))], 'Nog', 'Chrd', 'Runx1', 'Runx2',  'Smad6', 'Id1', 'Id3',
                     rownames(rpkm)[grep('Acvr', rownames(rpkm))],
                     rownames(rpkm)[grep('Fgf', rownames(rpkm))], 
                     'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5', 'Mapk10', 'Mapk4', 'Mapk8ip2', 'Spry4', 'Rbpj', 'Hes1', 'Hes5',
@@ -193,7 +211,7 @@ examples = unique(c('Foxa2', # FoxA
                     rownames(rpkm)[grep('Tgf', rownames(rpkm))]
 ))
 
-pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_v4.pdf')
+pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_v5.pdf')
 pdf(pdfname,  width = 10, height = 6)
 par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
 
@@ -209,7 +227,7 @@ abline(v = c(0, 1), col = 'red', lwd = 2.0)
 
 for(g in examples)
 {
-  
+  # g = 'Foxa2'
   kk = which(rownames(rpkm) == g)
   if(length(kk)){
     cat(g, '\n')
@@ -227,6 +245,7 @@ for(g in examples)
     #points(48, sorted[kk, 3], col = 'darkorange', type = 'p', cex = 2.0, pch = 18)
     
     abline(h = c(0, 1), col = 'darkgray', lwd = 2.0)
+    abline(v = c(6, 32, 54), col = 'cornflowerblue', lwd = 2.0, lty=3)
     legend('topleft', legend = c('RA', 'no.RA', 's48h.RA.AF', 's48h.RA.GFPp'), bty = 'n', 
            col = c('darkblue', 'darkred', 'magenta', 'darkgreen'), lwd =2.0, pch = c(16, 1, 16, 16), lty = c(1, 1, 0, 0))
     
