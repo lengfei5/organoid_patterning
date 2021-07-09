@@ -17,6 +17,11 @@ if(!dir.exists(RdataDir)) dir.create(RdataDir)
 
 dataDir = '../data/'
 
+require(ggplot2)
+require(DESeq2)
+require(dplyr)
+require("pheatmap")
+
 ########################################################
 ########################################################
 # Section : import data and metadata
@@ -32,8 +37,6 @@ design.sorted = design.sorted[grep('*_Bigwig', design.sorted$Linking_id, invert 
 design.sorted = design.sorted[grep('^_', design.sorted$Linking_id, invert = TRUE), ]
 
 design = rbind(design, design.sorted)
-
-
 
 cc = unique(design$condition)
 length(unique(design$condition))
@@ -105,9 +108,6 @@ save(counts, design, genes, file = paste0(RdataDir, '/RNAseq_timeSeries_sortedDa
 # 
 ########################################################
 ########################################################
-require(ggplot2)
-require(DESeq2)
-require(dplyr)
 
 load(file = paste0(RdataDir, '/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol.Rdata'))
 
@@ -131,14 +131,13 @@ fpm = fpm(dds, robust = TRUE)
 ss = colSums(counts(dds))
 plot(sizeFactors(dds), ss/10^6)
 
-dds0 = dds
-fpm0 = fpm
-design0 = design
-
-save(design0, dds0, fpm0, file = paste0(RdataDir, '/RNAseqOld_design_dds_fpm.Rdata'))
+#dds0 = dds
+#fpm0 = fpm
+#design0 = design
+#save(design0, dds0, fpm0, file = paste0(RdataDir, '/RNAseqOld_design_dds_fpm.Rdata'))
+save(design, dds, file = paste0(RdataDir, '/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol_dds.Rdata'))
 
 vsd <- varianceStabilizingTransformation(dds, blind = FALSE)
-
 
 #kk = grep('RA', design$condition)
 kk = c(1:nrow(design))
@@ -150,9 +149,159 @@ ggp = ggplot(data=pca2save, aes(PC1, PC2, label = name, color= condition))  +
 
 plot(ggp) + ggsave(paste0(resDir, "/PCAplot_RA.noRA.timeSeries_Foxa2pos.pdf"), width=18, height = 12)
 
+
+kk = grep('RA', design$condition)
+#kk = c(1:nrow(design))
+pca=plotPCA(vsd[,kk], intgroup = c('condition'), returnData = TRUE, ntop = 500)
+pca2save = as.data.frame(pca)
+ggp = ggplot(data=pca2save, aes(PC1, PC2, label = name, color= condition))  + 
+  geom_point(size=3) + 
+  geom_text(hjust = 0.3, nudge_y = 0.4, size=4)
+
+plot(ggp) + ggsave(paste0(resDir, "/PCAplot_RA.timeSeries_Foxa2pos.pdf"), width=18, height = 12)
+
+########################################################
+########################################################
+# Section : genome-wide anaysis to identify pattern-related genes from time-series RNA-seq data 
+# 
+########################################################
+########################################################
+load(file = paste0(RdataDir, '/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol_dds.Rdata'))
+
+fpm = fpm(dds, robust = TRUE)
+
+## RA treatment only
+kk = setdiff(grep('RA', design$condition), grep('RA_AF|RA_GFPp', design$condition))
+dds1 = dds[,kk]
+dds1$condition = droplevels(dds1$condition)
+res1 = DESeq(dds1, test="LRT", reduced=~1)
+
+res1 <- as.data.frame(results(res1))
+
+fpm1 = fpm[, kk]
+xx = design[kk, ]
+cpm = matrix(NA, nrow = nrow(fpm1), ncol = length(unique(xx$condition)))
+rownames(cpm) = rownames(fpm1)
+cc = unique(xx$condition)
+cc = cc[c(1,5,6,2,7,8,3,4)]
+colnames(cpm) = cc
+for(n in 1:ncol(cpm))
+{
+  # n = 1
+  jj = which(xx$condition == colnames(cpm)[n])
+  cpm[,n] = apply(fpm1[,jj], 1, median)
+}
+
+## RA treatment and control
+kk = grep('s48h|before_RA', design$condition, invert = TRUE)
+dds2 = dds[,kk]
+xx = design[kk,]
+xx$condition = as.character(xx$condition)
+xx$time = xx$condition
+
+xx$condition[grep('RA', xx$condition, invert = TRUE)] = 'control'
+xx$condition[grep('RA', xx$condition)] = 'RA'
+xx$time = gsub('_RA', '', xx$time)
+
+ddsTC <- DESeqDataSetFromMatrix(counts(dds2), data.frame(xx), ~ condition + time + condition:time)
+sizeFactors(ddsTC) = sizeFactors(dds2)
+
+ddsTC <- DESeq(ddsTC, test="LRT", reduced = ~ condition + time)
+resTC <- results(ddsTC)
+
+## combine genes with non-static padj < 0.01 and behaving different from control condition padj <0.01
+jj = which(res1$padj< 0.01 & resTC$padj< 0.01)
+
+yy = log2(cpm[jj,] + 2^-6)
+diff = apply(yy, 1, max) - apply(yy, 1, min)
+yy = yy[which(diff>=1), ]
+
+df <- data.frame(cond = colnames(yy), time = c(rep('day2', 3), rep('day3', 2), rep('day4', 2), rep('day5', 1)))
+rownames(df) = colnames(yy)
+
+pheatmap(yy, cluster_rows=TRUE, show_rownames=FALSE, scale = 'row', show_colnames = TRUE, 
+         cluster_cols=FALSE, na_col = 'gray',  annotation_col = df, gaps_col = c(3, 5, 7),
+         filename = paste0(resDir, '/timeSeries_variableGenes.pdf'), width = 10, height = 8)
+
 ##########################################
-# normalized by gene length
+# pathways analysis 
 ##########################################
+library(org.Mm.eg.db)
+library(enrichplot)
+library(clusterProfiler)
+library(ggplot2)
+library(stringr)
+
+firstup <- function(x) {
+  substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+  x
+}
+
+gg.expressed = rownames(yy)
+  
+bgs = readRDS(file = paste0(RdataDir, 'RNAseq_timeSeries_Foxa2.pos.day5_gene_names_length_.rds'))
+bgs = bgs$gene
+gene.df <- bitr(gg.expressed, fromType = "SYMBOL",
+                toType = c("ENSEMBL", "ENTREZID"),
+                OrgDb = org.Mm.eg.db)
+head(gene.df)
+
+bgs.df <- bitr(bgs, fromType = "SYMBOL",
+               toType = c("ENSEMBL", "ENTREZID"),
+               OrgDb = org.Mm.eg.db)
+head(bgs.df)
+
+
+ego <-  enrichGO(gene         = gene.df$ENSEMBL,
+                 universe     = bgs.df$ENSEMBL,
+                 #OrgDb         = org.Hs.eg.db,
+                 OrgDb         = org.Mm.eg.db,
+                 keyType       = 'ENSEMBL',
+                 ont           = "BP",
+                 pAdjustMethod = "BH",
+                 pvalueCutoff  = 0.01,
+                 qvalueCutoff  = 0.05, readable = TRUE)
+
+#head(ego)
+barplot(ego, showCategory=50) + ggtitle("Go term enrichment for time-series RNA-seq data") +  
+  ggsave(paste0(resDir, "/RNAseq_timeSeries_siganificantGenes.dynamicGenes.logFC.1_enrichGO_top50.pdf"), width=12, height = 12)
+  
+ii = grep('pathway', ego[, 2])
+xx = ego[ii, ]
+xx = xx[order(-xx$p.adjust), ]
+xx$Description = gsub('signaling', 'S', xx$Description)
+xx$Description = gsub(' pathway', 'P', xx$Description)
+par(cex = 1.0, las = 1, mgp = c(3,1,0), mar = c(3, 30,2,0.2), tcl = -0.3)
+barplot(xx$Count,  names.arg = xx$Description, horiz = TRUE, beside = TRUE, las=2)
+
+write.table(data.frame(ego), 
+            file = paste0(resDir, '/enrichGO_RNAseq_timeSeries_siganificantGenes.dynamicGenes.logFC.1_enrichGO_top50.txt'),
+            sep = '\t', col.names = TRUE, row.names = TRUE, quote = FALSE)
+
+write.table(xx, 
+            file = paste0(resDir, '/enrichGO_RNAseq_timeSeries_siganificantGenes.dynamicGenes.logFC.1_singalingPathways.txt'),
+            sep = '\t', col.names = TRUE, row.names = TRUE, quote = FALSE)
+# kegg enrich did not work quite well
+# kegg.up <- enrichKEGG(gene         =  gene.df$ENTREZID,
+#                  organism     = 'mmu',
+#                  universe     = bgs.df$ENTREZID,
+#                  keyType = 'kegg',
+#                  pvalueCutoff = 0.05)
+# head(kegg.up)
+# barplot(kegg.up, showCategory=50) + ggtitle("kegg for upregulated genes")
+
+
+
+
+
+########################################################
+########################################################
+# Section : Normalized data with gene length and plot examples
+# 
+########################################################
+########################################################
+fpm = fpm(dds, robust = TRUE)
+
 ll = genes$length[match(rownames(fpm), genes$gene)]
 
 rpkm = fpm
