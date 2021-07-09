@@ -209,6 +209,8 @@ sizeFactors(ddsTC) = sizeFactors(dds2)
 ddsTC <- DESeq(ddsTC, test="LRT", reduced = ~ condition + time)
 resTC <- results(ddsTC)
 
+save(cpm, res1, resTC, file = paste0(RdataDir, '/RNAseq_timeSeries_fpmMean_DEtestRes.timepoints.and.vs.control.Rdata'))
+
 ## combine genes with non-static padj < 0.01 and behaving different from control condition padj <0.01
 jj = which(res1$padj< 0.01 & resTC$padj< 0.01)
 
@@ -310,7 +312,7 @@ if(Test.signaling.pathways.for.each.timepoint){
     # n = 2
     cat(as.character(cc[n]), '\n')
     res = results(dds, contrast=c("condition", as.character(cc[n]), as.character(cc[n-1])))
-    ggs = rownames(res)[which(res$padj<0.01)]
+    ggs = rownames(res)[which(res$padj < 0.05 & res$log2FoldChange > 0.5 )]
     gene.df <- bitr(ggs, fromType = "SYMBOL",
                     toType = c("ENSEMBL", "ENTREZID"),
                     OrgDb = org.Mm.eg.db)
@@ -334,10 +336,64 @@ if(Test.signaling.pathways.for.each.timepoint){
     
   }
   
+  files = list.files(path = resDir, pattern = 'RA.DEgenes.logFC.0.5_singalingPathways.txt', full.names = TRUE)
+  files = files[c(7, 1:6)]
   
+  ids = c()
+  for(n in 1:length(files))
+  {
+    # n = 1
+    ff = read.table(files[n], sep = '\t', header = TRUE, row.names = 1, as.is = c(1, 2,8))
+    ids = rbind(ids, cbind(ff$ID, as.character(ff$Description), as.character(ff$geneID) ))
+  }
+  
+  ids = data.frame(ids)
+  colnames(ids) = c('ID', 'description', 'geneID')
+  
+  ##########################################
+  # keep the relevant significant genes for signaling pathways 
+  ##########################################
+  id.uniq = unique(ids$ID)
+  xx = ids[match(id.uniq, ids$ID), ]
+  xx$geneID = as.character(xx$geneID)
+  for(n in 1:nrow(xx))
+  {
+    # n = 1
+    jj = which(ids$ID == xx$ID[n])
+    if(length(jj)>1) {
+      gg = c()
+      for(j in jj) gg = c(gg, unlist(strsplit(as.character(ids$geneID[j]), '/')))
+      gg = unique(gg)
+      #gg = sapply(ids$geneID[jj], function)
+      xx$geneID[n] = paste0(gg, collapse = ',')
+      
+    }
+  }
+  
+  ids = xx
+  
+  res = matrix(NA, nrow = nrow(ids), ncol = length(files))
+  rownames(res) = ids$ID
+  tt = c()
+  for(n in 1:length(files))
+  {
+    # n = 1
+    ff = read.table(files[n], sep = '\t', header = TRUE, row.names = 1, as.is = c(1, 2,8))
+    kk = match(ff$ID, rownames(res))
+    res[kk, n] = ff$pvalue
+    tt = c(tt, gsub('_RA.DEgenes.logFC.0.5_singalingPathways.txt', '', gsub('enrichGO_RNAseq_timepoint_', '', basename(files[n]))))
+  }
+  res = data.frame(res)
+  colnames(res) = tt
+  mm = match(rownames(res), ids$ID)
+  rownames(res) = ids$description[mm]
+  
+  yy = -log10(res)
+  pheatmap(yy, cluster_rows=FALSE, show_rownames=TRUE, scale = 'none', show_colnames = TRUE, 
+           cluster_cols=FALSE, na_col = 'gray', gaps_col = c(2, 4, 6), fontsize_row = 12,
+           filename = paste0(resDir, '/siganling_pathways_activationTiming_stringent_logFC0.5_FDR0.01.pdf'), width = 16, height = 12)
   
 }
-
 
 
 ########################################################
@@ -346,7 +402,13 @@ if(Test.signaling.pathways.for.each.timepoint){
 # 
 ########################################################
 ########################################################
-fpm = fpm(dds, robust = TRUE)
+load(file = paste0(RdataDir, '/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol_dds.Rdata'))
+genes = readRDS(file = paste0(RdataDir, 'RNAseq_timeSeries_Foxa2.pos.day5_gene_names_length_.rds'))
+load(file = paste0(RdataDir, '/RNAseq_timeSeries_fpmMean_DEtestRes.timepoints.and.vs.control.Rdata'))
+#fpm = fpm(dds, robust = TRUE)
+#sps = read.table(file = paste0(resDir, '/enrichGO_RNAseq_timeSeries_siganificantGenes.dynamicGenes.logFC.1_singalingPathways.txt'),
+#sep = '\t', header = TRUE, row.names = 1)
+
 
 ll = genes$length[match(rownames(fpm), genes$gene)]
 
@@ -361,6 +423,16 @@ rpkm = log2(rpkm + 2^-6)
 
 hist(rpkm, breaks = 100)
 abline(v = 1, col = 'red', lwd = 2.0)
+
+
+
+jj = which(res1$padj< 0.01 & resTC$padj< 0.01)
+
+yy = log2(cpm[jj,] + 2^-6)
+diff = apply(yy, 1, max) - apply(yy, 1, min)
+yy = yy[which(diff>=1), ]
+
+
 
 # average triplicates
 tt = c(-18, -10, 0, 12, 24, 36, 48, 60)
