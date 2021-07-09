@@ -290,7 +290,53 @@ write.table(xx,
 # head(kegg.up)
 # barplot(kegg.up, showCategory=50) + ggtitle("kegg for upregulated genes")
 
-
+Test.signaling.pathways.for.each.timepoint = FALSE
+if(Test.signaling.pathways.for.each.timepoint){
+  load(file = paste0(RdataDir, '/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol_dds.Rdata'))
+  
+  kk = grep('s48h', design$condition, invert = TRUE)
+  dds = dds[,kk]
+  dds$condition = droplevels(dds$condition)
+  
+  dds <- DESeq(dds)
+  resultsNames(dds)  
+  
+  cc = unique(dds$condition)  
+  cc = cc[grep('RA', cc)]
+  cc = cc[c(1, 5, 6, 2, 7, 8,3, 4)]
+  
+  for(n in 2:length(cc))
+  {
+    # n = 2
+    cat(as.character(cc[n]), '\n')
+    res = results(dds, contrast=c("condition", as.character(cc[n]), as.character(cc[n-1])))
+    ggs = rownames(res)[which(res$padj<0.01)]
+    gene.df <- bitr(ggs, fromType = "SYMBOL",
+                    toType = c("ENSEMBL", "ENTREZID"),
+                    OrgDb = org.Mm.eg.db)
+    ego <-  enrichGO(gene         = gene.df$ENSEMBL,
+                     universe     = bgs.df$ENSEMBL,
+                     #OrgDb         = org.Hs.eg.db,
+                     OrgDb         = org.Mm.eg.db,
+                     keyType       = 'ENSEMBL',
+                     ont           = "BP",
+                     pAdjustMethod = "BH",
+                     pvalueCutoff  = 0.01,
+                     qvalueCutoff  = 0.05, readable = TRUE)
+    
+    #barplot(ego, showCategory=50) 
+    ii = grep('pathway', ego[, 2])
+    xx = ego[ii, ]
+    
+    write.table(xx, 
+                file = paste0(resDir, '/enrichGO_RNAseq_timepoint_', cc[n], '.DEgenes.logFC.0.5_singalingPathways.txt'),
+                sep = '\t', col.names = TRUE, row.names = TRUE, quote = FALSE)
+    
+  }
+  
+  
+  
+}
 
 
 
