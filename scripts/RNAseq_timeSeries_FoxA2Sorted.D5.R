@@ -403,38 +403,70 @@ if(Test.signaling.pathways.for.each.timepoint){
 ########################################################
 ########################################################
 load(file = paste0(RdataDir, '/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol_dds.Rdata'))
-genes = readRDS(file = paste0(RdataDir, 'RNAseq_timeSeries_Foxa2.pos.day5_gene_names_length_.rds'))
+genes = readRDS(file = paste0(RdataDir, '/RNAseq_timeSeries_Foxa2.pos.day5_gene_names_length.rds'))
 load(file = paste0(RdataDir, '/RNAseq_timeSeries_fpmMean_DEtestRes.timepoints.and.vs.control.Rdata'))
 #fpm = fpm(dds, robust = TRUE)
 #sps = read.table(file = paste0(resDir, '/enrichGO_RNAseq_timeSeries_siganificantGenes.dynamicGenes.logFC.1_singalingPathways.txt'),
 #sep = '\t', header = TRUE, row.names = 1)
+ggs = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
 
+##########################################
+# normalized with transcript length
+##########################################
+cpm = fpm(dds, robust = TRUE)
 
-ll = genes$length[match(rownames(fpm), genes$gene)]
-
-rpkm = fpm
-
+rpkm = cpm
+ll = genes$length[match(rownames(cpm), genes$gene)]
 for(n in 1:ncol(rpkm))
 {
-  rpkm[,n] = fpm[,n] / ll *10^3
+  rpkm[,n] = cpm[,n] / ll *10^3
 }
+
 
 rpkm = log2(rpkm + 2^-6)
 
-hist(rpkm, breaks = 100)
-abline(v = 1, col = 'red', lwd = 2.0)
+hist(rpkm, breaks = 200)
+abline(v = c(1, 2), col = 'red', lwd = 2.0)
 
+## select only signaficant changes genes 
+Genes.filtering = FALSE
+if(Genes.filtering){
+  jj = which(res1$padj< 0.01 & resTC$padj< 0.01)
+  rpkm = rpkm[jj, ]
+  
+  
+  diff = apply(rpkm, 1, max) - apply(rpkm, 1, min)
+  hist(diff, breaks = 100)
+  abline(v = c(1, 0.5), col = 'red', lwd = 2.0)
+  length(which(diff>1))
+  length(which(diff>0.5))
+  
+  rpkm = rpkm[which(diff>=1), ]
+  
+  kk = match(rownames(rpkm), ggs$gene)
+  rpkm = rpkm[which(!is.na(kk)), ]
+  
+  rpkm = rpkm[c(which(rownames(rpkm) == 'Foxa2'), 
+                which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'WNT')]))),
+                which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'FGF')]))),
+                which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'BMP')]))),
+                which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'NOTCH')]))),
+                which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'SHH')])))
+  ), ]
+  
+  yy = rpkm
+  max = apply(yy, 1, max)
+  yy = yy[which(max>1), ]
+  #yy[which(yy<0)] = NA
+  pheatmap(yy, cluster_rows=TRUE, show_rownames=TRUE, scale = 'row', show_colnames = TRUE, 
+           cluster_cols=FALSE, na_col = 'gray', gaps_col = c(3, 5, 7), fontsize_row = 8,
+           filename = paste0(resDir, '/siganling_pathways_geneExpression_timeSeries.pdf'), 
+           width = 12, height = 28)
+  
+  
+}
 
-
-jj = which(res1$padj< 0.01 & resTC$padj< 0.01)
-
-yy = log2(cpm[jj,] + 2^-6)
-diff = apply(yy, 1, max) - apply(yy, 1, min)
-yy = yy[which(diff>=1), ]
-
-
-
-# average triplicates
+# average triplicates0
 tt = c(-18, -10, 0, 12, 24, 36, 48, 60)
 
 rpkm.RA = matrix(NA, nrow = nrow(rpkm), ncol = length(tt))
@@ -458,6 +490,7 @@ for(n in 1:length(tt))
 }
 
 
+
 sorted = cbind(apply(rpkm[ , grep('s48h_RA_AF', colnames(rpkm))], 1, median), 
                apply(rpkm[ , grep('s48h_RA_GFPp', colnames(rpkm))], 1, median),
                apply(rpkm[ , grep('s48h_SAG_GFPp', colnames(rpkm))], 1, median))
@@ -468,7 +501,7 @@ sorted = cbind(apply(rpkm[ , grep('s48h_RA_AF', colnames(rpkm))], 1, median),
 ##########################################
 examples = unique(c('Foxa2', # FoxA 
                     'Lef1', 'Mapk1', rownames(rpkm)[grep('Smad', rownames(rpkm))], 
-                    rownames(rpkm)[grep('Wnt|Dkk|Tcf|Axin|Ctnnb', rownames(rpkm))],
+                    rownames(rpkm)[grep('Wnt|Dkk|Tcf|Axin|Ctnnb|Sfr|Rspo|Igfbp|Wif', rownames(rpkm))],
                     rownames(rpkm)[grep('Bmp|Gdf', rownames(rpkm))], 'Nog', 'Chrd', 'Runx1', 'Runx2',  'Smad6', 'Id1', 'Id3',
                     rownames(rpkm)[grep('Acvr', rownames(rpkm))],
                     rownames(rpkm)[grep('Fgf', rownames(rpkm))], 
@@ -478,7 +511,10 @@ examples = unique(c('Foxa2', # FoxA
                     rownames(rpkm)[grep('Tgf', rownames(rpkm))]
 ))
 
-pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_v5.pdf')
+examples = unique(c(examples, ggs$gene))
+
+
+pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_v7.pdf')
 pdf(pdfname,  width = 10, height = 6)
 par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
 
