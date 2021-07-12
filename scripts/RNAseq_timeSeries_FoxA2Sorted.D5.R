@@ -395,7 +395,6 @@ if(Test.signaling.pathways.for.each.timepoint){
   
 }
 
-
 ########################################################
 ########################################################
 # Section : Normalized data with gene length and plot examples
@@ -411,26 +410,25 @@ load(file = paste0(RdataDir, '/RNAseq_timeSeries_fpmMean_DEtestRes.timepoints.an
 ggs = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
 
 ##########################################
-# normalized with transcript length
+# select only signaficant changes genes and normalized with transcript length
 ##########################################
-cpm = fpm(dds, robust = TRUE)
-
-rpkm = cpm
-ll = genes$length[match(rownames(cpm), genes$gene)]
-for(n in 1:ncol(rpkm))
-{
-  rpkm[,n] = cpm[,n] / ll *10^3
-}
-
-
-rpkm = log2(rpkm + 2^-6)
-
-hist(rpkm, breaks = 200)
-abline(v = c(1, 2), col = 'red', lwd = 2.0)
-
-## select only signaficant changes genes 
-Genes.filtering = FALSE
-if(Genes.filtering){
+Select.signficant.Genes = FALSE
+if(Select.signficant.Genes){
+  cpm = fpm(dds, robust = TRUE)
+  
+  rpkm = cpm
+  ll = genes$length[match(rownames(cpm), genes$gene)]
+  for(n in 1:ncol(rpkm))
+  {
+    rpkm[,n] = cpm[,n] / ll *10^3
+  }
+  
+  
+  rpkm = log2(rpkm + 2^-6)
+  
+  hist(rpkm, breaks = 200)
+  abline(v = c(1, 2), col = 'red', lwd = 2.0)
+  
   jj = which(res1$padj< 0.01 & resTC$padj< 0.01)
   rpkm = rpkm[jj, ]
   
@@ -466,95 +464,118 @@ if(Genes.filtering){
   
 }
 
-# average triplicates0
-tt = c(-18, -10, 0, 12, 24, 36, 48, 60)
-
-rpkm.RA = matrix(NA, nrow = nrow(rpkm), ncol = length(tt))
-rpkm.noRA = matrix(NA, nrow = nrow(rpkm), ncol = length(tt))
-rownames(rpkm.RA) = rownames(rpkm)
-rownames(rpkm.noRA) = rownames(rpkm)
-
-for(n in 1:length(tt))
-{
-  if(tt[n] == -18){
-    kk1 = which(design$condition == 'before_RA')
-    kk2 = which(design$condition == 'before_RA')
-  }else{
-    kk2 = grep(paste0(as.character(abs(tt[n]), 'h')), design$condition)
-    kk1 = kk2[grep('RA', design$condition[kk2])]
-    kk2 = kk2[grep('RA', design$condition[kk2], invert = TRUE)]
+##########################################
+# make example plots of WNT, BMP, FGF ligand, receptor, effectors and targets
+##########################################
+Make.example.plots = FALSE
+if(Make.example.plots){
+  cpm = fpm(dds, robust = TRUE)
+  rpkm = cpm
+  ll = genes$length[match(rownames(cpm), genes$gene)]
+  for(n in 1:ncol(rpkm))
+  {
+    rpkm[,n] = cpm[,n] / ll *10^3
   }
   
-  rpkm.RA[,n] = apply(rpkm[,kk1], 1, median)
-  rpkm.noRA[,n] = apply(rpkm[, kk2], 1, median)
-}
-
-
-
-sorted = cbind(apply(rpkm[ , grep('s48h_RA_AF', colnames(rpkm))], 1, median), 
-               apply(rpkm[ , grep('s48h_RA_GFPp', colnames(rpkm))], 1, median),
-               apply(rpkm[ , grep('s48h_SAG_GFPp', colnames(rpkm))], 1, median))
-
-
-##########################################
-# make plots of WNT, BMP, FGF ligand, receptor, effectors and targets
-##########################################
-examples = unique(c('Foxa2', # FoxA 
-                    'Lef1', 'Mapk1', rownames(rpkm)[grep('Smad', rownames(rpkm))], 
-                    rownames(rpkm)[grep('Wnt|Dkk|Tcf|Axin|Ctnnb|Sfr|Rspo|Igfbp|Wif', rownames(rpkm))],
-                    rownames(rpkm)[grep('Bmp|Gdf', rownames(rpkm))], 'Nog', 'Chrd', 'Runx1', 'Runx2',  'Smad6', 'Id1', 'Id3',
-                    rownames(rpkm)[grep('Acvr', rownames(rpkm))],
-                    rownames(rpkm)[grep('Fgf', rownames(rpkm))], 
-                    'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5', 'Mapk10', 'Mapk4', 'Mapk8ip2', 'Spry4', 'Rbpj', 'Hes1', 'Hes5',
-                    'Hes7', 'Hey1', 'Hey2',
-                    rownames(rpkm)[grep('Notch|Jag|Dll|Dlk', rownames(rpkm))], 
-                    rownames(rpkm)[grep('Tgf', rownames(rpkm))]
-))
-
-examples = unique(c(examples, ggs$gene))
-
-
-pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_v7.pdf')
-pdf(pdfname,  width = 10, height = 6)
-par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
-
-hist(rpkm.RA, breaks = 100, xlab = 'log2(RPKM)')
-abline(v = c(0, 1), col = 'red', lwd = 2.0)
-
-hist(rpkm.noRA, breaks = 100, xlab = 'log2(RPKM)')
-abline(v = c(0, 1), col = 'red', lwd = 2.0)
-
-hist(sorted, breaks = 100, xlab = 'log2(RPKM)')
-abline(v = c(0, 1), col = 'red', lwd = 2.0)
-
-
-for(g in examples)
-{
-  # g = 'Foxa2'
-  kk = which(rownames(rpkm) == g)
-  if(length(kk)){
-    cat(g, '\n')
+  
+  rpkm = log2(rpkm + 2^-6)
+  
+  hist(rpkm, breaks = 200)
+  abline(v = c(1, 2), col = 'red', lwd = 2.0)
+  
+  # average triplicates0
+  tt = c(-18, -10, 0, 12, 24, 36, 48, 60)
+  
+  rpkm.RA = matrix(NA, nrow = nrow(rpkm), ncol = length(tt))
+  rpkm.noRA = matrix(NA, nrow = nrow(rpkm), ncol = length(tt))
+  rownames(rpkm.RA) = rownames(rpkm)
+  rownames(rpkm.noRA) = rownames(rpkm)
+  
+  for(n in 1:length(tt))
+  {
+    if(tt[n] == -18){
+      kk1 = which(design$condition == 'before_RA')
+      kk2 = which(design$condition == 'before_RA')
+    }else{
+      kk2 = grep(paste0(as.character(abs(tt[n]), 'h')), design$condition)
+      kk1 = kk2[grep('RA', design$condition[kk2])]
+      kk2 = kk2[grep('RA', design$condition[kk2], invert = TRUE)]
+    }
     
-    plot(c(0, 1), type = 'n', xlim = c(-18, 60), ylim = range(c(rpkm[kk, ], 0, 1)), main = g, 
-         ylab = 'log2(RPKM)', xlab = 'time')
-    points(tt, rpkm.RA[kk, ], col = 'darkblue', type = 'l', pch = 16, lwd = 2.0)
-    points(tt, rpkm.RA[kk, ], col = 'darkblue', type = 'p', pch = 16)
-    
-    points(tt, rpkm.noRA[kk, ], col = 'darkred', type = 'l', lwd = 1.0)
-    points(tt, rpkm.noRA[kk, ], col = 'darkred', type = 'p', pch = 1)
-    
-    points(48, sorted[kk, 1], col = 'darkblue', type = 'p', cex = 2.0, pch = 21, bg = 'magenta')
-    points(48, sorted[kk, 2], col = 'darkblue', type = 'p', cex = 2.0, pch = 21, bg = 'darkgreen')
-    #points(48, sorted[kk, 3], col = 'darkorange', type = 'p', cex = 2.0, pch = 18)
-    
-    abline(h = c(0, 1), col = 'darkgray', lwd = 2.0)
-    abline(v = c(6, 32, 54), col = 'cornflowerblue', lwd = 2.0, lty=3)
-    legend('topleft', legend = c('RA', 'no.RA', 's48h.RA.AF', 's48h.RA.GFPp'), bty = 'n', 
-           col = c('darkblue', 'darkred', 'magenta', 'darkgreen'), lwd =2.0, pch = c(16, 1, 16, 16), lty = c(1, 1, 0, 0))
-    
-  }else{
-    cat(g, 'Not Found \n')
+    rpkm.RA[,n] = apply(rpkm[,kk1], 1, median)
+    rpkm.noRA[,n] = apply(rpkm[, kk2], 1, median)
   }
+  
+  
+  sorted = cbind(apply(rpkm[ , grep('s48h_RA_AF', colnames(rpkm))], 1, median), 
+                 apply(rpkm[ , grep('s48h_RA_GFPp', colnames(rpkm))], 1, median),
+                 apply(rpkm[ , grep('s48h_SAG_GFPp', colnames(rpkm))], 1, median))
+  
+  
+  
+  examples = unique(c('Foxa2', # FoxA 
+                      'Lef1', 'Mapk1', rownames(rpkm)[grep('Smad', rownames(rpkm))], 
+                      rownames(rpkm)[grep('Wnt|Dkk|Tcf|Axin|Ctnnb|Sfr|Rspo|Igfbp|Wif|Ndp', rownames(rpkm))],
+                      rownames(rpkm)[grep('Bmp|Gdf', rownames(rpkm))], 'Nog', 'Chrd', 'Runx1', 'Runx2',  'Smad6', 'Id1', 'Id3',
+                      rownames(rpkm)[grep('Acvr', rownames(rpkm))],
+                      rownames(rpkm)[grep('Fgf', rownames(rpkm))], 
+                      'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5', 'Mapk10', 'Mapk4', 'Mapk8ip2', 'Spry4', 'Rbpj', 'Hes1', 'Hes5',
+                      'Hes7', 'Hey1', 'Hey2',
+                      rownames(rpkm)[grep('Notch|Jag|Dll|Dlk', rownames(rpkm))], 
+                      rownames(rpkm)[grep('Tgf', rownames(rpkm))]
+  ))
+  
+  examples = unique(c(examples, ggs$gene))
+  
+  cat('nb of genes to check :', length(examples), '\n')
+  
+  pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_v7.pdf')
+  pdf(pdfname,  width = 10, height = 6)
+  par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
+  
+  hist(rpkm.RA, breaks = 100, xlab = 'log2(RPKM)')
+  abline(v = c(0, 1), col = 'red', lwd = 2.0)
+  
+  hist(rpkm.noRA, breaks = 100, xlab = 'log2(RPKM)')
+  abline(v = c(0, 1), col = 'red', lwd = 2.0)
+  
+  hist(sorted, breaks = 100, xlab = 'log2(RPKM)')
+  abline(v = c(0, 1), col = 'red', lwd = 2.0)
+  
+  
+  for(g in examples)
+  {
+    # g = 'Foxa2'
+    kk = which(rownames(rpkm) == g)
+    if(length(kk)){
+      cat(g, '\n')
+      
+      plot(c(0, 1), type = 'n', xlim = c(-18, 60), ylim = range(c(rpkm[kk, ], 0, 1)), main = g, 
+           ylab = 'log2(RPKM)', xlab = 'time')
+      points(tt, rpkm.RA[kk, ], col = 'darkblue', type = 'l', pch = 16, lwd = 2.0)
+      points(tt, rpkm.RA[kk, ], col = 'darkblue', type = 'p', pch = 16)
+      
+      points(tt, rpkm.noRA[kk, ], col = 'darkred', type = 'l', lwd = 1.0)
+      points(tt, rpkm.noRA[kk, ], col = 'darkred', type = 'p', pch = 1)
+      
+      points(48, sorted[kk, 1], col = 'darkblue', type = 'p', cex = 2.0, pch = 21, bg = 'magenta')
+      points(48, sorted[kk, 2], col = 'darkblue', type = 'p', cex = 2.0, pch = 21, bg = 'darkgreen')
+      #points(48, sorted[kk, 3], col = 'darkorange', type = 'p', cex = 2.0, pch = 18)
+      
+      abline(h = c(0, 1), col = 'darkgray', lwd = 2.0)
+      abline(v = c(6, 32, 54), col = 'cornflowerblue', lwd = 2.0, lty=3)
+      legend('topleft', legend = c('RA', 'no.RA', 's48h.RA.AF', 's48h.RA.GFPp'), bty = 'n', 
+             col = c('darkblue', 'darkred', 'magenta', 'darkgreen'), lwd =2.0, pch = c(16, 1, 16, 16), lty = c(1, 1, 0, 0))
+      
+    }else{
+      cat(g, 'Not Found \n')
+    }
+  }
+  
+  dev.off()
+  
 }
 
-dev.off()
+
+
+
