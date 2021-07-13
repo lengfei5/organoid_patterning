@@ -507,28 +507,31 @@ if(Select.signficant.Genes){
     
     tt = c(-18, -10, 0, 12, 24, 36, 48, 60)
     
-    pdfname = paste0(resDir, "/genes_signalingPathways_summaryPlots_Wnt_modulators.pdf")
+    pdfname = paste0(resDir, "/genes_signalingPathways_summaryPlots_BMP_readOut.modulator.pdf")
     pdf(pdfname, width = 12, height = 8)
     par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
     
     #gg.examepls = c('Foxa2', 'Lef1','Wnt3', 'Sfrp5',  'Fgf2', 'Fgf8', 'Bmp7', 'Bmp4', 'Bmp6', 'Nog')
-    mains = 'Wnt pathways'
+    mains = 'BMP pathways'
     #gg.examepls = c('Foxa2', 'Shh', 'Olig2')
     #gg.examepls = c('Lef1', 'Wnt1', 'Wnt3', 'Wnt3a', 'Wnt7a', 'Wnt7b', 'Wnt8a') 
-    gg.examepls = c('Lypd6', 'Dkk3', 'Sfrp5', 'Dkk1', 'Sost')
+    #gg.examepls = c('Lypd6', 'Dkk3', 'Sfrp5', 'Dkk1', 'Sost')
+    #gg.examepls = c('Spry4', 'Spry2', 'Etv4', 'Etv5')
+    #gg.examepls = c('Fgf10', 'Fgf17','Fgf8', 'Fgf5', 'Fgf2','Fgf21', 'Fgf11','Fgf1', 'Fgf4')
+    gg.examepls = c('Id1', 'Id3', 'Smad6', 'Nog', 'Fst', 'Bambi')
+    #gg.examepls = c('Bmp7', 'Bmp4', 'Bmp1', 'Bmp6', 'Bmpr2', 'Bmpr1b')
     
-    
-    cols = colorRampPalette(rev(brewer.pal(length(gg.examepls), "YlGnBu")))(length(gg.examepls))
+    cols = colorRampPalette(rev(brewer.pal(9, "RdBu")))(length(gg.examepls))
     xx = rpkm.RA[match(gg.examepls, rownames(rpkm.RA)), ]
     #xx = data.frame(xx, stringsAsFactors = FALSE)
     #df = as_tibble(xx) %>% gather(time, expression, 3:10)
     
-    plot(c(0, 1), type = 'n', xlim = c(-18, 62), ylim = range(c(xx, 0, 1), na.rm = TRUE), 
+    plot(c(0, 1), type = 'n', xlim = c(-22, 62), ylim = range(c(xx, 0, 1), na.rm = TRUE), 
          ylab = 'log2(RPKM)', xlab = 'time', main = mains)
     for(kk in 1:nrow(xx)){
       points(tt, xx[kk, ], type = 'l', pch = 16, lwd = 2.0, col = cols[which(gg.examepls == gg.examepls[kk])])
       points(tt, xx[kk, ], type = 'p', pch = 16, cex = 1.2,col = cols[which(gg.examepls == gg.examepls[kk])])
-      text(tt[1], xx[kk, 1], labels = rownames(xx)[kk], pos = 4, offset = 0.5)
+      text(tt[1], xx[kk, 1], labels = rownames(xx)[kk], pos = 2, offset = 0.5)
     }
     abline(h = c(0, 1), col = 'darkgray', lwd = 1.5, lty = 3)
     abline(v = c(6, 32, 54), col = 'cornflowerblue', lwd = 2.0, lty=3)
@@ -594,13 +597,12 @@ if(Make.example.plots){
                  apply(rpkm[ , grep('s48h_SAG_GFPp', colnames(rpkm))], 1, median))
   
   
-  
   examples = unique(c('Foxa2', # FoxA 
                       'Lef1', 'Mapk1', rownames(rpkm)[grep('Smad', rownames(rpkm))], 
                       rownames(rpkm)[grep('Wnt|Dkk|Tcf|Axin|Ctnnb|Sfr|Rspo|Igfbp|Wif|Ndp', rownames(rpkm))],
                       rownames(rpkm)[grep('Bmp|Gdf', rownames(rpkm))], 'Nog', 'Chrd', 'Runx1', 'Runx2',  'Smad6', 'Id1', 'Id3',
                       rownames(rpkm)[grep('Acvr', rownames(rpkm))],
-                      rownames(rpkm)[grep('Fgf', rownames(rpkm))], 
+                      rownames(rpkm)[grep('Fgf|Etv|Il17rd', rownames(rpkm))], 
                       'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5', 'Mapk10', 'Mapk4', 'Mapk8ip2', 'Spry4', 'Rbpj', 'Hes1', 'Hes5',
                       'Hes7', 'Hey1', 'Hey2',
                       rownames(rpkm)[grep('Notch|Jag|Dll|Dlk', rownames(rpkm))], 
