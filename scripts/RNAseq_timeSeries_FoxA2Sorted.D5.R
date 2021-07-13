@@ -410,58 +410,177 @@ load(file = paste0(RdataDir, '/RNAseq_timeSeries_fpmMean_DEtestRes.timepoints.an
 ggs = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
 
 ##########################################
+# normalize with gene length 
+##########################################
+cpm = fpm(dds, robust = TRUE)
+rpkm = cpm
+ll = genes$length[match(rownames(cpm), genes$gene)]
+for(n in 1:ncol(rpkm))
+{
+  rpkm[,n] = cpm[,n] / ll *10^3
+}
+
+
+rpkm = log2(rpkm + 2^-6)
+
+hist(rpkm, breaks = 200)
+abline(v = c(1, 2), col = 'red', lwd = 2.0)
+
+# average triplicates0
+tt = c(-18, -10, 0, 12, 24, 36, 48, 60)
+
+rpkm.RA = matrix(NA, nrow = nrow(rpkm), ncol = length(tt))
+rpkm.noRA = matrix(NA, nrow = nrow(rpkm), ncol = length(tt))
+rownames(rpkm.RA) = rownames(rpkm)
+rownames(rpkm.noRA) = rownames(rpkm)
+
+for(n in 1:length(tt))
+{
+  if(tt[n] == -18){
+    kk1 = which(design$condition == 'before_RA')
+    kk2 = which(design$condition == 'before_RA')
+  }else{
+    kk2 = grep(paste0(as.character(abs(tt[n]), 'h')), design$condition)
+    kk1 = kk2[grep('RA', design$condition[kk2])]
+    kk2 = kk2[grep('RA', design$condition[kk2], invert = TRUE)]
+  }
+  
+  rpkm.RA[,n] = apply(rpkm[,kk1], 1, median)
+  rpkm.noRA[,n] = apply(rpkm[, kk2], 1, median)
+}
+
+
+##########################################
 # select only signaficant changes genes and normalized with transcript length
+# make a summary plots with potential players from Wnt, FGF, BMP
 ##########################################
 Select.signficant.Genes = FALSE
 if(Select.signficant.Genes){
-  cpm = fpm(dds, robust = TRUE)
+  # rpkm = cpm
+  # ll = genes$length[match(rownames(cpm), genes$gene)]
+  # for(n in 1:ncol(rpkm))
+  # {
+  #   rpkm[,n] = cpm[,n] / ll *10^3
+  # }
+  # 
+  # rpkm = log2(rpkm + 2^-6)
+  # hist(rpkm, breaks = 200)
+  # abline(v = c(1, 2), col = 'red', lwd = 2.0)
+  # 
   
-  rpkm = cpm
-  ll = genes$length[match(rownames(cpm), genes$gene)]
-  for(n in 1:ncol(rpkm))
-  {
-    rpkm[,n] = cpm[,n] / ll *10^3
-  }
+  ### we will select genes: showing changes across time points and different from noRA treatment
+  vars = apply(rpkm.RA, 1, var)
+  means = apply(rpkm.RA, 1, mean)
+  df = rpkm.RA - rpkm.noRA
+  df = apply(df[, -1], 1, mean)
   
+  plot(df, vars)
   
-  rpkm = log2(rpkm + 2^-6)
+  xx = data.frame(gene = names(df), diff = df, vars = vars, stringsAsFactors = FALSE)
   
-  hist(rpkm, breaks = 200)
-  abline(v = c(1, 2), col = 'red', lwd = 2.0)
+  mm = match(xx$gene, examples)
+  xx = xx[!is.na(mm), ]
+  
+  pdfname = paste0(resDir, "/genes_signalingPathways_variances_RA.noRA.diff.pdf")
+  pdf(pdfname, width = 16, height = 12)
+  
+  p0 = ggplot(xx, aes(x = diff, y = vars, label = gene)) +
+    geom_point(size = 0.5) + 
+    geom_text(data=subset(xx, diff > 2. | diff < -2. | vars > 1.5), size = 4, nudge_y = 0.1) + 
+    theme(legend.position = "right") 
+  plot(p0) 
+    #geom_text(aes(label = gg.examepls, x = 12, colour = names(lab), y = c(lab), hjust = -.02))
+  dev.off()
   
   jj = which(res1$padj< 0.01 & resTC$padj< 0.01)
   rpkm = rpkm[jj, ]
   
+  Make.summary.plot = FALSE
+  if(Make.summary.plot){
+    require(ggplot2)
+    require(grid)
+    require(gridExtra)
+    library(tidyr)
+    library(dplyr)
+    library(ggrepel)
+    library(RColorBrewer)
+    
+    tt = c(-18, -10, 0, 12, 24, 36, 48, 60)
+    
+    pdfname = paste0(resDir, "/genes_signalingPathways_summaryPlots_Wnt_modulators.pdf")
+    pdf(pdfname, width = 12, height = 8)
+    par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
+    
+    #gg.examepls = c('Foxa2', 'Lef1','Wnt3', 'Sfrp5',  'Fgf2', 'Fgf8', 'Bmp7', 'Bmp4', 'Bmp6', 'Nog')
+    mains = 'Wnt pathways'
+    #gg.examepls = c('Foxa2', 'Shh', 'Olig2')
+    #gg.examepls = c('Lef1', 'Wnt1', 'Wnt3', 'Wnt3a', 'Wnt7a', 'Wnt7b', 'Wnt8a') 
+    gg.examepls = c('Lypd6', 'Dkk3', 'Sfrp5', 'Dkk1', 'Sost')
+    
+    
+    cols = colorRampPalette(rev(brewer.pal(length(gg.examepls), "YlGnBu")))(length(gg.examepls))
+    xx = rpkm.RA[match(gg.examepls, rownames(rpkm.RA)), ]
+    #xx = data.frame(xx, stringsAsFactors = FALSE)
+    #df = as_tibble(xx) %>% gather(time, expression, 3:10)
+    
+    plot(c(0, 1), type = 'n', xlim = c(-18, 62), ylim = range(c(xx, 0, 1), na.rm = TRUE), 
+         ylab = 'log2(RPKM)', xlab = 'time', main = mains)
+    for(kk in 1:nrow(xx)){
+      points(tt, xx[kk, ], type = 'l', pch = 16, lwd = 2.0, col = cols[which(gg.examepls == gg.examepls[kk])])
+      points(tt, xx[kk, ], type = 'p', pch = 16, cex = 1.2,col = cols[which(gg.examepls == gg.examepls[kk])])
+      text(tt[1], xx[kk, 1], labels = rownames(xx)[kk], pos = 4, offset = 0.5)
+    }
+    abline(h = c(0, 1), col = 'darkgray', lwd = 1.5, lty = 3)
+    abline(v = c(6, 32, 54), col = 'cornflowerblue', lwd = 2.0, lty=3)
+    
+    dev.off()
+    
+    # ggplot(df, aes(x = time, y = expression, group = gene, color = pathways)) +
+    #   geom_line(size=1.2, linetype = 'solid') +
+    #   geom_point(size = 2.5) + 
+    #   theme(legend.position = "right") +
+    #   geom_text(aes(label = gg.examepls, x = 12, colour = names(lab), y = c(lab), hjust = -.02))
+    # 
+    #   geom_bar(stat = "identity") +
+    #   theme(legend.position = "none")  + 
+    #   ggtitle('nb of cysts ') + 
+    #   theme(axis.text.x = element_text(angle = 90))
+    
+  }
   
-  diff = apply(rpkm, 1, max) - apply(rpkm, 1, min)
-  hist(diff, breaks = 100)
-  abline(v = c(1, 0.5), col = 'red', lwd = 2.0)
-  length(which(diff>1))
-  length(which(diff>0.5))
+  MakeHeatmap = FALSE
+  if(MakeHeatmap){
+    diff = apply(rpkm, 1, max) - apply(rpkm, 1, min)
+    hist(diff, breaks = 100)
+    abline(v = c(1, 0.5), col = 'red', lwd = 2.0)
+    length(which(diff>1))
+    length(which(diff>0.5))
+    
+    rpkm = rpkm[which(diff>=1), ]
+    
+    kk = match(rownames(rpkm), ggs$gene)
+    rpkm = rpkm[which(!is.na(kk)), ]
+    
+    rpkm = rpkm[c(which(rownames(rpkm) == 'Foxa2'), 
+                  which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'WNT')]))),
+                  which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'FGF')]))),
+                  which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'BMP')]))),
+                  which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'NOTCH')]))),
+                  which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'SHH')])))
+    ), ]
+    
+    yy = rpkm
+    max = apply(yy, 1, max)
+    yy = yy[which(max>1), ]
+    #yy[which(yy<0)] = NA
+    pheatmap(yy, cluster_rows=TRUE, show_rownames=TRUE, scale = 'row', show_colnames = TRUE, 
+             cluster_cols=FALSE, na_col = 'gray', gaps_col = c(3, 5, 7), fontsize_row = 8,
+             filename = paste0(resDir, '/siganling_pathways_geneExpression_timeSeries.pdf'), 
+             width = 12, height = 28)
+    
+  }
   
-  rpkm = rpkm[which(diff>=1), ]
-  
-  kk = match(rownames(rpkm), ggs$gene)
-  rpkm = rpkm[which(!is.na(kk)), ]
-  
-  rpkm = rpkm[c(which(rownames(rpkm) == 'Foxa2'), 
-                which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'WNT')]))),
-                which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'FGF')]))),
-                which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'BMP')]))),
-                which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'NOTCH')]))),
-                which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'SHH')])))
-  ), ]
-  
-  yy = rpkm
-  max = apply(yy, 1, max)
-  yy = yy[which(max>1), ]
-  #yy[which(yy<0)] = NA
-  pheatmap(yy, cluster_rows=TRUE, show_rownames=TRUE, scale = 'row', show_colnames = TRUE, 
-           cluster_cols=FALSE, na_col = 'gray', gaps_col = c(3, 5, 7), fontsize_row = 8,
-           filename = paste0(resDir, '/siganling_pathways_geneExpression_timeSeries.pdf'), 
-           width = 12, height = 28)
-  
-  
+ 
 }
 
 ##########################################
@@ -469,43 +588,6 @@ if(Select.signficant.Genes){
 ##########################################
 Make.example.plots = FALSE
 if(Make.example.plots){
-  cpm = fpm(dds, robust = TRUE)
-  rpkm = cpm
-  ll = genes$length[match(rownames(cpm), genes$gene)]
-  for(n in 1:ncol(rpkm))
-  {
-    rpkm[,n] = cpm[,n] / ll *10^3
-  }
-  
-  
-  rpkm = log2(rpkm + 2^-6)
-  
-  hist(rpkm, breaks = 200)
-  abline(v = c(1, 2), col = 'red', lwd = 2.0)
-  
-  # average triplicates0
-  tt = c(-18, -10, 0, 12, 24, 36, 48, 60)
-  
-  rpkm.RA = matrix(NA, nrow = nrow(rpkm), ncol = length(tt))
-  rpkm.noRA = matrix(NA, nrow = nrow(rpkm), ncol = length(tt))
-  rownames(rpkm.RA) = rownames(rpkm)
-  rownames(rpkm.noRA) = rownames(rpkm)
-  
-  for(n in 1:length(tt))
-  {
-    if(tt[n] == -18){
-      kk1 = which(design$condition == 'before_RA')
-      kk2 = which(design$condition == 'before_RA')
-    }else{
-      kk2 = grep(paste0(as.character(abs(tt[n]), 'h')), design$condition)
-      kk1 = kk2[grep('RA', design$condition[kk2])]
-      kk2 = kk2[grep('RA', design$condition[kk2], invert = TRUE)]
-    }
-    
-    rpkm.RA[,n] = apply(rpkm[,kk1], 1, median)
-    rpkm.noRA[,n] = apply(rpkm[, kk2], 1, median)
-  }
-  
   
   sorted = cbind(apply(rpkm[ , grep('s48h_RA_AF', colnames(rpkm))], 1, median), 
                  apply(rpkm[ , grep('s48h_RA_GFPp', colnames(rpkm))], 1, median),
