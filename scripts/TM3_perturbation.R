@@ -23,6 +23,7 @@ source(RNA.QC.functions)
 version.analysis = '_R11601_TM3_20210619'
 
 
+
 resDir = paste0("../results/RNAseq_perturbation", version.analysis)
 RdataDir = paste0(resDir, '/Rdata')
 if(!dir.exists(resDir)) dir.create(resDir)
