@@ -108,7 +108,6 @@ save(counts, design, genes, file = paste0(RdataDir, '/RNAseq_timeSeries_sortedDa
 # 
 ########################################################
 ########################################################
-
 load(file = paste0(RdataDir, '/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol.Rdata'))
 
 dds <- DESeqDataSetFromMatrix(counts, DataFrame(design), design = ~ condition)
@@ -507,13 +506,9 @@ if(Select.signficant.Genes){
     
     tt = c(-18, -10, 0, 12, 24, 36, 48, 60)
     
-    pdfname = paste0(resDir, "/genes_signalingPathways_summaryPlots_BMP_readOut.modulator.pdf")
-    pdf(pdfname, width = 12, height = 8)
-    par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
-    
     #gg.examepls = c('Foxa2', 'Lef1','Wnt3', 'Sfrp5',  'Fgf2', 'Fgf8', 'Bmp7', 'Bmp4', 'Bmp6', 'Nog')
-    mains = 'BMP pathways'
-    #gg.examepls = c('Foxa2', 'Shh', 'Olig2')
+    mains = 'positive_controls'
+    gg.examepls = c('Foxa2', 'Shh', 'Olig2')
     #gg.examepls = c('Lef1', 'Wnt1', 'Wnt3', 'Wnt3a', 'Wnt7a', 'Wnt7b', 'Wnt8a') 
     #gg.examepls = c('Lypd6', 'Dkk3', 'Sfrp5', 'Dkk1', 'Sost')
     #gg.examepls = c('Spry4', 'Spry2', 'Etv4', 'Etv5')
@@ -521,7 +516,11 @@ if(Select.signficant.Genes){
     gg.examepls = c('Id1', 'Id3', 'Smad6', 'Nog', 'Fst', 'Bambi')
     #gg.examepls = c('Bmp7', 'Bmp4', 'Bmp1', 'Bmp6', 'Bmpr2', 'Bmpr1b')
     
-    cols = colorRampPalette(rev(brewer.pal(9, "RdBu")))(length(gg.examepls))
+    pdfname = paste0(resDir, "/genes_signalingPathways_summaryPlots_Foxa2.pdf")
+    pdf(pdfname, width = 12, height = 8)
+    par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
+    
+    cols = colorRampPalette(rev(brewer.pal(9, "RdBu")))(length(gg.examepls)+1)
     xx = rpkm.RA[match(gg.examepls, rownames(rpkm.RA)), ]
     #xx = data.frame(xx, stringsAsFactors = FALSE)
     #df = as_tibble(xx) %>% gather(time, expression, 3:10)
