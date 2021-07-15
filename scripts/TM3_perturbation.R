@@ -537,20 +537,24 @@ if(Calculate.pairwise.comparisons){
                    toType = c("ENSEMBL", "ENTREZID"),
                    OrgDb = org.Mm.eg.db)
     
+    pdfname = paste0(resDir, '/TM3_pairwiseComparisons_enrichGO_pathways.pdf')
+    pdf(pdfname,  width = 18, height = 16)
+    #par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
+    
     for(n in 1:length(cc))
+    #for(n in 1:2)
     {
-      # n = 1
+      # n = 3
       cat(as.character(cc[n]), '\n')
       if(cc[n] == 'RA'){
         kk = which(design.matrix$condition == cc[n])
       }else{
         kk = which(design.matrix$condition == cc[n] | design.matrix$condition == 'RA')
       }
-      
       dds1 = dds[, kk]
       dds1$conds <- droplevels(dds1$conds)
       dds1 <- estimateDispersions(dds1, fitType = 'parametric')
-      plotDispEsts(dds1, ymin = 10^-3)
+      plotDispEsts(dds1, ymin = 10^-3, main = cc[n])
       #dds = estimateDispersions(dds)
       #plotDispEsts(dds)
       dds1 <- nbinomWaldTest(dds1)
@@ -558,45 +562,62 @@ if(Calculate.pairwise.comparisons){
       
       if(cc[n] == 'RA'){
         res1 = results(dds1, contrast=c("conds", 'RA_Foxa2.pos', 'RA_Foxa2.neg'), alpha = 0.05)
-        res1 <- lfcShrink(dds1, coef=2, type="apeglm")
+        res1 <- lfcShrink(dds1, coef=2, type="normal")
+        res1 = as.data.frame(res1)
+        gg.signif = rownames(res1)[which(res1$padj < 0.05)]
+        
+        colnames(res1) = paste0(colnames(res1), '_RA.pos_vs_RA.neg')
+        
+        # check the siganificant ones and overlapping with SP genes
+        #xx = data.frame(res[order(res1$pvalue), ])
+        #xx = xx[which(xx$padj < 0.05), ]
+        #xx = xx[!is.na(match(rownames(xx), ggs$gene)), ]
+        
       }else{
+        res1 = results(dds1, contrast=c("conds", paste0(cc[n], '_Foxa2.pos'), 'RA_Foxa2.pos'), alpha = 0.05)
+        res1 <- lfcShrink(dds1, contrast=c("conds", paste0(cc[n], '_Foxa2.pos'), 'RA_Foxa2.pos'), type="normal")
+        res1 = as.data.frame(res1)
+        
+        res2 = results(dds1, contrast=c("conds", paste0(cc[n], '_Foxa2.neg'), 'RA_Foxa2.neg'), alpha = 0.05)
+        res2 <- lfcShrink(dds1, type="normal", contrast=c("conds", paste0(cc[n], '_Foxa2.neg'), 'RA_Foxa2.neg'))
+        res2 = as.data.frame(res2)
+        
+        gg.signif = rownames(res1)[which(res1$padj < 0.1 | res2$padj < 0.1)]
+        cat(length(gg.signif), ' significant genes for enrichGO \n')
+        
+        gene.df <- bitr(gg.signif, fromType = "SYMBOL", toType = c("ENSEMBL", "ENTREZID"), OrgDb = org.Mm.eg.db)
+        ego <-  enrichGO(gene         = gene.df$ENSEMBL,
+                         universe     = bgs.df$ENSEMBL,
+                         #OrgDb         = org.Hs.eg.db,
+                         OrgDb         = org.Mm.eg.db,
+                         keyType       = 'ENSEMBL',
+                         ont           = "BP",
+                         pAdjustMethod = "BH",
+                         pvalueCutoff  = 0.01,
+                         qvalueCutoff  = 0.05, readable = TRUE)
+        
+        p0 = barplot(ego, showCategory=50, main = cc[n]) 
+        plot(p0)
+        
+        ii = grep('pathway', ego[, 2])
+        #xx = ego[ii, ]
+        write.table(data.frame(ego), 
+                    file = paste0(resDir, '/enrichGO_TM3_', cc[n], '.DEgenes.FDR.0.05.txt'),
+                    sep = '\t', col.names = TRUE, row.names = TRUE, quote = FALSE)
+        
+        colnames(res1) = paste0(colnames(res1), '_', cc[n], '.pos_vs_RA.pos')
+        colnames(res2) = paste0(colnames(res2), '_', cc[n], '.neg_vs_RA.neg')
+        res1 = data.frame(res1, res2)
         
       }
-      
-      xx = data.frame(res[order(res$pvalue), ])
-      xx = xx[which(xx$padj < 0.05), ]
-      xx = xx[!is.na(match(rownames(xx), ggs$gene)), ]
-      
-      gene.df <- bitr(rownames(res1)[which(res1$padj < 0.05)], fromType = "SYMBOL",
-                      toType = c("ENSEMBL", "ENTREZID"),
-                      OrgDb = org.Mm.eg.db)
-      ego <-  enrichGO(gene         = gene.df$ENSEMBL,
-                       universe     = bgs.df$ENSEMBL,
-                       #OrgDb         = org.Hs.eg.db,
-                       OrgDb         = org.Mm.eg.db,
-                       keyType       = 'ENSEMBL',
-                       ont           = "BP",
-                       pAdjustMethod = "BH",
-                       pvalueCutoff  = 0.01,
-                       qvalueCutoff  = 0.05, readable = TRUE)
-      
-      #barplot(ego, showCategory=50) 
-      ii = grep('pathway', ego[, 2])
-      xx = ego[ii, ]
-      
-      write.table(xx, 
-                  file = paste0(resDir, '/enrichGO_RNAseq_timepoint_', cc[n], '.DEgenes.logFC.0.5_singalingPathways.txt'),
-                  sep = '\t', col.names = TRUE, row.names = TRUE, quote = FALSE)
-      
+      if(n == 1) {
+        res = res1
+      }else{
+        res = data.frame(res, res1)
+      }
     }
     
-    
-    res1 = results(dds, contrast=c("conds", 'CHIR_Foxa2.pos', 'RA_Foxa2.pos'))
-    res2 = results(dds, contrast=c("conds", 'CHIR_Foxa2.neg', 'RA_Foxa2.neg'))
-    colnames(res1) = paste0(colnames(res1), '.pos')
-    colnames(res2) = paste0(colnames(res1), '.neg')
-    res = data.frame(res1, res2)
-    res = res[!is.na(match(rownames(res), ggs$gene)), ]
+    dev.off()
     
   }
   
