@@ -372,6 +372,7 @@ colnames(raw) = paste0(design.matrix$condition.replicate, '_', design.matrix$cel
 
 dds <- DESeqDataSetFromMatrix(raw, DataFrame(design.matrix), design = ~ conds)
 
+
 ss = rowSums(counts(dds))
 
 hist(log2(ss), breaks = 200, main = 'log2(sum of reads for each gene)')
@@ -511,29 +512,94 @@ if(Compare.with.pooledCells.timeSeries.sortedDay5){
 
 ########################################################
 ########################################################
-# Section : pairwise comparisons
+# Section : Pairwise comparisons 
+# Here we first identify significantly different genes in RA positive and negative genes
 # RA positive vs negative
-# 
+# perturbed-positive vs RA-positive; perturbed-negative vs RA-negative
 ########################################################
 ########################################################
 Calculate.pairwise.comparisons = FALSE
 if(Calculate.pairwise.comparisons){
-  dds = estimateDispersions(dds)
-  plotDispEsts(dds)
-  dds <- nbinomWaldTest(dds)
-  resultsNames(dds)  
   
-  res = results(dds, contrast=c("conds", 'RA_Foxa2.pos', 'RA_Foxa2.neg'), alpha = 0.05)
-  res = data.frame(res[order(res$pvalue), ])
-  res = res[!is.na(match(rownames(res), ggs$gene)), ]
+  Make.pairwise.comparisons = FALSE
+  if(Make.pairwise.comparisons){
+    library(org.Mm.eg.db)
+    library(enrichplot)
+    library(clusterProfiler)
+    library(ggplot2)
+    library(stringr)
+    
+    cc = unique(design.matrix$condition)
+    cc = cc[which(cc != "N2B27")]
+    
+    bgs = rownames(dds)
+    bgs.df <- bitr(bgs, fromType = "SYMBOL",
+                   toType = c("ENSEMBL", "ENTREZID"),
+                   OrgDb = org.Mm.eg.db)
+    
+    for(n in 1:length(cc))
+    {
+      # n = 1
+      cat(as.character(cc[n]), '\n')
+      if(cc[n] == 'RA'){
+        kk = which(design.matrix$condition == cc[n])
+      }else{
+        kk = which(design.matrix$condition == cc[n] | design.matrix$condition == 'RA')
+      }
+      
+      dds1 = dds[, kk]
+      dds1$conds <- droplevels(dds1$conds)
+      dds1 <- estimateDispersions(dds1, fitType = 'parametric')
+      plotDispEsts(dds1, ymin = 10^-3)
+      #dds = estimateDispersions(dds)
+      #plotDispEsts(dds)
+      dds1 <- nbinomWaldTest(dds1)
+      resultsNames(dds1)  
+      
+      if(cc[n] == 'RA'){
+        res1 = results(dds1, contrast=c("conds", 'RA_Foxa2.pos', 'RA_Foxa2.neg'), alpha = 0.05)
+        res1 <- lfcShrink(dds1, coef=2, type="apeglm")
+      }else{
+        
+      }
+      
+      xx = data.frame(res[order(res$pvalue), ])
+      xx = xx[which(xx$padj < 0.05), ]
+      xx = xx[!is.na(match(rownames(xx), ggs$gene)), ]
+      
+      gene.df <- bitr(rownames(res1)[which(res1$padj < 0.05)], fromType = "SYMBOL",
+                      toType = c("ENSEMBL", "ENTREZID"),
+                      OrgDb = org.Mm.eg.db)
+      ego <-  enrichGO(gene         = gene.df$ENSEMBL,
+                       universe     = bgs.df$ENSEMBL,
+                       #OrgDb         = org.Hs.eg.db,
+                       OrgDb         = org.Mm.eg.db,
+                       keyType       = 'ENSEMBL',
+                       ont           = "BP",
+                       pAdjustMethod = "BH",
+                       pvalueCutoff  = 0.01,
+                       qvalueCutoff  = 0.05, readable = TRUE)
+      
+      #barplot(ego, showCategory=50) 
+      ii = grep('pathway', ego[, 2])
+      xx = ego[ii, ]
+      
+      write.table(xx, 
+                  file = paste0(resDir, '/enrichGO_RNAseq_timepoint_', cc[n], '.DEgenes.logFC.0.5_singalingPathways.txt'),
+                  sep = '\t', col.names = TRUE, row.names = TRUE, quote = FALSE)
+      
+    }
+    
+    
+    res1 = results(dds, contrast=c("conds", 'CHIR_Foxa2.pos', 'RA_Foxa2.pos'))
+    res2 = results(dds, contrast=c("conds", 'CHIR_Foxa2.neg', 'RA_Foxa2.neg'))
+    colnames(res1) = paste0(colnames(res1), '.pos')
+    colnames(res2) = paste0(colnames(res1), '.neg')
+    res = data.frame(res1, res2)
+    res = res[!is.na(match(rownames(res), ggs$gene)), ]
+    
+  }
   
-  
-  res1 = results(dds, contrast=c("conds", 'CHIR_Foxa2.pos', 'RA_Foxa2.pos'))
-  res2 = results(dds, contrast=c("conds", 'CHIR_Foxa2.neg', 'RA_Foxa2.neg'))
-  colnames(res1) = paste0(colnames(res1), '.pos')
-  colnames(res2) = paste0(colnames(res1), '.neg')
-  res = data.frame(res1, res2)
-  res = res[!is.na(match(rownames(res), ggs$gene)), ]
   
   Reduced.model.selection = FALSE
   if(Reduced.model.selection){
