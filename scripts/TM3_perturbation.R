@@ -184,7 +184,6 @@ if(Sequence.saturation.analysis){
 source(RNA.functions)
 source(RNA.QC.functions)
 
-
 design = readRDS(file = paste0(RdataDir, 'sampleInfo_QC.stats.rds'))
 
 colnames(design)[1] = 'SampleID'
@@ -244,8 +243,7 @@ save(design, all, file=paste0(RdataDir, '/Design_Raw_readCounts', Counts.to.Use,
 ##########################################
 # gene names converted from ensID to gene symbol 
 ##########################################
-save(design, all, file=paste0(RdataDir, '/Design_Raw_readCounts', Counts.to.Use,  version.analysis, '.Rdata'))
-
+load(file=paste0(RdataDir, '/Design_Raw_readCounts', Counts.to.Use,  version.analysis, '.Rdata'))
 
 design$cells[grep('[+]', design$cells)] = 'Foxa2.pos'
 design$cells[grep('[-]', design$cells)] = 'Foxa2.neg'
@@ -256,11 +254,34 @@ colnames(all)[-1] = paste0(design$condition, '_', design$cells, '_', design$Samp
 annot = read.delim(paste0('/Volumes/groups/tanaka/People/current/jiwang/Genomes/mouse/mm10_ens/', 
                        'ens_BioMart_GRCm38.p6.txt'), sep = '\t', header = TRUE)
 
-
 Select.proteinCoding.genes = TRUE
 if(Select.proteinCoding.genes){
     annot = annot[which(annot$Gene.type == 'protein_coding'), ]
     annot = annot[!is.na(match(annot$Chromosome.scaffold.name, as.character(c(1:19, 'X', 'Y')))), ]
+    
+    gg.uniq = unique(annot$Gene.stable.ID)
+    mm = match(gg.uniq, annot$Gene.stable.ID)
+    annots = annot
+    
+    genes = data.frame(gg.uniq, annots$Gene.name[mm], gene.types = annots$Gene.type[mm], stringsAsFactors = FALSE)
+    genes = genes[which(!is.na(genes[, 3])), ]
+    
+    #genes = genes[match(unique(genes[,3]), genes[,3]), ]
+    colnames(genes) = c('ensID', 'gene', 'genetype')
+    genes$length = annot$Transcript.length..including.UTRs.and.CDS.[match(genes$ensID, annots$Gene.stable.ID)]
+    genes$nb.transcript = annot$Transcript.count[match(genes$ensID, annot$Gene.stable.ID)]
+    
+    for(n in 1:nrow(genes))
+    #for(n in 1:200)
+    {
+      # n = 1
+      if(n%%100 ==0) cat(n, '\n')
+      if(genes$nb.transcript[n] > 1){
+        genes$length[n] = median(annots$Transcript.length..including.UTRs.and.CDS.[which(annots$Gene.stable.ID == genes$ensID[n])])
+      }
+    }
+    
+    saveRDS(genes, file = paste0(RdataDir, 'mm10_ens_BioMart_GRCm38.p6_ensID.geneSymbol.length.rds'))
     
     all = all[!is.na(match(all$gene, annot$Gene.stable.ID)), ]
     
@@ -320,22 +341,25 @@ if(QC.for.cpm){
   
 }
 
-##########################################
-# because the gene symbol from nr and hs are not consistent sometimes, so we keep gene.id from AMEXDD60
-# Dimensionality reduction to visulize the difference between time points
-# Here we select only the batch 3 and batch 2
-##########################################
+
+########################################################
+########################################################
+# Section : Analysis with DESeq2
+# 
+########################################################
+########################################################
 require(ggplot2)
 require(DESeq2)
 require(gridExtra)
-library("dplyr")
+library(dplyr)
+library(patchwork)
+
 Counts.to.Use = 'UMI'
 
 load(file = paste0(RdataDir, '/design.detailed_RawUMI_', Counts.to.Use, version.analysis, '.Rdata'))
+genes = readRDS(file = paste0(RdataDir, 'mm10_ens_BioMart_GRCm38.p6_ensID.geneSymbol.length.rds'))
+ggs = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
 
-#raw = as.matrix(all[, -1])
-#rownames(raw) = all$gene
-#sels = which(design$batch != 1)
 sels = which(design$SampleID != '161040')
 
 design.matrix = design[sels, ]
@@ -345,7 +369,6 @@ rm(design)
 raw = all[, sels]
 design.matrix$condition.replicate = paste0(design.matrix$condition, '_', design.matrix$triplicate.nb)
 colnames(raw) = paste0(design.matrix$condition.replicate, '_', design.matrix$cells, '_', design.matrix$SampleID)
-
 
 dds <- DESeqDataSetFromMatrix(raw, DataFrame(design.matrix), design = ~ conds)
 
@@ -371,7 +394,6 @@ text(sizeFactors(dd0), colSums(counts(dds)), colnames(dd0), cex =0.4)
 cutoff.gene = 50
 cat(length(which(ss > cutoff.gene)), 'genes selected \n')
 
-
 dds <- dds[ss > cutoff.gene, ]
 
 # normalization and dimensionality reduction
@@ -381,7 +403,7 @@ fpm = fpm(dds, robust = TRUE)
 #save(fpm, design, file = paste0(tfDir, '/RNAseq_fpm_fitered.cutoff.', cutoff.gene, '.Rdata'))
 vsd <- varianceStabilizingTransformation(dds, blind = FALSE)
 
-pca=plotPCA(vsd, intgroup = c('condition', 'cells'), returnData = TRUE, ntop = 1000)
+pca=plotPCA(vsd, intgroup = c('condition', 'cells'), returnData = TRUE, ntop = 500)
 #print(pca)d
 pca2save = as.data.frame(pca)
 ggp = ggplot(data=pca2save, aes(PC1, PC2, label = name, color= condition, shape = cells))  + 
@@ -398,7 +420,9 @@ ggp = ggplot(data=pca2save[grep('N2B27', pca2save$condition, invert = TRUE), ],
 plot(ggp) + ggsave(paste0(resDir, "/PCAplot_withoutControls_UQ.norm_ntop500.pdf"), width=18, height = 12)
 
 ##########################################
+# try to put the TM3 data in the context of time series data
 # test the relationship between perturbation of positive and negative cells, pooled cells, and time seires and day 5 sorted cells 
+# 
 ##########################################
 Compare.with.pooledCells.timeSeries.sortedDay5 = FALSE
 if(Compare.with.pooledCells.timeSeries.sortedDay5){
@@ -406,6 +430,7 @@ if(Compare.with.pooledCells.timeSeries.sortedDay5){
   cpm = log2(fpm + 2^-4)
   cc = paste0(design.matrix$condition, '_', design.matrix$cells)
   
+  # load samples with pooled negative and positive cells
   #load(file = paste0(RdataDir, '/TM3_positive.negative.pooled_', Counts.to.Use, version.analysis, '.Rdata'))
   load(file = paste0(RdataDir, '/TM3_pooled.positive.negative_', Counts.to.Use, version.analysis, '.Rdata'))
   cc.pools = paste0(cc.pools, '_pooled')
@@ -415,24 +440,28 @@ if(Compare.with.pooledCells.timeSeries.sortedDay5){
   cpm = cbind(cpm, pools)
   cc = c(cc, cc.pools)
   
-  load(file = paste0('../results/Rdata/RNAseqOld_design_dds_fpm.Rdata'))
-  kk = grep('RA', design0$condition)
+  #load(file = paste0('../results/Rdata/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol_dds.Rdata'))
+  #design0 = design
+  #dds0 = dds
+  #save(dds0, design0, file = paste0('../results/Rdata/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol_dds_backup.Rdata'))
+  load(file = paste0('../results/Rdata/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol_dds_backup.Rdata')) 
+  fpm0 = fpm(dds0)
+  
+  kk = c(grep('RA', design0$condition), which(design0$condition=='12h'))
+  #kk = c(1:nrow(design0))
   
   cc0 = as.character(design0$condition[kk])
   xx = log2(fpm0[, kk] + 2^-4) 
   
   bc = c(rep(1, length(cc)), rep(0, length(cc0)))
   cc[which(cc == 'RA_pooled')] = '12h_RA'
-  cc[which(cc == 'N2B27_pooled')] = 'before_RA'
+  cc0[which(cc0 == '12h')] = 'N2B27_pooled'
   cc = c(cc, as.character(cc0))
   mm = match(rownames(cpm), rownames(xx))
   
-  cpm = cpm[which(!is.na(mm)), ]
-  xx = xx[mm[which(!is.na(mm))], ]
+  cpm = cbind(cpm[which(!is.na(mm)), ], xx[mm[which(!is.na(mm))], ])
   
-  cpm = cbind(cpm, xx)
-  
-  jj = c(grep('N2B27|pos|neg|pooled', cc, invert = TRUE), grep("RA_Foxa2.pos|RA_Foxa2.neg|N2B27", cc))
+  jj = c(grep('N2B27|pos|neg|pooled', cc, invert = TRUE), grep("RA_Foxa2.pos|RA_Foxa2.neg|N2B27_pooled", cc))
   
   cc = cc[jj]
   cpm = cpm[,jj]
@@ -445,7 +474,7 @@ if(Compare.with.pooledCells.timeSeries.sortedDay5){
   yy = ComBat(dat=cpm, batch=bc, mod=mod, par.prior=TRUE, ref.batch = 0)    
   
   #yy = cpm
-  ntop = 2000
+  ntop = 5000
   xx = as.matrix(yy)
   vars = apply(xx, 1, var)
   xx = xx[order(-vars), ]
@@ -473,42 +502,63 @@ if(Compare.with.pooledCells.timeSeries.sortedDay5){
   #)
   
   # comapre the foxa2 positive and negative cells for RA in day3 and day5
-  
   xx1 = apply(cpm[, grep('s48h_RA_GFPp', colnames(cpm))], 1, median)- apply(cpm[ ,grep('s48h_RA_AF', colnames(cpm))], 1, median) 
   xx2 = apply(cpm[, grep('RA_[[:digit:]]_Foxa2.pos', colnames(cpm))], 1, median) - 
-    apply(cpm[, grep('RA_[[:digit:]]_Foxa2.neg', colnames(cpm))], 1, median) 
+    apply(cpm[, grep('RA_[[:digit:]]_Foxa2.neg', colnames(cpm))], 1, median)
   
   
 }
 
 ########################################################
 ########################################################
-# Section : some comparison
+# Section : pairwise comparisons
+# RA positive vs negative
 # 
 ########################################################
 ########################################################
-dds = estimateDispersions(dds)
-plotDispEsts(dds)
-
-dds1 = dds[, grep('pos', colnames(dds))]
-dds1$conds <- droplevels(dds1$conds)
-dds1 <- estimateDispersions(dds1)
-plotDispEsts(dds1)
-dds1 = nbinomLRT(dds1, reduced = ~ 1)
-res1 <- as.data.frame(results(dds1))
-res1 = res1[order(res1$pvalue), ]
-
-dds2 = dds[, grep('neg', colnames(dds))]
-dds2$conds <- droplevels(dds2$conds)
-dds2 <- estimateDispersions(dds)
-plotDispEsts(dds2)
-dds2 = nbinomLRT(dds2, reduced = ~ 1)
-res2 <- as.data.frame(results(dds2))
-res2 = res2[order(res2$pvalue), ]
-
-
-ggs.signif = unique(c(rownames(res1)[which(res1$pvalue < 0.01 & abs(res1$log2FoldChange) > 0.5)], 
-                      rownames(res2)[which(res2$pvalue < 0.001 & abs(res2$log2FoldChange) > 0.5)]))
+Calculate.pairwise.comparisons = FALSE
+if(Calculate.pairwise.comparisons){
+  dds = estimateDispersions(dds)
+  plotDispEsts(dds)
+  dds <- nbinomWaldTest(dds)
+  resultsNames(dds)  
+  
+  res = results(dds, contrast=c("conds", 'RA_Foxa2.pos', 'RA_Foxa2.neg'), alpha = 0.05)
+  res = data.frame(res[order(res$pvalue), ])
+  res = res[!is.na(match(rownames(res), ggs$gene)), ]
+  
+  
+  res1 = results(dds, contrast=c("conds", 'CHIR_Foxa2.pos', 'RA_Foxa2.pos'))
+  res2 = results(dds, contrast=c("conds", 'CHIR_Foxa2.neg', 'RA_Foxa2.neg'))
+  colnames(res1) = paste0(colnames(res1), '.pos')
+  colnames(res2) = paste0(colnames(res1), '.neg')
+  res = data.frame(res1, res2)
+  res = res[!is.na(match(rownames(res), ggs$gene)), ]
+  
+  Reduced.model.selection = FALSE
+  if(Reduced.model.selection){
+    dds1 = dds[, grep('pos', colnames(dds))]
+    dds1$conds <- droplevels(dds1$conds)
+    dds1 <- estimateDispersions(dds1)
+    plotDispEsts(dds1)
+    dds1 = nbinomLRT(dds1, reduced = ~ 1)
+    res1 <- as.data.frame(results(dds1))
+    res1 = res1[order(res1$pvalue), ]
+    
+    dds2 = dds[, grep('neg', colnames(dds))]
+    dds2$conds <- droplevels(dds2$conds)
+    dds2 <- estimateDispersions(dds)
+    plotDispEsts(dds2)
+    dds2 = nbinomLRT(dds2, reduced = ~ 1)
+    res2 <- as.data.frame(results(dds2))
+    res2 = res2[order(res2$pvalue), ]
+    
+    
+    ggs.signif = unique(c(rownames(res1)[which(res1$pvalue < 0.01 & abs(res1$log2FoldChange) > 0.5)], 
+                          rownames(res2)[which(res2$pvalue < 0.001 & abs(res2$log2FoldChange) > 0.5)]))
+  }
+ 
+}
 
 ##########################################
 # edit a list of genes in FGF, BMP and Wnt 
