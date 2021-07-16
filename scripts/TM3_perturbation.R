@@ -619,6 +619,8 @@ if(Calculate.pairwise.comparisons){
     
     dev.off()
     
+    saveRDS(res, file = paste0(RdataDir, '/TM3_res_pairwiseComparisons.rds'))
+    
   }
   
   
