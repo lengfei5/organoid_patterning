@@ -419,7 +419,6 @@ for(n in 1:ncol(rpkm))
   rpkm[,n] = cpm[,n] / ll *10^3
 }
 
-
 rpkm = log2(rpkm + 2^-6)
 
 hist(rpkm, breaks = 200)
@@ -658,7 +657,3 @@ if(Make.example.plots){
   dev.off()
   
 }
-
-
-
-
