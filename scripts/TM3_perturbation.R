@@ -264,10 +264,12 @@ if(QC.for.cpm){
 ########################################################
 ########################################################
 require(ggplot2)
+library(ggrepel)
 require(DESeq2)
 require(gridExtra)
 library(dplyr)
 library(patchwork)
+require(pheatmap)
 
 Counts.to.Use = 'UMI'
 
@@ -343,11 +345,12 @@ plot(ggp) + ggsave(paste0(resDir, "/PCAplot_withoutControls_UQ.norm_ntop500.pdf"
 Compare.with.pooledCells.timeSeries.sortedDay5 = FALSE
 if(Compare.with.pooledCells.timeSeries.sortedDay5){
   source('Functions_RNAseqData.R')
-  Compare.TM3.and.RNAseq.timeSeries.sortedDay5()
   
-  Compare.TM3.sortedDay3.RNAseq.sortedDay5()
+  Test.pooling.TM3.positive.negative.cells(dds, pooling = 'counts', design.matrix = design.matrix)
   
+  Compare.TM3.and.RNAseq.timeSeries.sortedDay5(dds)
   
+  Compare.TM3.sortedDay3.RNAseq.sortedDay5(dds)
   
 }
 
@@ -359,6 +362,63 @@ if(Compare.with.pooledCells.timeSeries.sortedDay5){
 # perturbed-positive vs RA-positive; perturbed-negative vs RA-negative
 ########################################################
 ########################################################
+Compare.RA.positve.negative = FALSE
+if(Compare.RA.positve.negative){
+  
+  kk = which(design.matrix$condition == 'RA')
+  
+  dds1 = dds[, kk]
+  dds1$conds <- droplevels(dds1$conds)
+  
+  #dds1 <- estimateDispersions(dds1, fitType = 'parametric')
+  #plotDispEsts(dds1, ymin = 10^-3, main = 'RA')
+  sfs = sizeFactors(dds1)
+  dds1 = DESeqDataSetFromMatrix(counts(dds1), DataFrame(design.matrix[kk, ]), design = ~ conds + condition.replicate)
+  sizeFactors(dds1) = sfs
+  
+  dds1 <- estimateDispersions(dds1, fitType = 'parametric')
+  plotDispEsts(dds1, ymin = 10^-3, main = 'RA')
+  
+  dds1 <- nbinomWaldTest(dds1)
+  resultsNames(dds1)  
+  
+  res1 = results(dds1, contrast=c("conds", 'RA_Foxa2.pos', 'RA_Foxa2.neg'), alpha = 0.05)
+  res1 <- lfcShrink(dds1, coef=2, type="normal")
+  
+  plotMA(res1)
+  
+  res1 = as.data.frame(res1)
+  gg.signif = rownames(res1)[which(res1$padj < 0.05)]
+  
+  cpm = fpm(dds1)
+  cpm = cpm[, c(grep('pos', colnames(cpm)), grep('neg', colnames(cpm)))]
+  
+  df <- data.frame(cond = colnames(cpm), sorted = c(rep('Foxa2.pos', 3), rep('Foxa2.neg', 3)))
+  rownames(df) = colnames(cpm)
+  
+  pheatmap(cpm[which(res1$padj<0.05), ], cluster_rows=TRUE, show_rownames=FALSE, scale = 'row', show_colnames = TRUE, 
+           cluster_cols=FALSE, na_col = 'gray',  annotation_col = df, gaps_col = c(3),
+           filename = paste0(resDir, '/TM3_RAtreatment_DEgenes_Day3.pdf'), width = 10, height = 8)
+  
+  
+  
+  
+  # check the siganificant ones and overlapping with SP genes
+  xx = data.frame(res1[order(res1$pvalue), ])
+  xx = xx[which(xx$padj < 0.05), ]
+  xx = xx[!is.na(match(rownames(xx), ggs$gene)), ]
+  
+  
+  colnames(res1) = paste0(colnames(res1), '_RA.pos_vs_RA.neg')
+  
+  #res = readRDS(file = paste0(RdataDir, '/TM3_res_pairwiseComparisons.rds'))
+  
+  examples = c('Lef1', 'Wnt3', 'Wnt3a', 'Wnt4', 'Wnt5b', 'Wnt6', 'Wnt7a', 'Wnt7b', 'Wnt8a', 'Dkk1', 'Dkk2', 'Dkk3', 'Tcf15', 'Tcf19', 
+               "Wnt1", 'Sost', 'Sfrp5', 'Lypd6')
+  
+  
+}
+
 Calculate.pairwise.comparisons = FALSE
 if(Calculate.pairwise.comparisons){
   
@@ -411,11 +471,6 @@ if(Calculate.pairwise.comparisons){
         gg.signif = rownames(res1)[which(res1$padj < 0.05)]
         
         colnames(res1) = paste0(colnames(res1), '_RA.pos_vs_RA.neg')
-        
-        # check the siganificant ones and overlapping with SP genes
-        #xx = data.frame(res[order(res1$pvalue), ])
-        #xx = xx[which(xx$padj < 0.05), ]
-        #xx = xx[!is.na(match(rownames(xx), ggs$gene)), ]
         
       }else{
         res1 = results(dds1, contrast=c("conds", paste0(cc[n], '_Foxa2.pos'), 'RA_Foxa2.pos'), alpha = 0.05)
@@ -499,13 +554,6 @@ if(Calculate.pairwise.comparisons){
 # 2) # first check the normalized signals in positive and negative cells across conditions  
 ########################################################
 ########################################################
-res = readRDS(file = paste0(RdataDir, '/TM3_res_pairwiseComparisons.rds'))
-
-examples = c('Lef1', 'Wnt3', 'Wnt3a', 'Wnt4', 'Wnt5b', 'Wnt6', 'Wnt7a', 'Wnt7b', 'Wnt8a', 'Dkk1', 'Dkk2', 'Dkk3', 'Tcf15', 'Tcf19', 
-             "Wnt1", 'Sost', 'Sfrp5', 'Lypd6')
-
-
-
 ##########################################
 # plot individual examples
 ##########################################

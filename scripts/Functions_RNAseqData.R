@@ -126,47 +126,115 @@ Save.median.transcript.lengths.for.each.gene = function()
 ########################################################
 ########################################################
 # Section : test pooling of positive and negative cells
-# 
+# two methods for pooling, with counts or normalized fpm
 ########################################################
 ########################################################
-Test.pooling.TM3.positive.negative.cells = function()
+Test.pooling.TM3.positive.negative.cells = function(dds, pooling = 'counts', design.matrix = design.matrix)
 {
-  Test.pooling.negative.positive.cells = FALSE
-  if(Test.pooling.negative.positive.cells){
-    fpm = fpm(dds, robust = TRUE)
+  # Import the positive and negative ratios
+  rrs = readRDS(file = paste0(RdataDir, 'facs_positive_negative_ratios.rds'))
+  rrs$Tube.Name = as.character(rrs$Tube.Name)
+  rrs$Tube.Name = gsub('[-]', '_', rrs$Tube.Name)
+  rrs$Tube.Name = gsub('Fgf', 'FGF', rrs$Tube.Name)
+  rrs$Tube.Name = gsub('PD03', 'PD', rrs$Tube.Name)
+  rrs$Tube.Name = gsub('Chiron', 'CHIR', rrs$Tube.Name)
+  
+  pools = matrix(NA, nrow = nrow(dds), ncol = length(unique(design.matrix$condition.rep)))
+  colnames(pools) = unique(design.matrix$condition.replicate)
+  rownames(pools) = rownames(dds)
+  
+  if(pooling == 'counts' ) {sorted = counts(dds)}
+  if(pooling == 'fpm'){ sorted = fpm(dds)}
+  
+  for(n in 1:ncol(pools))
+  {
+    # n = 1
+    ratio = rrs$GFP_pos..Parent[which(rrs$Tube.Name == colnames(pools)[n])]/100  
     
-    rrs = readRDS(file = paste0(RdataDir, 'facs_positive_negative_ratios.rds'))
-    rrs$Tube.Name = as.character(rrs$Tube.Name)
-    rrs$Tube.Name = gsub('[-]', '_', rrs$Tube.Name)
-    rrs$Tube.Name = gsub('Fgf', 'FGF', rrs$Tube.Name)
-    rrs$Tube.Name = gsub('PD03', 'PD', rrs$Tube.Name)
-    rrs$Tube.Name = gsub('Chiron', 'CHIR', rrs$Tube.Name)
+    jj1 = which(design.matrix$condition.replicate == colnames(pools)[n] & design.matrix$cells == 'Foxa2.pos')
+    jj2 = which(design.matrix$condition.replicate == colnames(pools)[n] & design.matrix$cells == 'Foxa2.neg')
     
-    pools = matrix(NA, nrow = nrow(fpm), ncol = length(unique(design.matrix$condition.rep)))
-    colnames(pools) = unique(design.matrix$condition.replicate)
-    rownames(pools) = rownames(fpm)
-    
-    for(n in 1:ncol(pools))
-    {
-      # n = 1
-      ratio = rrs$GFP_pos..Parent[which(rrs$Tube.Name == colnames(pools)[n])]/100  
-      
-      jj1 = which(design.matrix$condition.replicate == colnames(pools)[n] & design.matrix$cells == 'Foxa2.pos')
-      jj2 = which(design.matrix$condition.replicate == colnames(pools)[n] & design.matrix$cells == 'Foxa2.neg')
-      
-      if(length(jj1) == 1 & length(jj2) == 1){
-        cat(n, ' - ', colnames(pools)[n], '- positive cell ratio ', ratio,  ' with column ', jj1, jj2, '\n')
-        pools[,n] = ratio * fpm[,jj1] + (1 - ratio) * fpm[, jj2]
-      }
-      
-      
+    if(length(jj1) == 1 & length(jj2) == 1){
+      cat(n, ' - ', colnames(pools)[n], '- positive cell ratio ', ratio,  ' with column ', jj1, jj2, '\n')
+      pools[,n] = ratio * sorted[,jj1] + (1 - ratio) * sorted[, jj2]
     }
     
-    pools = pools[, which(colnames(pools) != 'LDN_1')]
+  }
+  
+  pools = pools[, which(colnames(pools) != 'LDN_1')]
+  
+  cc.pools = colnames(pools)
+  cc.pools = sapply(cc.pools, function(x) unlist(strsplit(as.character(x), '_'))[1])
+  
+  if(pooling == 'counts'){
+    pools = ceiling(as.matrix(pools))
+    ddx <- DESeqDataSetFromMatrix(pools, DataFrame(condition = cc.pools), design = ~ condition)
     
-    cc.pools = colnames(pools)
-    cc.pools = sapply(cc.pools, function(x) unlist(strsplit(as.character(x), '_'))[1])
+    ss = rowSums(counts(ddx))
     
+    hist(log2(ss), breaks = 200, main = 'log2(sum of reads for each gene)')
+    # 
+    length(which(ss > quantile(ss, probs = 0.5)))
+    dd0 = ddx[ss > quantile(ss, probs = 0.6) , ]
+    dd0 = estimateSizeFactors(dd0)
+    sizefactors.UQ = sizeFactors(dd0)
+    # 
+    # plot(sizeFactors(dd0), colSums(counts(dds)), log = 'xy')
+    # text(sizeFactors(dd0), colSums(counts(dds)), colnames(dd0), cex =0.4)
+    # 
+    # use UQ normalization from edgeR
+    #library(edgeR)
+    #dge2 <- DGEList(raw)
+    #dge2 <- calcNormFactors(dge2, method = "upperquartile")
+    #dge2$samples
+    #sizefactors.UQ = as.data.frame(dge2$samples) 
+    #sizefactors.UQ = sizefactors.UQ$lib.size * sizefactors.UQ$norm.factors/median(sizefactors.UQ$lib.size)
+    
+    # cutoff.gene = 50
+    # cat(length(which(ss > cutoff.gene)), 'genes selected \n')
+    # 
+    # dds <- dds[ss > cutoff.gene, ]
+    
+    # normalization and dimensionality reduction
+    sizeFactors(ddx) = sizefactors.UQ
+    cpm = fpm(ddx, robust = TRUE)
+    
+    #save(fpm, design, file = paste0(tfDir, '/RNAseq_fpm_fitered.cutoff.', cutoff.gene, '.Rdata'))
+    vsd <- varianceStabilizingTransformation(ddx, blind = FALSE)
+    
+    pca=plotPCA(vsd, intgroup = c('condition'), returnData = TRUE, ntop = 2000)
+    pca2save = as.data.frame(pca)
+    
+    ggp = ggplot(data=pca2save, aes(PC1, PC2, label = name, color= condition))  + 
+      geom_point(size=2.5) + 
+      #geom_text(hjust = 0.4, nudge_y = 0.7, size=3) + 
+      geom_text_repel()
+      #geom_label_repel()
+    plot(ggp)
+    
+    library(factoextra)
+    ntop = 500
+    xx = as.matrix(log2(cpm + 2^-4))
+    means = apply(xx, 1, mean)
+    vars = apply(xx, 1, var)
+    
+    xx = xx[order(-vars), ]
+    xx = xx[1:ntop, ]
+    
+    res.pca <- prcomp(t(xx), scale = TRUE)
+    #res.var <- get_pca_var(res.pca)
+    
+    fviz_pca_ind(res.pca,
+                 col.ind = "cos2", # Color by the quality of representation
+                 gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+                 repel = TRUE     # Avoid text overlapping
+    )
+    
+    save(ddx, cc.pools, file = paste0(RdataDir, '/TM3_pooled.pos.neg_ddx_cc.pools_', Counts.to.Use, version.analysis, '.Rdata'))
+    
+  }
+  
+  if(pooling == 'fpm'){
     library(factoextra)
     ntop = 500
     xx = as.matrix(log2(pools + 2^-4))
@@ -191,9 +259,9 @@ Test.pooling.TM3.positive.negative.cells = function()
     log2(fpm[j, grep('neg', colnames(fpm))] + 2^-6)
     log2(fpm[j, grep('pos', colnames(fpm))] + 2^-6)
     log2(pools[j, ] + 2^-6)
-    
-    
   }
+  
+ 
   
   ##########################################
   # check the ratios between posive and negative cells  
@@ -306,7 +374,7 @@ Compare.TM3.and.RNAseq.timeSeries.sortedDay5 = function()
 }
 
 
-Compare.TM3.sortedDay3.RNAseq.sortedDay5 = function()
+Compare.TM3.sortedDay3.RNAseq.sortedDay5 = function(dds)
 {
   kk = which(dds$conds == 'RA_Foxa2.pos' | dds$conds == 'RA_Foxa2.neg')
   ddx = dds[,kk]
