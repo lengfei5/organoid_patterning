@@ -436,26 +436,64 @@ if(Compare.RA.positve.negative){
   par(cex = 1.0, las = 1, mgp = c(3,1,0), mar = c(3, 30,2,0.2), tcl = -0.3)
   barplot(xx$Count,  names.arg = xx$Description, horiz = TRUE, beside = TRUE, las=2)
   
-  ##########################################
-  # plot the fold-changes for Wnt, FGF, BMP siganling pathways
-  ##########################################
-  
   xx = data.frame(res1[order(res1$pvalue), ])
   xx = xx[which(xx$padj < 0.05), ]
   xx = xx[!is.na(match(rownames(xx), ggs$gene)), ]
   
+  ##########################################
+  # plot the fold-changes for Wnt, FGF, BMP siganling pathways
+  ##########################################
+  res = res1
+  load(file = paste0('../results/Rdata/RNAseq_Foxa.positive_vs_neg.Day5.Rdata'))
+  gene.all = unique(intersect(rownames(res), rownames(res1)))
+  
+  res = data.frame(res[match(gene.all, rownames(res)), c(2, 5)], res1[match(gene.all, rownames(res1)), c(2, 5)])
+  colnames(res) = c('lfc.day3', 'pval.day3', 'lfc.day5', 'pval.day5')
+  res$gene = rownames(res)
+  yy1 = cbind(res[,c(1, 2, 5)], rep('day3', nrow(res)))
+  yy2 = cbind(res[,c(3, 4, 5)], rep('day5', nrow(res)))
+  colnames(yy1) = c('lfc', 'pval', 'gene', 'day')
+  colnames(yy2) = c('lfc', 'pval', 'gene', 'day')
+  yy = data.frame(rbind(yy1, yy2))
+  
+  yy$regulation = NA
+  yy$regulation[which(yy$lfc>0)] = 'upregulated'
+  yy$regulation[which(yy$lfc<0)] = 'downregulated'
+    
   #colnames(res1) = paste0(colnames(res1), '_RA.pos_vs_RA.neg')
   #res = readRDS(file = paste0(RdataDir, '/TM3_res_pairwiseComparisons.rds'))
-  
-  
+  #examples = c('Foxa2', 'Olig2', 'Shh')
   
   examples = c('Lef1', 'Wnt3', 'Wnt3a', 'Wnt4', 'Wnt5b', 'Wnt6', 'Wnt7a', 'Wnt7b', 'Wnt8a', 'Dkk1', 'Dkk2', 'Dkk3', 'Tcf15', 'Tcf19', 
                "Wnt1", 'Sost', 'Sfrp5', 'Lypd6')
+  kk = c(); for(g in examples) kk = unique(c(kk, which(as.character(yy$gene) == g)))
+  ggplot(yy[kk, ], aes(x = gene, y = lfc, fill = day)) + 
+    geom_bar(stat = "identity", position="dodge") +
+    coord_flip() + ggsave(paste0(resDir, "/LFC_positive.vs.negative_Day3.Day5_Wnt.pdf"), width=12, height = 10)
   
+  examples = c(c('Spry4', 'Spry2', 'Etv4', 'Etv5'), c('Fgf10', 'Fgf17','Fgf8', 'Fgf5', 'Fgf2','Fgf21', 'Fgf11','Fgf1', 'Fgf4', 'Fgfbp3'),
+               'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5')
+  kk = c(); for(g in examples) kk = unique(c(kk, which(as.character(yy$gene) == g)))
+  ggplot(yy[kk, ], aes(x = gene, y = lfc, fill = day)) + 
+    geom_bar(stat = "identity", position="dodge") +
+    coord_flip() + ggsave(paste0(resDir, "/LFC_positive.vs.negative_Day3.Day5_FGF.pdf"), width=12, height = 10)
   
+  examples = c('Id1', 'Id3', 'Smad6', 'Nog', 'Fst', 'Bambi', 'Bmp7', 'Bmp4', 'Bmp1', 'Bmp6', 'Bmpr2', 'Bmpr1b')
+  
+  kk = c(); for(g in examples) kk = unique(c(kk, which(as.character(yy$gene) == g)))
+  ggplot(yy[kk, ], aes(x = gene, y = lfc, fill = day)) + 
+    geom_bar(stat = "identity", position="dodge") +
+    coord_flip() + ggsave(paste0(resDir, "/LFC_positive.vs.negative_Day3.Day5_BMP.pdf"), width=12, height = 10)
   
 }
 
+########################################################
+########################################################
+# Section : Pairwise comparisons
+# Here we first identify significantly different genes in RA positive and negative genes
+# perturbed-positive vs RA-positive; perturbed-negative vs RA-negative
+########################################################
+########################################################
 Calculate.pairwise.comparisons = FALSE
 if(Calculate.pairwise.comparisons){
   
