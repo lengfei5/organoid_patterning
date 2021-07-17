@@ -657,3 +657,54 @@ if(Make.example.plots){
   dev.off()
   
 }
+
+
+########################################################
+########################################################
+# Section : pairwise comparison between Foxa2 positve and negative cells at Day5
+# 
+########################################################
+########################################################
+load(file = paste0(RdataDir, '/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol_dds.Rdata'))
+ggs = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
+
+## select Foxa2 positive and negative cells
+kk = which(design$condition == 's48h_RA_AF'| design$condition == 's48h_RA_GFPp')
+dds1 = dds[,kk]
+
+dds1$condition <- droplevels(dds1$condition)
+dds1 <- estimateDispersions(dds1, fitType = 'parametric')
+plotDispEsts(dds1, ymin = 10^-4, main = 'Foxa2 pos and neg at Day5')
+abline(h = c(10^-3, 10^-2), col = 'darkgray', lwd = 2.0)
+
+vsd <- varianceStabilizingTransformation(dds1, blind = FALSE)
+
+#kk = grep('RA', design$condition)
+pca=plotPCA(vsd, intgroup = c('condition'), returnData = TRUE, ntop = 500)
+pca2save = as.data.frame(pca)
+ggp = ggplot(data=pca2save, aes(PC1, PC2, label = name, color= condition))  + 
+  geom_point(size=3) + 
+  geom_text(hjust = 0.3, nudge_y = 0.4, size=4)
+
+plot(ggp)
+
+#dds = estimateDispersions(dds)
+#plotDispEsts(dds)
+dds1 <- nbinomWaldTest(dds1)
+resultsNames(dds1)
+
+res1 = results(dds1, contrast=c("condition", 's48h_RA_GFPp', 's48h_RA_AF'), alpha = 0.05)
+res1 <- lfcShrink(dds1, coef=2, type="normal")
+
+plotMA(res1)
+
+res1 = as.data.frame(res1)
+gg.signif = rownames(res1)[which(res1$padj < 0.05)]
+
+xx = data.frame(res1[order(res1$pvalue), ])
+xx = xx[which(xx$padj < 0.05), ]
+xx = xx[!is.na(match(rownames(xx), ggs$gene)), ]
+
+cpm = fpm(dds1)
+
+save(dds1, res1, file = paste0(RdataDir, '/RNAseq_Foxa.positive_vs_neg.Day5.Rdata'))

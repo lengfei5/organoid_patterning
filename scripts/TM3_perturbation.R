@@ -23,7 +23,8 @@ source(RNA.QC.functions)
 version.analysis = '_R11601_TM3_20210619'
 
 resDir = paste0("../results/RNAseq_perturbation", version.analysis)
-RdataDir = paste0(resDir, '/Rdata')
+RdataDir = paste0(resDir, '/Rdata/')
+
 if(!dir.exists(resDir)) dir.create(resDir)
 if(!dir.exists(RdataDir)) dir.create(RdataDir)
 
@@ -59,7 +60,6 @@ if(Collect.QCs.stat){
   
   stats = data.frame(stats, stringsAsFactors = FALSE)
   alignment = data.frame(alignment, stringsAsFactors = FALSE)
-  
   
   for(n in 1:nrow(keep))
   {
@@ -107,82 +107,13 @@ if(Collect.QCs.stat){
     
 }
 
-########################################################
-# saturation curve from rseqc
-# the r code from rseqc output
-########################################################
-Sequence.saturation.analysis = FALSE
-if(Sequence.saturation.analysis){
-  rseqc.file = list.files('../Data/R10724_rnaseq/saturation_rseqc', pattern = 'junctionSaturation_plot.r', 
-                          full.names = TRUE)
-  library(stringr)
-  
-  yy = c()
-  for(n in 1:length(rseqc.file))
-  {
-    cat(n, '\n')
-    xx = read.delim(rseqc.file[n])
-    xx = xx[grep('y=', xx[, 1 ]), ]
-    #xx = gsub('y=c', '', xx)
-    # Get the parenthesis and what is inside
-    k <- str_extract_all(xx, "\\([^()]+\\)")[[1]]
-    # Remove parenthesis
-    k <- substring(k, 2, nchar(k)-1)
-    #k = gsub('["]', '', k)
-    k = as.numeric(unlist(strsplit(as.character(k), ',')))
-    yy = rbind(yy, k)
-  }
-  
-  rownames(yy) = gsub('_junction.junctionSaturation_plot.r', '', basename(rseqc.file))
-  
-  
-  pdfname = paste0(resDir, '/saturation_curve_rseqc_knownJunctions.pdf')
-  pdf(pdfname, width = 16, height = 8)
-  par(cex = 1.0, las = 1,  mar = c(3,3,2,0.8)+0.1, mgp = c(1.6,0.5,0), tcl = -0.3)
-  
-  yy = yy[which(rownames(yy) != '136150_TTAACCTTCGAGGCCAGACA_HNF3KDSXY_3_20201223B_20201223'), ]
-  span = 0.75
-  # saturation curve with nb of peaks
-  xlims = c(0, 120)
-  ylims = range(yy/10^3)
-  frac = c(5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100)/100
-  
-  library(RColorBrewer)
-  cols = colorRampPalette( rev(brewer.pal(9, "RdBu")) )(nrow(yy))
-  plot(0, 0, xlim = xlims, ylim = ylims, type ='n', xlab = 'nb of TOTAL reads (Million)', 
-       ylab = 'nb of known junctions (K)', main = paste0('saturation curve from rseqc'))
-  abline(v = c(20, 30, 40, 50), col = 'blue', lwd = 1.0, lty =2)
-  
-  #legend('topleft', legend = sample.uniq, col = cols, bty = 'n', lwd = 2.0, cex = 0.7)
-  
-  for(n in 1:nrow(yy))
-  {
-    # n = 1
-    cat(n, '\n')
-    
-    kk = which(design$sample == rownames(yy)[n])
-    
-    satt = data.frame(nb.reads = design$total.reads[kk]*frac/10^6, nb.junctions = yy[n, ]/10^3)
-    
-    points(satt[,1], satt[,2], type= 'p', col = cols[n])
-    loessMod <- loess(nb.junctions ~ nb.reads, data=satt, span=span)
-    smoothed <- predict(loessMod)
-    lines(smoothed, x=satt$nb.reads, col=cols[n], lwd = 3.0)
-    
-    text(satt[nrow(satt), 1], smoothed[length(smoothed)], labels = paste0(design$fileName[kk], '_', design$sampleID[kk]), 
-         cex = 0.7, pos = 4, offset = 0.2)
-    
-  }
-  
-  dev.off()
-  
-}
-
 ##################################################
 ## Import UMI count table
 ##################################################
 source(RNA.functions)
 source(RNA.QC.functions)
+
+Import.onlyUMI = TRUE
 
 design = readRDS(file = paste0(RdataDir, 'sampleInfo_QC.stats.rds'))
 
@@ -197,41 +128,45 @@ aa1 <- list.files(path = Dir_umi, pattern = "*umiDedup.txt", full.names = TRUE)
 aa1 = merge.countTables.htseq(aa1)
 colnames(aa1)[-1] = paste0(colnames(aa1)[-1], ".UMI")
 
-aa2 <- list.files(path = Dir_read, pattern = "*.txt", full.names = TRUE)
-aa2 = merge.countTables.htseq(aa2)
-colnames(aa2)[-1] = paste0(colnames(aa2)[-1], ".readCount")
-
-aa <- Reduce(function(dtf1, dtf2) merge(dtf1, dtf2, by = "gene", all = TRUE), list(aa1, aa2))
-
-## compare read counts vs. umi counts
-source(RNA.functions)
-Compare.UMI.vs.readCounts = TRUE
-if(Compare.UMI.vs.readCounts){
+if(!Import.onlyUMI){
+  aa2 <- list.files(path = Dir_read, pattern = "*.txt", full.names = TRUE)
+  aa2 = merge.countTables.htseq(aa2)
+  colnames(aa2)[-1] = paste0(colnames(aa2)[-1], ".readCount")
+  
+  aa <- Reduce(function(dtf1, dtf2) merge(dtf1, dtf2, by = "gene", all = TRUE), list(aa1, aa2))
+  
+  ## compare read counts vs. umi counts
+  source(RNA.functions)
+  Compare.UMI.vs.readCounts = TRUE
+  if(Compare.UMI.vs.readCounts){
     pdfname = paste0(resDir, "/readCounts_vs_UMI_normalized", version.analysis, ".pdf")
     pdf(pdfname, width = 10, height = 8)
-
+    
     compare.readCount.UMI(design[, c(1:3)], aa, normalized = FALSE)
-
+    
     dev.off()
+  }
+  
+}else{
+  aa = aa1
 }
 
+# if(Counts.to.Use == 'readCounts'){
+#    all = process.countTable(all=aa, design = design, special.column = ".readCount", ensToGeneSymbol = FALSE)
+#  }else{
+#    if(Counts.to.Use == "UMI"){
+#      all = process.countTable(all=aa, design = design, special.column = "UMI", ensToGeneSymbol = FALSE)
+#    }else{
+#      cat("Error : no counts found for ", Counts.to.Use, "for miRNAs \n")
+#    }
+#  }
 
-if(Counts.to.Use == 'readCounts'){
-   all = process.countTable(all=aa, design = design, special.column = ".readCount", ensToGeneSymbol = TRUE)
- }else{
-   if(Counts.to.Use == "UMI"){
-     all = process.countTable(all=aa, design = design, special.column = "UMI", ensToGeneSymbol = TRUE)
-   }else{
-     cat("Error : no counts found for ", Counts.to.Use, "for miRNAs \n")
-   }
- }
 
-
-all = process.countTable(all=all, design = design[,c(1, 14)], special.column = NULL, ensToGeneSymbol = FALSE)
+all = process.countTable(all=aa, design = design[,c(1, 14)], special.column = NULL, ensToGeneSymbol = FALSE)
 
 all = all[grep('^__', all$gene, invert = TRUE), ]
 
-save(design, all, file=paste0(RdataDir, '/Design_Raw_readCounts', Counts.to.Use,  version.analysis, '.Rdata'))
+save(design, all, file=paste0(RdataDir, 'Design_Raw_readCounts', Counts.to.Use,  version.analysis, '.Rdata'))
 
 ########################################################
 ########################################################
@@ -259,33 +194,13 @@ if(Select.proteinCoding.genes){
     annot = annot[which(annot$Gene.type == 'protein_coding'), ]
     annot = annot[!is.na(match(annot$Chromosome.scaffold.name, as.character(c(1:19, 'X', 'Y')))), ]
     
-    gg.uniq = unique(annot$Gene.stable.ID)
-    mm = match(gg.uniq, annot$Gene.stable.ID)
-    annots = annot
+    mm = match(all$gene, annot$Gene.stable.ID)
+    cat(length(which(!is.na(mm))), ' protein coding genes in the count table \n')
     
-    genes = data.frame(gg.uniq, annots$Gene.name[mm], gene.types = annots$Gene.type[mm], stringsAsFactors = FALSE)
-    genes = genes[which(!is.na(genes[, 3])), ]
-    
-    #genes = genes[match(unique(genes[,3]), genes[,3]), ]
-    colnames(genes) = c('ensID', 'gene', 'genetype')
-    genes$length = annot$Transcript.length..including.UTRs.and.CDS.[match(genes$ensID, annots$Gene.stable.ID)]
-    genes$nb.transcript = annot$Transcript.count[match(genes$ensID, annot$Gene.stable.ID)]
-    
-    for(n in 1:nrow(genes))
-    #for(n in 1:200)
-    {
-      # n = 1
-      if(n%%100 ==0) cat(n, '\n')
-      if(genes$nb.transcript[n] > 1){
-        genes$length[n] = median(annots$Transcript.length..including.UTRs.and.CDS.[which(annots$Gene.stable.ID == genes$ensID[n])])
-      }
-    }
-    
-    saveRDS(genes, file = paste0(RdataDir, 'mm10_ens_BioMart_GRCm38.p6_ensID.geneSymbol.length.rds'))
-    
-    all = all[!is.na(match(all$gene, annot$Gene.stable.ID)), ]
+    all = all[!is.na(mm), ]
     
     rownames(all) = all$gene
+    
     all$gene = annot$Gene.name[match(all$gene, annot$Gene.stable.ID)]
     
     all = all[!is.na(all$gene), ]
@@ -310,7 +225,7 @@ if(Add.more.sample.details){
   
 }
 
-save(design, all, file = paste0(RdataDir, '/design.detailed_RawUMI_', Counts.to.Use, version.analysis, '.Rdata'))
+save(design, all, file = paste0(RdataDir, 'design.detailed_RawUMI_', Counts.to.Use, version.analysis, '.Rdata'))
 
 ##########################################
 # QCs of replicates and conditions
@@ -357,7 +272,7 @@ library(patchwork)
 Counts.to.Use = 'UMI'
 
 load(file = paste0(RdataDir, '/design.detailed_RawUMI_', Counts.to.Use, version.analysis, '.Rdata'))
-genes = readRDS(file = paste0(RdataDir, 'mm10_ens_BioMart_GRCm38.p6_ensID.geneSymbol.length.rds'))
+genes = readRDS(file = paste0(RdataDir, '/mm10_ens_BioMart_GRCm38.p6_ensID.geneSymbol.length.rds'))
 ggs = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
 
 sels = which(design$SampleID != '161040')
@@ -372,11 +287,11 @@ colnames(raw) = paste0(design.matrix$condition.replicate, '_', design.matrix$cel
 
 dds <- DESeqDataSetFromMatrix(raw, DataFrame(design.matrix), design = ~ conds)
 
-
 ss = rowSums(counts(dds))
 
 hist(log2(ss), breaks = 200, main = 'log2(sum of reads for each gene)')
 
+length(which(ss > quantile(ss, probs = 0.6)))
 dd0 = dds[ss > quantile(ss, probs = 0.6) , ]
 dd0 = estimateSizeFactors(dd0)
 sizefactors.UQ = sizeFactors(dd0)
@@ -404,9 +319,9 @@ fpm = fpm(dds, robust = TRUE)
 #save(fpm, design, file = paste0(tfDir, '/RNAseq_fpm_fitered.cutoff.', cutoff.gene, '.Rdata'))
 vsd <- varianceStabilizingTransformation(dds, blind = FALSE)
 
-pca=plotPCA(vsd, intgroup = c('condition', 'cells'), returnData = TRUE, ntop = 500)
-#print(pca)d
+pca=plotPCA(vsd, intgroup = c('condition', 'cells'), returnData = TRUE, ntop = 1000)
 pca2save = as.data.frame(pca)
+
 ggp = ggplot(data=pca2save, aes(PC1, PC2, label = name, color= condition, shape = cells))  + 
   geom_point(size=4) + 
   geom_text(hjust = 0.2, nudge_y = 0.25, size=3)
@@ -427,85 +342,11 @@ plot(ggp) + ggsave(paste0(resDir, "/PCAplot_withoutControls_UQ.norm_ntop500.pdf"
 ##########################################
 Compare.with.pooledCells.timeSeries.sortedDay5 = FALSE
 if(Compare.with.pooledCells.timeSeries.sortedDay5){
-  fpm = fpm(dds, robust = TRUE)
-  cpm = log2(fpm + 2^-4)
-  cc = paste0(design.matrix$condition, '_', design.matrix$cells)
+  source('Functions_RNAseqData.R')
+  Compare.TM3.and.RNAseq.timeSeries.sortedDay5()
   
-  # load samples with pooled negative and positive cells
-  #load(file = paste0(RdataDir, '/TM3_positive.negative.pooled_', Counts.to.Use, version.analysis, '.Rdata'))
-  load(file = paste0(RdataDir, '/TM3_pooled.positive.negative_', Counts.to.Use, version.analysis, '.Rdata'))
-  cc.pools = paste0(cc.pools, '_pooled')
-  pools = log2(pools + 2^-4)
-  colnames(pools) = paste0(colnames(pools), '.pooled')
+  Compare.TM3.sortedDay3.RNAseq.sortedDay5()
   
-  cpm = cbind(cpm, pools)
-  cc = c(cc, cc.pools)
-  
-  #load(file = paste0('../results/Rdata/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol_dds.Rdata'))
-  #design0 = design
-  #dds0 = dds
-  #save(dds0, design0, file = paste0('../results/Rdata/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol_dds_backup.Rdata'))
-  load(file = paste0('../results/Rdata/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol_dds_backup.Rdata')) 
-  fpm0 = fpm(dds0)
-  
-  kk = c(grep('RA', design0$condition), which(design0$condition=='12h'))
-  #kk = c(1:nrow(design0))
-  
-  cc0 = as.character(design0$condition[kk])
-  xx = log2(fpm0[, kk] + 2^-4) 
-  
-  bc = c(rep(1, length(cc)), rep(0, length(cc0)))
-  cc[which(cc == 'RA_pooled')] = '12h_RA'
-  cc0[which(cc0 == '12h')] = 'N2B27_pooled'
-  cc = c(cc, as.character(cc0))
-  mm = match(rownames(cpm), rownames(xx))
-  
-  cpm = cbind(cpm[which(!is.na(mm)), ], xx[mm[which(!is.na(mm))], ])
-  
-  jj = c(grep('N2B27|pos|neg|pooled', cc, invert = TRUE), grep("RA_Foxa2.pos|RA_Foxa2.neg|N2B27_pooled", cc))
-  
-  cc = cc[jj]
-  cpm = cpm[,jj]
-  bc = bc[jj]
-  
-  require("sva")
-  bc = as.factor(bc)
-  mod = model.matrix(~ as.factor(conds), data = data.frame(conds = cc))
-  
-  yy = ComBat(dat=cpm, batch=bc, mod=mod, par.prior=TRUE, ref.batch = 0)    
-  
-  #yy = cpm
-  ntop = 5000
-  xx = as.matrix(yy)
-  vars = apply(xx, 1, var)
-  xx = xx[order(-vars), ]
-  xx = xx[1:ntop, ]
-  #par(mfrow = c(2,2))
-  #pairs(xx[, c(1:4)])
-  #plot.pair.comparison.plot(xx[, c(1:4)], linear.scale = FALSE)
-  #plot.pair.comparison.plot(xx[, c(9:16)], linear.scale = FALSE)
-  
-  res.pca <- prcomp(t(xx), scale = TRUE)
-  pcas = data.frame(res.pca$x[, c(1:2)], condition = cc)
-  pcas = data.frame(pcas, name = rownames(pcas))
-  
-  ggplot(data=pcas, 
-         aes(PC1, PC2, color= condition, label = name))  + 
-    geom_point(size=3) + 
-    geom_text(hjust = 1, nudge_y = 0.5, size=3) + 
-    ggsave(paste0(resDir, "/PCAplot_ElenaRNAseq_pooledRA.pos.neg.pdf"), width=18, height = 12)
-  
-  #plot(res.pca$x[, c(1,2)])
-  # fviz_pca_ind(res.pca,
-  #              col.ind = "cos2", # Color by the quality of representation
-  #              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
-  #              repel = TRUE     # Avoid text overlapping
-  #)
-  
-  # comapre the foxa2 positive and negative cells for RA in day3 and day5
-  xx1 = apply(cpm[, grep('s48h_RA_GFPp', colnames(cpm))], 1, median)- apply(cpm[ ,grep('s48h_RA_AF', colnames(cpm))], 1, median) 
-  xx2 = apply(cpm[, grep('RA_[[:digit:]]_Foxa2.pos', colnames(cpm))], 1, median) - 
-    apply(cpm[, grep('RA_[[:digit:]]_Foxa2.neg', colnames(cpm))], 1, median)
   
   
 }
@@ -544,7 +385,7 @@ if(Calculate.pairwise.comparisons){
     for(n in 1:length(cc))
     #for(n in 1:2)
     {
-      # n = 3
+      # n = 1
       cat(as.character(cc[n]), '\n')
       if(cc[n] == 'RA'){
         kk = which(design.matrix$condition == cc[n])
@@ -563,6 +404,9 @@ if(Calculate.pairwise.comparisons){
       if(cc[n] == 'RA'){
         res1 = results(dds1, contrast=c("conds", 'RA_Foxa2.pos', 'RA_Foxa2.neg'), alpha = 0.05)
         res1 <- lfcShrink(dds1, coef=2, type="normal")
+        
+        plotMA(res1)
+        
         res1 = as.data.frame(res1)
         gg.signif = rownames(res1)[which(res1$padj < 0.05)]
         
@@ -648,14 +492,23 @@ if(Calculate.pairwise.comparisons){
    
 }
 
+########################################################
+########################################################
+# Section : plotting results
+# 1) pairwise comaprison between RA positive and RA negative
+# 2) # first check the normalized signals in positive and negative cells across conditions  
+########################################################
+########################################################
+res = readRDS(file = paste0(RdataDir, '/TM3_res_pairwiseComparisons.rds'))
+
+examples = c('Lef1', 'Wnt3', 'Wnt3a', 'Wnt4', 'Wnt5b', 'Wnt6', 'Wnt7a', 'Wnt7b', 'Wnt8a', 'Dkk1', 'Dkk2', 'Dkk3', 'Tcf15', 'Tcf19', 
+             "Wnt1", 'Sost', 'Sfrp5', 'Lypd6')
 
 
-########################################################
-########################################################
-# Section : 
-# first check the normalized signals in positive and negative cells across conditions  
-########################################################
-########################################################
+
+##########################################
+# plot individual examples
+##########################################
 ggs = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
 examples = ggs$gene
 

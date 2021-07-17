@@ -89,6 +89,39 @@ Manual.curate.geneList.signalingPathways = function()
   #write.csv(ggs, file = paste0(resDir, '/genes_signalingPathways.csv'), row.names = FALSE)
 }
 
+Save.median.transcript.lengths.for.each.gene = function()
+{
+  annot = read.delim(paste0('/Volumes/groups/tanaka/People/current/jiwang/Genomes/mouse/mm10_ens/', 
+                            'ens_BioMart_GRCm38.p6.txt'), sep = '\t', header = TRUE)
+  
+  annot = annot[which(annot$Gene.type == 'protein_coding'), ]
+  annot = annot[!is.na(match(annot$Chromosome.scaffold.name, as.character(c(1:19, 'X', 'Y')))), ]
+  
+  gg.uniq = unique(annot$Gene.stable.ID)
+  mm = match(gg.uniq, annot$Gene.stable.ID)
+  annots = annot
+  
+  genes = data.frame(gg.uniq, annots$Gene.name[mm], gene.types = annots$Gene.type[mm], stringsAsFactors = FALSE)
+  genes = genes[which(!is.na(genes[, 3])), ]
+  
+  #genes = genes[match(unique(genes[,3]), genes[,3]), ]
+  colnames(genes) = c('ensID', 'gene', 'genetype')
+  genes$length = annot$Transcript.length..including.UTRs.and.CDS.[match(genes$ensID, annots$Gene.stable.ID)]
+  genes$nb.transcript = annot$Transcript.count[match(genes$ensID, annot$Gene.stable.ID)]
+  
+  for(n in 1:nrow(genes))
+    #for(n in 1:200)
+  {
+    # n = 1
+    if(n%%100 ==0) cat(n, '\n')
+    if(genes$nb.transcript[n] > 1){
+      genes$length[n] = median(annots$Transcript.length..including.UTRs.and.CDS.[which(annots$Gene.stable.ID == genes$ensID[n])])
+    }
+  }
+  
+  saveRDS(genes, file = paste0(RdataDir, 'mm10_ens_BioMart_GRCm38.p6_ensID.geneSymbol.length.rds'))
+  
+}
 
 ########################################################
 ########################################################
@@ -180,6 +213,198 @@ Test.pooling.TM3.positive.negative.cells = function()
       k.neg = which(design.matrix$condition.rep == colnames(ratios)[j] & design.matrix$cells == 'Foxa2.neg')
       ratios[n, j] = fpm[n, k.pos] - fpm[n, k.neg]
     }
+    
+  }
+  
+}
+
+##########################################
+# Compare the TM3 data and Elena's RNA-seq data 
+##########################################
+Compare.TM3.and.RNAseq.timeSeries.sortedDay5 = function()
+{
+  fpm = fpm(dds, robust = TRUE)
+  cpm = log2(fpm + 2^-4)
+  cc = paste0(design.matrix$condition, '_', design.matrix$cells)
+  
+  # load samples with pooled negative and positive cells
+  #load(file = paste0(RdataDir, '/TM3_positive.negative.pooled_', Counts.to.Use, version.analysis, '.Rdata'))
+  load(file = paste0(RdataDir, '/TM3_pooled.positive.negative_', Counts.to.Use, version.analysis, '.Rdata'))
+  cc.pools = paste0(cc.pools, '_pooled')
+  pools = log2(pools + 2^-4)
+  colnames(pools) = paste0(colnames(pools), '.pooled')
+  
+  cpm = cbind(cpm, pools)
+  cc = c(cc, cc.pools)
+  
+  #load(file = paste0('../results/Rdata/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol_dds.Rdata'))
+  #design0 = design
+  #dds0 = dds
+  #save(dds0, design0, file = paste0('../results/Rdata/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol_dds_backup.Rdata'))
+  load(file = paste0('../results/Rdata/RNAseq_timeSeries_sortedDay5_count_design_geneSymbol_dds_backup.Rdata')) 
+  fpm0 = fpm(dds0)
+  
+  kk = c(grep('RA', design0$condition), which(design0$condition=='12h'))
+  #kk = c(1:nrow(design0))
+  
+  cc0 = as.character(design0$condition[kk])
+  xx = log2(fpm0[, kk] + 2^-4) 
+  
+  bc = c(rep(1, length(cc)), rep(0, length(cc0)))
+  cc[which(cc == 'RA_pooled')] = '12h_RA'
+  cc0[which(cc0 == '12h')] = 'N2B27_pooled'
+  cc = c(cc, as.character(cc0))
+  mm = match(rownames(cpm), rownames(xx))
+  
+  cpm = cbind(cpm[which(!is.na(mm)), ], xx[mm[which(!is.na(mm))], ])
+  
+  jj = c(grep('N2B27|pos|neg|pooled', cc, invert = TRUE), grep("RA_Foxa2.pos|RA_Foxa2.neg|N2B27_pooled", cc))
+  
+  cc = cc[jj]
+  cpm = cpm[,jj]
+  bc = bc[jj]
+  
+  require("sva")
+  bc = as.factor(bc)
+  mod = model.matrix(~ as.factor(conds), data = data.frame(conds = cc))
+  
+  yy = ComBat(dat=cpm, batch=bc, mod=mod, par.prior=TRUE, ref.batch = 0)    
+  
+  #yy = cpm
+  ntop = 5000
+  xx = as.matrix(yy)
+  vars = apply(xx, 1, var)
+  xx = xx[order(-vars), ]
+  xx = xx[1:ntop, ]
+  #par(mfrow = c(2,2))
+  #pairs(xx[, c(1:4)])
+  #plot.pair.comparison.plot(xx[, c(1:4)], linear.scale = FALSE)
+  #plot.pair.comparison.plot(xx[, c(9:16)], linear.scale = FALSE)
+  
+  res.pca <- prcomp(t(xx), scale = TRUE)
+  pcas = data.frame(res.pca$x[, c(1:2)], condition = cc)
+  pcas = data.frame(pcas, name = rownames(pcas))
+  
+  ggplot(data=pcas, 
+         aes(PC1, PC2, color= condition, label = name))  + 
+    geom_point(size=3) + 
+    geom_text(hjust = 1, nudge_y = 0.5, size=3) + 
+    ggsave(paste0(resDir, "/PCAplot_ElenaRNAseq_pooledRA.pos.neg.pdf"), width=18, height = 12)
+  
+  #plot(res.pca$x[, c(1,2)])
+  # fviz_pca_ind(res.pca,
+  #              col.ind = "cos2", # Color by the quality of representation
+  #              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+  #              repel = TRUE     # Avoid text overlapping
+  #)
+  
+  # comapre the foxa2 positive and negative cells for RA in day3 and day5
+  xx1 = apply(cpm[, grep('s48h_RA_GFPp', colnames(cpm))], 1, median)- apply(cpm[ ,grep('s48h_RA_AF', colnames(cpm))], 1, median) 
+  xx2 = apply(cpm[, grep('RA_[[:digit:]]_Foxa2.pos', colnames(cpm))], 1, median) - 
+    apply(cpm[, grep('RA_[[:digit:]]_Foxa2.neg', colnames(cpm))], 1, median)
+  
+}
+
+
+Compare.TM3.sortedDay3.RNAseq.sortedDay5 = function()
+{
+  kk = which(dds$conds == 'RA_Foxa2.pos' | dds$conds == 'RA_Foxa2.neg')
+  ddx = dds[,kk]
+  ddx$conds <- droplevels(ddx$conds)
+  
+  load(file = paste0('../results/Rdata/RNAseq_Foxa.positive_vs_neg.Day5.Rdata'))
+  
+  gene.sels = unique(intersect(rownames(ddx), rownames(dds1)))
+  ddx = ddx[match(gene.sels, rownames(ddx)), ]
+  dds1 = dds1[match(gene.sels, rownames(dds1))]
+  
+  raw = cbind(counts(ddx), counts(dds1))
+  cc = c(as.character(ddx$conds), as.character(dds1$condition))
+  
+  ddx <- DESeqDataSetFromMatrix(raw, DataFrame(condition = cc), design = ~ condition)
+  ddx = estimateSizeFactors(ddx)
+  vsd <- varianceStabilizingTransformation(ddx, blind = FALSE)
+  
+  pca=plotPCA(vsd, intgroup = c('condition'), returnData = TRUE, ntop = 500)
+  pca2save = as.data.frame(pca)
+  ggp = ggplot(data=pca2save, aes(PC1, PC2, label = name, color= condition))  + 
+    geom_point(size=4) + 
+    geom_text(hjust = 0.2, nudge_y = 0.25, size=3)
+  
+  plot(ggp)
+  
+}
+
+########################################################
+# saturation curve from rseqc
+# the r code from rseqc output
+########################################################
+sequencing.saturation.analysis = function()
+{
+  Sequence.saturation.analysis = FALSE
+  if(Sequence.saturation.analysis){
+    rseqc.file = list.files('../Data/R10724_rnaseq/saturation_rseqc', pattern = 'junctionSaturation_plot.r', 
+                            full.names = TRUE)
+    library(stringr)
+    
+    yy = c()
+    for(n in 1:length(rseqc.file))
+    {
+      cat(n, '\n')
+      xx = read.delim(rseqc.file[n])
+      xx = xx[grep('y=', xx[, 1 ]), ]
+      #xx = gsub('y=c', '', xx)
+      # Get the parenthesis and what is inside
+      k <- str_extract_all(xx, "\\([^()]+\\)")[[1]]
+      # Remove parenthesis
+      k <- substring(k, 2, nchar(k)-1)
+      #k = gsub('["]', '', k)
+      k = as.numeric(unlist(strsplit(as.character(k), ',')))
+      yy = rbind(yy, k)
+    }
+    
+    rownames(yy) = gsub('_junction.junctionSaturation_plot.r', '', basename(rseqc.file))
+    
+    
+    pdfname = paste0(resDir, '/saturation_curve_rseqc_knownJunctions.pdf')
+    pdf(pdfname, width = 16, height = 8)
+    par(cex = 1.0, las = 1,  mar = c(3,3,2,0.8)+0.1, mgp = c(1.6,0.5,0), tcl = -0.3)
+    
+    yy = yy[which(rownames(yy) != '136150_TTAACCTTCGAGGCCAGACA_HNF3KDSXY_3_20201223B_20201223'), ]
+    span = 0.75
+    # saturation curve with nb of peaks
+    xlims = c(0, 120)
+    ylims = range(yy/10^3)
+    frac = c(5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100)/100
+    
+    library(RColorBrewer)
+    cols = colorRampPalette( rev(brewer.pal(9, "RdBu")) )(nrow(yy))
+    plot(0, 0, xlim = xlims, ylim = ylims, type ='n', xlab = 'nb of TOTAL reads (Million)', 
+         ylab = 'nb of known junctions (K)', main = paste0('saturation curve from rseqc'))
+    abline(v = c(20, 30, 40, 50), col = 'blue', lwd = 1.0, lty =2)
+    
+    #legend('topleft', legend = sample.uniq, col = cols, bty = 'n', lwd = 2.0, cex = 0.7)
+    
+    for(n in 1:nrow(yy))
+    {
+      # n = 1
+      cat(n, '\n')
+      
+      kk = which(design$sample == rownames(yy)[n])
+      
+      satt = data.frame(nb.reads = design$total.reads[kk]*frac/10^6, nb.junctions = yy[n, ]/10^3)
+      
+      points(satt[,1], satt[,2], type= 'p', col = cols[n])
+      loessMod <- loess(nb.junctions ~ nb.reads, data=satt, span=span)
+      smoothed <- predict(loessMod)
+      lines(smoothed, x=satt$nb.reads, col=cols[n], lwd = 3.0)
+      
+      text(satt[nrow(satt), 1], smoothed[length(smoothed)], labels = paste0(design$fileName[kk], '_', design$sampleID[kk]), 
+           cex = 0.7, pos = 4, offset = 0.2)
+      
+    }
+    
+    dev.off()
     
   }
   
