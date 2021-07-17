@@ -86,6 +86,14 @@ Manual.curate.geneList.signalingPathways = function()
   
   saveRDS(ggs, file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
   
+  spg = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
+  spg = rbind(c('Olig2', NA), spg)
+  spg = rbind(spg, c('Shh', 'SHH'))
+  spg = rbind(spg, c('Runx1', 'BMP'))
+  
+  spg = spg[match(unique(spg$gene), spg$gene), ]
+  save(spg, file = paste0('../results/Rdata/curated_signaling.pathways_gene.list.rds'))
+  
   #write.csv(ggs, file = paste0(resDir, '/genes_signalingPathways.csv'), row.names = FALSE)
 }
 

@@ -263,13 +263,17 @@ if(QC.for.cpm){
 # 
 ########################################################
 ########################################################
+require(DESeq2)
 require(ggplot2)
 library(ggrepel)
-require(DESeq2)
 require(gridExtra)
 library(dplyr)
 library(patchwork)
 require(pheatmap)
+library(org.Mm.eg.db)
+library(enrichplot)
+library(clusterProfiler)
+library(stringr)
 
 Counts.to.Use = 'UMI'
 
@@ -390,9 +394,12 @@ if(Compare.RA.positve.negative){
   res1 = as.data.frame(res1)
   gg.signif = rownames(res1)[which(res1$padj < 0.05)]
   
+  ##########################################
+  # ## visualize global DE genes 
+  #  ## GO enrich analysis for upregulated and downregulated genes
+  ##########################################
   cpm = fpm(dds1)
   cpm = cpm[, c(grep('pos', colnames(cpm)), grep('neg', colnames(cpm)))]
-  
   df <- data.frame(cond = colnames(cpm), sorted = c(rep('Foxa2.pos', 3), rep('Foxa2.neg', 3)))
   rownames(df) = colnames(cpm)
   
@@ -400,21 +407,51 @@ if(Compare.RA.positve.negative){
            cluster_cols=FALSE, na_col = 'gray',  annotation_col = df, gaps_col = c(3),
            filename = paste0(resDir, '/TM3_RAtreatment_DEgenes_Day3.pdf'), width = 10, height = 8)
   
+  xx = data.frame(res1[order(res1$pvalue), ])
   
+ 
+  bgs = rownames(dds1)
+  bgs.df <- bitr(bgs, fromType = "SYMBOL",
+                 toType = c("ENSEMBL", "ENTREZID"),
+                 OrgDb = org.Mm.eg.db)
   
+  gg.signif = rownames(res1)[which(res1$padj < 0.1 & res1$log2FoldChange<0)]
+  cat(length(gg.signif), ' significant genes for enrichGO \n')
   
-  # check the siganificant ones and overlapping with SP genes
+  gene.df <- bitr(gg.signif, fromType = "SYMBOL", toType = c("ENSEMBL", "ENTREZID"), OrgDb = org.Mm.eg.db)
+  ego <-  enrichGO(gene         = gene.df$ENSEMBL,
+                   universe     = bgs.df$ENSEMBL,
+                   #OrgDb         = org.Hs.eg.db,
+                   OrgDb         = org.Mm.eg.db,
+                   keyType       = 'ENSEMBL',
+                   ont           = "BP",
+                   pAdjustMethod = "BH",
+                   pvalueCutoff  = 0.01,
+                   qvalueCutoff  = 0.05, readable = TRUE)
+  
+  p0 = barplot(ego, showCategory=50, main = 'RA') + 
+    ggsave(paste0(resDir, "/TM3_RA.treatment_positive.vs.negative.DEgenes.downregulated_top50.pdf"), width=12, height = 12)
+  ii = grep('pathway', ego[, 2])
+  xx = ego[ii, ]
+  par(cex = 1.0, las = 1, mgp = c(3,1,0), mar = c(3, 30,2,0.2), tcl = -0.3)
+  barplot(xx$Count,  names.arg = xx$Description, horiz = TRUE, beside = TRUE, las=2)
+  
+  ##########################################
+  # plot the fold-changes for Wnt, FGF, BMP siganling pathways
+  ##########################################
+  
   xx = data.frame(res1[order(res1$pvalue), ])
   xx = xx[which(xx$padj < 0.05), ]
   xx = xx[!is.na(match(rownames(xx), ggs$gene)), ]
   
-  
-  colnames(res1) = paste0(colnames(res1), '_RA.pos_vs_RA.neg')
-  
+  #colnames(res1) = paste0(colnames(res1), '_RA.pos_vs_RA.neg')
   #res = readRDS(file = paste0(RdataDir, '/TM3_res_pairwiseComparisons.rds'))
+  
+  
   
   examples = c('Lef1', 'Wnt3', 'Wnt3a', 'Wnt4', 'Wnt5b', 'Wnt6', 'Wnt7a', 'Wnt7b', 'Wnt8a', 'Dkk1', 'Dkk2', 'Dkk3', 'Tcf15', 'Tcf19', 
                "Wnt1", 'Sost', 'Sfrp5', 'Lypd6')
+  
   
   
 }
@@ -424,11 +461,6 @@ if(Calculate.pairwise.comparisons){
   
   Make.pairwise.comparisons = FALSE
   if(Make.pairwise.comparisons){
-    library(org.Mm.eg.db)
-    library(enrichplot)
-    library(clusterProfiler)
-    library(ggplot2)
-    library(stringr)
     
     cc = unique(design.matrix$condition)
     cc = cc[which(cc != "N2B27")]
