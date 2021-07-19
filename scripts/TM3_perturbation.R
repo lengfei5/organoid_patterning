@@ -489,108 +489,123 @@ if(Compare.RA.positve.negative){
 
 ########################################################
 ########################################################
-# Section : Pairwise comparisons
-# Here we first identify significantly different genes in RA positive and negative genes
-# perturbed-positive vs RA-positive; perturbed-negative vs RA-negative
+# Section : Pairwise comparisons to identify potential interactions 
+# Here we compare 
+# -perturbed-positive vs RA-positive
+# -perturbed-negative vs RA-negative
+# -perturbed-pooled vs RA-pooled
 ########################################################
 ########################################################
 Calculate.pairwise.comparisons = FALSE
+Compare.pooled.samples = TRUE
+
 if(Calculate.pairwise.comparisons){
-  
-  Make.pairwise.comparisons = FALSE
-  if(Make.pairwise.comparisons){
-    
-    cc = unique(design.matrix$condition)
-    cc = cc[which(cc != "N2B27")]
-    
-    bgs = rownames(dds)
-    bgs.df <- bitr(bgs, fromType = "SYMBOL",
-                   toType = c("ENSEMBL", "ENTREZID"),
-                   OrgDb = org.Mm.eg.db)
-    
-    pdfname = paste0(resDir, '/TM3_pairwiseComparisons_enrichGO_pathways.pdf')
-    pdf(pdfname,  width = 18, height = 16)
-    #par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
-    
-    for(n in 1:length(cc))
-    #for(n in 1:2)
-    {
-      # n = 1
-      cat(as.character(cc[n]), '\n')
-      if(cc[n] == 'RA'){
-        kk = which(design.matrix$condition == cc[n])
-      }else{
-        kk = which(design.matrix$condition == cc[n] | design.matrix$condition == 'RA')
-      }
-      dds1 = dds[, kk]
-      dds1$conds <- droplevels(dds1$conds)
-      dds1 <- estimateDispersions(dds1, fitType = 'parametric')
-      plotDispEsts(dds1, ymin = 10^-3, main = cc[n])
-      #dds = estimateDispersions(dds)
-      #plotDispEsts(dds)
-      dds1 <- nbinomWaldTest(dds1)
-      resultsNames(dds1)  
-      
-      if(cc[n] == 'RA'){
-        res1 = results(dds1, contrast=c("conds", 'RA_Foxa2.pos', 'RA_Foxa2.neg'), alpha = 0.05)
-        res1 <- lfcShrink(dds1, coef=2, type="normal")
-        
-        plotMA(res1)
-        
-        res1 = as.data.frame(res1)
-        gg.signif = rownames(res1)[which(res1$padj < 0.05)]
-        
-        colnames(res1) = paste0(colnames(res1), '_RA.pos_vs_RA.neg')
-        
-      }else{
-        res1 = results(dds1, contrast=c("conds", paste0(cc[n], '_Foxa2.pos'), 'RA_Foxa2.pos'), alpha = 0.05)
-        res1 <- lfcShrink(dds1, contrast=c("conds", paste0(cc[n], '_Foxa2.pos'), 'RA_Foxa2.pos'), type="normal")
-        res1 = as.data.frame(res1)
-        
-        res2 = results(dds1, contrast=c("conds", paste0(cc[n], '_Foxa2.neg'), 'RA_Foxa2.neg'), alpha = 0.05)
-        res2 <- lfcShrink(dds1, type="normal", contrast=c("conds", paste0(cc[n], '_Foxa2.neg'), 'RA_Foxa2.neg'))
-        res2 = as.data.frame(res2)
-        
-        gg.signif = rownames(res1)[which(res1$padj < 0.1 | res2$padj < 0.1)]
-        cat(length(gg.signif), ' significant genes for enrichGO \n')
-        
-        gene.df <- bitr(gg.signif, fromType = "SYMBOL", toType = c("ENSEMBL", "ENTREZID"), OrgDb = org.Mm.eg.db)
-        ego <-  enrichGO(gene         = gene.df$ENSEMBL,
-                         universe     = bgs.df$ENSEMBL,
-                         #OrgDb         = org.Hs.eg.db,
-                         OrgDb         = org.Mm.eg.db,
-                         keyType       = 'ENSEMBL',
-                         ont           = "BP",
-                         pAdjustMethod = "BH",
-                         pvalueCutoff  = 0.01,
-                         qvalueCutoff  = 0.05, readable = TRUE)
-        
-        p0 = barplot(ego, showCategory=50, main = cc[n]) 
-        plot(p0)
-        
-        ii = grep('pathway', ego[, 2])
-        #xx = ego[ii, ]
-        write.table(data.frame(ego), 
-                    file = paste0(resDir, '/enrichGO_TM3_', cc[n], '.DEgenes.FDR.0.05.txt'),
-                    sep = '\t', col.names = TRUE, row.names = TRUE, quote = FALSE)
-        
-        colnames(res1) = paste0(colnames(res1), '_', cc[n], '.pos_vs_RA.pos')
-        colnames(res2) = paste0(colnames(res2), '_', cc[n], '.neg_vs_RA.neg')
-        res1 = data.frame(res1, res2)
-        
-      }
-      if(n == 1) {
-        res = res1
-      }else{
-        res = data.frame(res, res1)
-      }
-    }
-    
-    dev.off()
-    
-    saveRDS(res, file = paste0(RdataDir, '/TM3_res_pairwiseComparisons.rds'))
+  if(Compare.pooled.samples){
+    # save(ddx, cc.pools, file = paste0(RdataDir, '/TM3_pooled.pos.neg_ddx_cc.pools_', Counts.to.Use, version.analysis, '.Rdata'))
+    load(file = paste0(RdataDir, '/TM3_pooled.pos.neg_ddx_cc.pools_', Counts.to.Use, version.analysis, '.Rdata'))
     
   }
+  
+  cc = unique(design.matrix$condition)
+  cc = cc[which(cc != "N2B27" & cc != 'RA')]
+  
+  bgs = rownames(dds)
+  bgs.df <- bitr(bgs, fromType = "SYMBOL",
+                 toType = c("ENSEMBL", "ENTREZID"),
+                 OrgDb = org.Mm.eg.db)
+  
+  pdfname = paste0(resDir, '/TM3_pairwiseComparisons_enrichGO_pathways_sorted.positve.negative.pooled.pdf')
+  pdf(pdfname,  width = 18, height = 16)
+  #par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
+  
+  for(n in 1:length(cc))
+  {
+    # n = 1
+    cat(as.character(cc[n]), '\n')
+    
+    kk = which(design.matrix$condition == cc[n] | design.matrix$condition == 'RA')
+    dds1 = dds[, kk]
+    dds1$conds <- droplevels(dds1$conds)
+    dds1 <- estimateDispersions(dds1, fitType = 'parametric')
+    plotDispEsts(dds1, ymin = 10^-3, main = cc[n])
+    #dds = estimateDispersions(dds)
+    #plotDispEsts(dds)
+    dds1 <- nbinomWaldTest(dds1)
+    resultsNames(dds1)  
+    
+    res1 = results(dds1, contrast=c("conds", paste0(cc[n], '_Foxa2.pos'), 'RA_Foxa2.pos'), alpha = 0.05)
+    res1 <- lfcShrink(dds1, contrast=c("conds", paste0(cc[n], '_Foxa2.pos'), 'RA_Foxa2.pos'), type="normal")
+    res1 = as.data.frame(res1)
+    
+    res2 = results(dds1, contrast=c("conds", paste0(cc[n], '_Foxa2.neg'), 'RA_Foxa2.neg'), alpha = 0.05)
+    res2 <- lfcShrink(dds1, type="normal", contrast=c("conds", paste0(cc[n], '_Foxa2.neg'), 'RA_Foxa2.neg'))
+    res2 = as.data.frame(res2)
+    
+    gg.signif = rownames(res1)[which(res1$padj < 0.1 | res2$padj < 0.1)]
+    cat(length(gg.signif), ' significant genes for enrichGO \n')
+    
+    gene.df <- bitr(gg.signif, fromType = "SYMBOL", toType = c("ENSEMBL", "ENTREZID"), OrgDb = org.Mm.eg.db)
+    ego <-  enrichGO(gene         = gene.df$ENSEMBL,
+                     universe     = bgs.df$ENSEMBL,
+                     #OrgDb         = org.Hs.eg.db,
+                     OrgDb         = org.Mm.eg.db,
+                     keyType       = 'ENSEMBL',
+                     ont           = "BP",
+                     pAdjustMethod = "BH",
+                     pvalueCutoff  = 0.01,
+                     qvalueCutoff  = 0.05, readable = TRUE)
+    
+    p0 = barplot(ego, showCategory=50, main = cc[n]) 
+    plot(p0)
+    
+    ii = grep('pathway', ego[, 2])
+    #xx = ego[ii, ]
+    write.table(data.frame(ego), 
+                file = paste0(resDir, '/enrichGO_TM3_', cc[n], '.DEgenes.FDR.0.05.txt'),
+                sep = '\t', col.names = TRUE, row.names = TRUE, quote = FALSE)
+    
+    colnames(res1) = paste0(colnames(res1), '_', cc[n], '.pos_vs_RA.pos')
+    colnames(res2) = paste0(colnames(res2), '_', cc[n], '.neg_vs_RA.neg')
+    res1 = data.frame(res1, res2)
+    
+    ## add the comparison of pooled samples
+    if(Compare.pooled.samples){
+      dds2 = ddx[, which(cc.pools == cc[n] | cc.pools == 'RA')]
+      dds2$condition <- droplevels(dds2$condition)
+      dds2 <- estimateDispersions(dds2, fitType = 'parametric')
+      plotDispEsts(dds1, ymin = 10^-3, main = paste0(cc[n], ' pooled'))
+      #dds = estimateDispersions(dds)
+      #plotDispEsts(dds)
+      dds2 <- nbinomWaldTest(dds2)
+      resultsNames(dds2)  
+      
+      res3 = results(dds2, contrast=c("condition", cc[n], 'RA'), alpha = 0.05)
+      res3 <- lfcShrink(dds2, contrast=c("condition", cc[n], 'RA'), type="normal")
+      res3 = as.data.frame(res3)
+      
+      colnames(res3) = paste0(colnames(res3), '_', cc[n], '.pooled_vs_RA.pooled')
+      
+      res1 = data.frame(res1, res3)
+      
+    }
+    
+    ii = grep('log2FoldChange', colnames(res1))
+    plot.pair.comparison.plot(res1[, ii], linear.scale = FALSE)
+    
+    ii = grep('pvalue', colnames(res1))
+    plot.pair.comparison.plot(-log10(res1[, ii]), linear.scale = FALSE)
+    
+    if(n == 1) {
+      res = res1
+    }else{
+      res = data.frame(res, res1)
+    }
+  }
+  
+  dev.off()
+  
+  saveRDS(res, file = paste0(RdataDir, '/TM3_res_pairwiseComparisons_perturbation.vs.RA_positive.negative.pooled.rds'))
+  
   
   Reduced.model.selection = FALSE
   if(Reduced.model.selection){
