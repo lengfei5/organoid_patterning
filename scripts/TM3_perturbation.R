@@ -259,7 +259,7 @@ if(QC.for.cpm){
 
 ########################################################
 ########################################################
-# Section : Analysis with DESeq2
+# Section : normalization with DESeq2 
 # 
 ########################################################
 ########################################################
@@ -325,7 +325,11 @@ fpm = fpm(dds, robust = TRUE)
 #save(fpm, design, file = paste0(tfDir, '/RNAseq_fpm_fitered.cutoff.', cutoff.gene, '.Rdata'))
 vsd <- varianceStabilizingTransformation(dds, blind = FALSE)
 
-pca=plotPCA(vsd, intgroup = c('condition', 'cells'), returnData = TRUE, ntop = 1000)
+#ss = apply(fpm, 1, mean)
+#jj = which(ss > quantile(ss, probs = 0.75))
+#length(jj)
+
+pca=plotPCA(vsd, intgroup = c('condition', 'cells'), returnData = TRUE, ntop = 500)
 pca2save = as.data.frame(pca)
 
 ggp = ggplot(data=pca2save, aes(PC1, PC2, label = name, color= condition, shape = cells))  + 
@@ -606,6 +610,34 @@ if(Calculate.pairwise.comparisons){
   
   saveRDS(res, file = paste0(RdataDir, '/TM3_res_pairwiseComparisons_perturbation.vs.RA_positive.negative.pooled.rds'))
   
+  ##########################################
+  # extract enriched signaling pathways from perturbations
+  ##########################################
+  Extract.signaling.pathways.enrichedGOterm = FALSE
+  if(Extract.signaling.pathways.enrichedGOterm){
+    files = list.files(path = resDir, pattern = 'DEgenes.FDR.0.05.txt', full.names = TRUE)
+    files = files[c(7, 1:6)]
+    
+    for(n in 1:length(files))
+    {
+      # n = 4
+      ff = read.table(files[n], sep = '\t', header = TRUE, row.names = 1, as.is = c(1, 2,8))
+      
+      #ids = rbind(ids, cbind(ff$ID, as.character(ff$Description), as.character(ff$geneID) ))
+      ff = data.frame(ff, stringsAsFactors = FALSE)
+      #colnames(ids) = c('ID', 'description', 'geneID')
+      ii = grep('pathway', ff[, 2])
+      xx = ff[ii, ]
+      xx = xx[order(-xx$p.adjust), ]
+      xx$Description = gsub('signaling', '', xx$Description)
+      xx$Description = gsub(' pathway', '', xx$Description)
+      par(cex = 1.0, las = 1, mgp = c(3,1,0), mar = c(3, 30,2,0.2), tcl = -0.3)
+      barplot(xx$Count,  names.arg = xx$Description, horiz = TRUE, beside = TRUE, las=2)
+      
+    }
+    
+  }
+  
   
   Reduced.model.selection = FALSE
   if(Reduced.model.selection){
@@ -625,12 +657,18 @@ if(Calculate.pairwise.comparisons){
     res2 <- as.data.frame(results(dds2))
     res2 = res2[order(res2$pvalue), ]
     
-    
     ggs.signif = unique(c(rownames(res1)[which(res1$pvalue < 0.01 & abs(res1$log2FoldChange) > 0.5)], 
                           rownames(res2)[which(res2$pvalue < 0.001 & abs(res2$log2FoldChange) > 0.5)]))
   }
    
 }
+
+Explore.perturbation.response.for.signaling.pathway.genes = FALSE
+if(Explore.perturbation.response.for.signaling.pathway.genes){
+  
+    
+}
+  
 
 ########################################################
 ########################################################
@@ -643,70 +681,102 @@ if(Calculate.pairwise.comparisons){
 # plot individual examples
 ##########################################
 ggs = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
+ggs$pathway[which(is.na(ggs$pathway))] = 'A' 
+ggs = ggs[order(ggs$pathway), ]
+res = readRDS(file = paste0(RdataDir, '/TM3_res_pairwiseComparisons_perturbation.vs.RA_positive.negative.pooled.rds'))
+#load(file = paste0(RdataDir, '/TM3_positive.negative.pooled_', Counts.to.Use, version.analysis, '.Rdata'))
+#load(file = paste0(RdataDir, '/TM3_pooled.positive.negative_', Counts.to.Use, version.analysis, '.Rdata'))
+load(file = paste0(RdataDir, '/TM3_pooled.pos.neg_ddx_cc.pools_', Counts.to.Use, version.analysis, '.Rdata'))
+
 examples = ggs$gene
+pvals = res[, grep('pvalue_', colnames(res))]
+p.min = apply(as.matrix(pvals), 1, min)
+kk = which(p.min<0.05)
+examples = examples[!is.na(match(examples, rownames(res)[kk]))]
 
 #examples = ggs.signif
 fpm = fpm(dds, robust = TRUE)
+pools = fpm(ddx, robust = TRUE)
 
-#load(file = paste0(RdataDir, '/TM3_positive.negative.pooled_', Counts.to.Use, version.analysis, '.Rdata'))
-load(file = paste0(RdataDir, '/TM3_pooled.positive.negative_', Counts.to.Use, version.analysis, '.Rdata'))
+fpm = fpm[, grep('N2B27', colnames(fpm), invert = TRUE)]
+pools = pools[, grep('N2B27', colnames(pools), invert = TRUE)]
 
 fpm.cutoff = 2^2.5
 
 logscale = TRUE
 if(logscale){
   fpm = as.matrix(log2(fpm + 2^-4))
-  fpm.cutoff = 2.5
+  fpm.cutoff = 2.
   pools = as.matrix(log2(pools + 2^-4))
 }
+
 
 cells = sapply(colnames(fpm), function(x) unlist(strsplit(as.character(x), '_'))[3])
 cc = sapply(colnames(fpm), function(x) paste0(unlist(strsplit(as.character(x), '_'))[1:2], collapse = '_'))
 cond = sapply(colnames(fpm), function(x) paste0(unlist(strsplit(as.character(x), '_'))[1]))
-level_order = apply(expand.grid(c(1:3), c('N2B27', 'RA', 'BMP', 'LDN', 'FGF', 'PD', 'CHIR', 'IWR', 'IWP2')), 
+level_order = apply(expand.grid(c(1:3), c('RA', 'BMP', 'LDN', 'FGF', 'PD', 'CHIR', 'IWP2', 'IWR')), 
                     1, function(x) paste(x[2], x[1], sep="_"))
 
 #n = which(rownames(fpm) == 'Foxa2')
-pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive_negative.pooled_v9_log2scale_pathways.pdf')
+pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive_negative.pooled_v10_log2scale_signalingPathway.pdf')
 pdf(pdfname,  width = 20, height = 16)
 #par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
-
+library(reshape2)
 for(g in examples)
 {
-  # g = 'Foxa2'
+  # g = 'Id1'
   kk = which(rownames(fpm) == g)
   kk2 = which(rownames(pools) == g)
-  
+  kk3 = which(rownames(res) == g)
   if(length(kk) > 0){
     cat(g, '\n')
     cpm = fpm[kk, ]
-    if(logscale) cpm[which(cpm < 0)] = 0
+    if(logscale) cpm[which(cpm < -2)] = -2
     xx = data.frame(cpm = cpm, cc = cc,  cells = cells, cond = cond)
     
-    p0 = ggplot(xx[which(xx$cells == 'Foxa2.pos'), ],  aes(x = factor(cc, levels = level_order), y = cpm, color = cells, fill = cond)) +
+    p0 = ggplot(xx[which(xx$cells == 'Foxa2.pos'), ],  aes(x = factor(cc, levels = level_order), y = cpm, fill = cond)) +
       geom_bar(stat = "identity", position="dodge") +
       geom_hline(yintercept = fpm.cutoff, colour = "blue") + 
-      ggtitle(g)  + 
+      labs(title = paste0(g, " - positive  "), x = '', y = 'log2(cpm)') + 
       theme(axis.text.x = element_text(angle = 90, size = 10))
     
-    p1 = ggplot(xx[which(xx$cells == 'Foxa2.neg'), ],  aes(x = factor(cc, levels = level_order), y = cpm, color = cells, fill = cond)) +
+    p1 = ggplot(xx[which(xx$cells == 'Foxa2.neg'), ],  aes(x = factor(cc, levels = level_order), y = cpm, fill = cond)) +
       geom_bar(stat = "identity", position="dodge") +
       geom_hline(yintercept = fpm.cutoff, colour = "blue") + 
-      ggtitle(g)  + 
+      labs(title = paste0(g, " - negative "), x = '', y = 'log2(cpm)') + 
       theme(axis.text.x = element_text(angle = 90, size = 10))
     
     #grid.arrange(p0, p1, nrow = 1, ncol = 2)
-    
     yy = pools[kk2, ]
-    if(logscale) yy[which(yy < 0)] = 0
-    yy = data.frame(cpm = yy, cc = colnames(pools), cells = rep('pooled', length(yy)), cond = cc.pools)
-    p2 = ggplot(yy,  aes(x = factor(cc, levels = level_order), y = cpm, color = cells, fill = cond)) +
+    if(logscale) yy[which(yy < -2)] = -2
+    yy = data.frame(cpm = yy, cc = colnames(pools), cells = rep('pooled', length(yy)), cond = cc.pools[which(cc.pools != 'N2B27')])
+    p2 = ggplot(yy,  aes(x = factor(cc, levels = level_order), y = cpm,  fill = cond)) +
       geom_bar(stat = "identity", position="dodge") +
       geom_hline(yintercept = fpm.cutoff, colour = "blue") +
-      ggtitle(g)  +
+      labs(title = paste0(g, " - pooled  "), x = '', y = 'log2(cpm)') + 
       theme(axis.text.x = element_text(angle = 90, size = 10))
     
-    grid.arrange(p0, p1, p2, nrow = 2, ncol = 2)
+    zz = res[kk3, grep('pvalue_', colnames(res))]
+    zz = matrix(as.numeric(zz), nrow = 3, ncol = 7)
+    rownames(zz) = c('positive', 'negative', 'pooled')
+    cz = unique(design.matrix$condition)
+    cz = cz[which(cz != "N2B27" & cz != 'RA')]
+    colnames(zz) = cz
+    zz = -log10(zz)
+    
+    zz[which(zz>6)] = 6
+    
+    zz_melted<-melt(zz)
+    
+    p3 = ggplot(zz_melted, aes(x = Var2, y = factor(Var1, levels = c('pooled', 'negative',  'positive')))) +  
+      geom_point( aes(size=value),shape=21, colour="black", fill="blue") +
+      theme(panel.background=element_blank(), panel.border = element_rect(colour = "blue", fill=NA, size=2), 
+            axis.text=element_text(size=12)) +
+      scale_size_area(max_size = 12, breaks = c(2, 4, 6)) +
+      #Add labels to axes
+      labs(x="", y="", title = '-log10(p-val)')
+    
+    grid.arrange(p0, p1, p2, p3, nrow = 2, ncol = 2)
     
   }
   
