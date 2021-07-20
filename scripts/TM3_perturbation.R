@@ -325,11 +325,11 @@ fpm = fpm(dds, robust = TRUE)
 #save(fpm, design, file = paste0(tfDir, '/RNAseq_fpm_fitered.cutoff.', cutoff.gene, '.Rdata'))
 vsd <- varianceStabilizingTransformation(dds, blind = FALSE)
 
-#ss = apply(fpm, 1, mean)
-#jj = which(ss > quantile(ss, probs = 0.75))
-#length(jj)
+ss = apply(fpm, 1, mean)
+jj = which(ss < quantile(ss, probs = 0.3))
+length(jj)
 
-pca=plotPCA(vsd, intgroup = c('condition', 'cells'), returnData = TRUE, ntop = 500)
+pca=plotPCA(vsd[jj, ], intgroup = c('condition', 'cells'), returnData = TRUE, ntop = 500)
 pca2save = as.data.frame(pca)
 
 ggp = ggplot(data=pca2save, aes(PC1, PC2, label = name, color= condition, shape = cells))  + 
@@ -341,7 +341,7 @@ plot(ggp) + ggsave(paste0(resDir, "/PCAplot_withControls_UQ.norm_ntop500.pdf"), 
 ggp = ggplot(data=pca2save[grep('N2B27', pca2save$condition, invert = TRUE), ], 
              aes(PC1, PC2, label = name, color= condition, shape = cells))  + 
   geom_point(size=4) + 
-  geom_text(hjust = 0.2, nudge_y = 0.25, size=3)
+  geom_text(hjust = 0.2, nudge_y = 0.1, size=3)
 
 plot(ggp) + ggsave(paste0(resDir, "/PCAplot_withoutControls_UQ.norm_ntop500.pdf"), width=18, height = 12)
 
@@ -638,6 +638,99 @@ if(Calculate.pairwise.comparisons){
     
   }
   
+  ##########################################
+  # Here each perturbation will be checked for Foxa2 positive, negative and pooled
+  # Top response genes will be highlighted, some of FGF, Wnt and BMP related genes will be highlighted as well
+  # the p-values and lfc will be compared between positve, negative and pooled cells
+  ##########################################
+  Explore.perturbation.response.for.signaling.pathway.genes = FALSE
+  if(Explore.perturbation.response.for.signaling.pathway.genes){
+    
+    res = readRDS(file = paste0(RdataDir, '/TM3_res_pairwiseComparisons_perturbation.vs.RA_positive.negative.pooled.rds'))
+    ggs = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
+    
+    cc = unique(design.matrix$condition)
+    cc = cc[which(cc != "N2B27" & cc != 'RA')]
+    
+    res = res[!is.na(match(rownames(res), ggs$gene)), grep('pvalue_|log2FoldChange_', colnames(res))]
+    
+    library(ggrepel)
+    library(ggplot2)
+    
+    examples = c('Bmp4', 'Bmp1', 'Bmp7', 'Bmp6', 'Nog', 'Dkk1', 'Fgfbp3', 'Lef1', 'Tcf15', 'Tcf19', 'Wnt3', 'Wnt3a', 'Wnt4', 
+                 'Wnt5b', 'Wnt6', 'Wnt7a', 'Wnt7b', 'Wnt8a', 'Sfrp5', 'Lypd6', 'Spry4', 'Etv5', 'Etv4', 'Fgf10', 'Fgf17', 
+                 'Fgf8', 'Fgf5', 'Fgf2', 'Fgf21', 'Fgf11', 'Fgf1', 'Fgf4')
+    
+    pdfname = paste0(resDir, '/TM3_comparing_response_signalingPathways_positve.negative.pooled.pdf')
+    pdf(pdfname,  width = 12, height = 10)
+    #par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
+    
+    for(n in 1:length(cc))
+    {
+      # n = 5
+      cat(n, ' -- ', cc[n], '\n')
+      jj = grep(cc[n], colnames(res))
+      yy = res[, jj]
+      colnames(yy) = gsub(paste0(cc[n]), '', colnames(yy))
+      colnames(yy) = gsub('_vs_RA.', '', colnames(yy))
+      colnames(yy) = gsub('.pos|.neg|.pooled', '', colnames(yy))
+      colnames(yy) = gsub('log2FoldChange', 'lfc', colnames(yy))
+      
+      yy[, grep('pvalue_', colnames(yy))] = -log10(yy[, grep('pvalue_', colnames(yy))])
+      yy = data.frame(yy, gene = rownames(yy))
+      
+      p1 = ggplot(data = yy,  aes(y = pvalue_pos, x = lfc_pos,  label = gene)) + 
+        geom_point(size = 1) + 
+        labs(title = paste0(cc[n], " - positive  "), x = '', y = '-log10(pval)') + 
+        theme(axis.text.x = element_text(size = 12), 
+              axis.text.y = element_text(size = 12)) + 
+        geom_hline(yintercept = 2, colour = "red") +
+        #geom_text(data=subset(yy, pvalue_pos > 2), size = 4, nudge_y = 0.5) + 
+        geom_text_repel(data=subset(yy, pvalue_pos > 2), size = 4)
+      
+      p2 = ggplot(data = yy,  aes(y = pvalue_neg, x = lfc_neg,  label = gene)) + 
+        geom_point(size = 1) + 
+        labs(title = paste0(cc[n], " - neg  "), x = '', y = '-log10(pval)') + 
+        theme(axis.text.x = element_text(size = 12), 
+              axis.text.y = element_text(size = 12)) + 
+        geom_hline(yintercept = 2, colour = "red") +
+        #geom_text(data=subset(yy, pvalue_pos > 2), size = 4, nudge_y = 0.5) + 
+        geom_text_repel(data=subset(yy, pvalue_neg > 2), size = 4)
+      
+      p3 = ggplot(data = yy,  aes(y = pvalue_pooled, x = lfc_pooled,  label = gene)) + 
+        geom_point(size = 1) + 
+        labs(title = paste0(cc[n], " - pooled  "), x = '', y = '-log10(pval)') + 
+        theme(axis.text.x = element_text(size = 12), 
+              axis.text.y = element_text(size = 12)) + 
+        geom_hline(yintercept = 2, colour = "red") +
+        #geom_text(data=subset(yy, pvalue_pos > 2), size = 4, nudge_y = 0.5) + 
+        geom_text_repel(data=subset(yy, pvalue_pooled > 2), size = 4)
+      
+      p4 = ggplot(data = yy, aes(x = lfc_pooled, y = lfc_neg, label = gene)) +
+        geom_point(size = 1) +
+        labs(title = paste0(cc[n], " - neg vs pooled  "), x = '', y = '-log10(pval)') + 
+        geom_abline(slope = 1, intercept = 0, colour = 'red') + 
+        geom_label_repel(data=  as.tibble(yy) %>%  dplyr::mutate_if(is.factor, as.character) %>% dplyr::filter(gene %in% examples),
+                         size = 4)
+      p5 = ggplot(data = yy, aes(x = lfc_pooled, y = lfc_pos, label = gene)) +
+        geom_point(size = 1) + 
+        labs(title = paste0(cc[n], " - pos vs pooled  "), x = '', y = '-log10(pval)') + 
+        geom_abline(slope = 1, intercept = 0, colour = 'red') + 
+        geom_label_repel(data=  as.tibble(yy) %>%  dplyr::mutate_if(is.factor, as.character) %>% dplyr::filter(gene %in% examples),
+                         size = 4)
+      plot(p1)
+      plot(p2)
+      #grid.arrange(p1, p2, nrow = 1, ncol = 2)
+      plot(p3)
+      plot(p4)
+      plot(p5)
+      #grid.arrange(p1, p2, p3, p4, p5, nrow = 2, ncol = 3)
+      
+    }
+    
+    dev.off()
+    
+  }
   
   Reduced.model.selection = FALSE
   if(Reduced.model.selection){
@@ -663,12 +756,7 @@ if(Calculate.pairwise.comparisons){
    
 }
 
-Explore.perturbation.response.for.signaling.pathway.genes = FALSE
-if(Explore.perturbation.response.for.signaling.pathway.genes){
-  
-    
-}
-  
+
 
 ########################################################
 ########################################################
