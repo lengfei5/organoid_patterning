@@ -667,7 +667,7 @@ if(Calculate.pairwise.comparisons){
     
     for(n in 1:length(cc))
     {
-      # n = 5
+      # n = 1
       cat(n, ' -- ', cc[n], '\n')
       jj = grep(cc[n], colnames(res))
       yy = res[, jj]
@@ -706,18 +706,24 @@ if(Calculate.pairwise.comparisons){
         #geom_text(data=subset(yy, pvalue_pos > 2), size = 4, nudge_y = 0.5) + 
         geom_text_repel(data=subset(yy, pvalue_pooled > 2), size = 4)
       
-      p4 = ggplot(data = yy, aes(x = lfc_pooled, y = lfc_neg, label = gene)) +
-        geom_point(size = 1) +
-        labs(title = paste0(cc[n], " - neg vs pooled  "), x = '', y = '-log10(pval)') + 
-        geom_abline(slope = 1, intercept = 0, colour = 'red') + 
-        geom_label_repel(data=  as.tibble(yy) %>%  dplyr::mutate_if(is.factor, as.character) %>% dplyr::filter(gene %in% examples),
-                         size = 4)
-      p5 = ggplot(data = yy, aes(x = lfc_pooled, y = lfc_pos, label = gene)) +
+      examples.sel = unique(c(examples, rownames(yy)[which(yy$pvalue_pos > 2 | yy$pvalue_neg > 2)]))
+      p4 = ggplot(data = yy, aes(x = pvalue_pooled, y = pvalue_neg , label = gene)) +
         geom_point(size = 1) + 
-        labs(title = paste0(cc[n], " - pos vs pooled  "), x = '', y = '-log10(pval)') + 
+        xlim(0, 6) + ylim(0, 6) + geom_hline(yintercept = 1.3, colour = "blue") +
+        geom_vline(xintercept = 1.3, colour = "blue") + 
+        labs(title = paste0(cc[n], " - neg vs pooled : -log10(pval) "), x = 'pooled', y = 'negative') +
         geom_abline(slope = 1, intercept = 0, colour = 'red') + 
-        geom_label_repel(data=  as.tibble(yy) %>%  dplyr::mutate_if(is.factor, as.character) %>% dplyr::filter(gene %in% examples),
-                         size = 4)
+        geom_label_repel(data=  as.tibble(yy) %>%  dplyr::mutate_if(is.factor, as.character) %>% dplyr::filter(gene %in% examples.sel),
+                         size = 3)
+      #examples.sel = unique(c(examples, rownames(yy)[which(yy$pvalue_pos > 2 | yy$pvalue_neg > 2)]))
+      p5 = ggplot(data = yy, aes(x = pvalue_pooled, y = pvalue_pos, label = gene)) +
+        geom_point(size = 1) + 
+        xlim(0, 6) + ylim(0, 6) + geom_hline(yintercept = 1.3, colour = "blue") +
+        geom_vline(xintercept = 1.3, colour = "blue") + 
+        labs(title = paste0(cc[n], " - pos vs pooled : -log10(pval) "), x = 'pooled', y = 'positive') + 
+        geom_abline(slope = 1, intercept = 0, colour = 'red') + 
+        geom_label_repel(data=  as.tibble(yy) %>%  dplyr::mutate_if(is.factor, as.character) %>% dplyr::filter(gene %in% examples.sel),
+                         size = 3)
       plot(p1)
       plot(p2)
       #grid.arrange(p1, p2, nrow = 1, ncol = 2)
@@ -725,7 +731,6 @@ if(Calculate.pairwise.comparisons){
       plot(p4)
       plot(p5)
       #grid.arrange(p1, p2, p3, p4, p5, nrow = 2, ncol = 3)
-      
     }
     
     dev.off()

@@ -211,6 +211,8 @@ resTC <- results(ddsTC)
 save(cpm, res1, resTC, file = paste0(RdataDir, '/RNAseq_timeSeries_fpmMean_DEtestRes.timepoints.and.vs.control.Rdata'))
 
 ## combine genes with non-static padj < 0.01 and behaving different from control condition padj <0.01
+load(file = paste0(RdataDir, '/RNAseq_timeSeries_fpmMean_DEtestRes.timepoints.and.vs.control.Rdata'))
+
 jj = which(res1$padj< 0.01 & resTC$padj< 0.01)
 
 yy = log2(cpm[jj,] + 2^-6)
@@ -445,8 +447,8 @@ for(n in 1:length(tt))
   
   rpkm.RA[,n] = apply(rpkm[,kk1], 1, median)
   rpkm.noRA[,n] = apply(rpkm[, kk2], 1, median)
+  
 }
-
 
 ##########################################
 # select only signaficant changes genes and normalized with transcript length
@@ -476,7 +478,8 @@ if(Select.signficant.Genes){
   
   xx = data.frame(gene = names(df), diff = df, vars = vars, stringsAsFactors = FALSE)
   
-  mm = match(xx$gene, examples)
+  ggs = readRDS(file = paste0('../results/Rdata/TM3_examplesGenes_withGOterm.rds'))
+  mm = match(xx$gene, ggs$gene)
   xx = xx[!is.na(mm), ]
   
   pdfname = paste0(resDir, "/genes_signalingPathways_variances_RA.noRA.diff.pdf")
@@ -506,7 +509,7 @@ if(Select.signficant.Genes){
     tt = c(-18, -10, 0, 12, 24, 36, 48, 60)
     
     #gg.examepls = c('Foxa2', 'Lef1','Wnt3', 'Sfrp5',  'Fgf2', 'Fgf8', 'Bmp7', 'Bmp4', 'Bmp6', 'Nog')
-    mains = 'positive_controls'
+    
     gg.examepls = c('Foxa2', 'Shh', 'Olig2')
     #gg.examepls = c('Lef1', 'Wnt1', 'Wnt3', 'Wnt3a', 'Wnt7a', 'Wnt7b', 'Wnt8a') 
     #gg.examepls = c('Lypd6', 'Dkk3', 'Sfrp5', 'Dkk1', 'Sost')
@@ -515,14 +518,15 @@ if(Select.signficant.Genes){
     gg.examepls = c('Id1', 'Id3', 'Smad6', 'Nog', 'Fst', 'Bambi')
     #gg.examepls = c('Bmp7', 'Bmp4', 'Bmp1', 'Bmp6', 'Bmpr2', 'Bmpr1b')
     
-    pdfname = paste0(resDir, "/genes_signalingPathways_summaryPlots_Foxa2.pdf")
+    gg.examepls = c( 'Foxa2', 'Lef1', 'Spry4', 'Id1')
+    mains = 'Foxa2_Wnt_FGF_BMP_readout'
+    
+    cols = colorRampPalette(rev(brewer.pal(9, "RdBu")))(length(gg.examepls) + 2)
+    xx = rpkm.RA[match(gg.examepls, rownames(rpkm.RA)), ]
+    
+    pdfname = paste0(resDir, "/genes_signalingPathways_summaryPlots_", mains, ".pdf")
     pdf(pdfname, width = 12, height = 8)
     par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
-    
-    cols = colorRampPalette(rev(brewer.pal(9, "RdBu")))(length(gg.examepls)+1)
-    xx = rpkm.RA[match(gg.examepls, rownames(rpkm.RA)), ]
-    #xx = data.frame(xx, stringsAsFactors = FALSE)
-    #df = as_tibble(xx) %>% gather(time, expression, 3:10)
     
     plot(c(0, 1), type = 'n', xlim = c(-22, 62), ylim = range(c(xx, 0, 1), na.rm = TRUE), 
          ylab = 'log2(RPKM)', xlab = 'time', main = mains)
@@ -536,16 +540,25 @@ if(Select.signficant.Genes){
     
     dev.off()
     
-    # ggplot(df, aes(x = time, y = expression, group = gene, color = pathways)) +
-    #   geom_line(size=1.2, linetype = 'solid') +
-    #   geom_point(size = 2.5) + 
-    #   theme(legend.position = "right") +
-    #   geom_text(aes(label = gg.examepls, x = 12, colour = names(lab), y = c(lab), hjust = -.02))
-    # 
-    #   geom_bar(stat = "identity") +
-    #   theme(legend.position = "none")  + 
-    #   ggtitle('nb of cysts ') + 
-    #   theme(axis.text.x = element_text(angle = 90))
+    xx = rpkm.RA[match(gg.examepls, rownames(rpkm.RA)), ]
+    colnames(xx) = paste0(tt, 'h')
+    colnames(xx) = gsub('[-]', 'min', colnames(xx))
+    xx = data.frame(xx, gene = rownames(xx), stringsAsFactors = FALSE)
+    df = as_tibble(xx) %>% gather(time, expression, 1:8)
+    
+    d_ends <- df %>% 
+      group_by(gene) %>% 
+      top_n(1, time) %>% 
+      pull(expression)
+    
+    ggplot(df, aes(x = time, y = expression, color = gene, group = gene)) +
+      geom_line(size=1.2, linetype = 'solid') +
+      geom_point(size = 2.5) + 
+      geom_hline(yintercept = c(0, 1), colour = 'gray') + 
+      #scale_y_continuous(sec.axis = sec_axis(~ ., breaks = d_ends)) + 
+      geom_text(data = subset(df, time == "X60h"), aes(label = gene, colour = gene, x = time, y = expression), hjust = -0.2, size = 5) +
+      theme(legend.position="none")
+    
     
   }
   
