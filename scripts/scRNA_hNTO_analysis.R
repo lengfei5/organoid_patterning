@@ -103,7 +103,7 @@ plotColData(sce, x="nCount_RNA", y="percent.mt") + ggtitle("% of Mt")
 
 # filter genes
 fontsize <- theme(axis.text=element_text(size=12), axis.title=element_text(size=16))
-plotHighestExprs(sce, n=50) + fontsize
+plotHighestExprs(sce, n=20) + fontsize
 
 ave.counts <- calculateAverage(as.matrix(counts(sce)))
 hist(log10(ave.counts), breaks=100, main="", col="grey80",
@@ -116,7 +116,7 @@ hist(log10(num.cells), breaks=100, main="", col="grey80",
 smoothScatter(log10(ave.counts), num.cells, ylab="Number of cells",
               xlab=expression(Log[10]~"average count"))
 
-genes.to.keep <- num.cells > 20 & ave.counts >= 10^-2   # detected in >= 5 cells, ave.counts >=5 but not too high
+genes.to.keep <- num.cells > 20 & ave.counts >= 10^-3   # detected in >= 5 cells, ave.counts >=5 but not too high
 summary(genes.to.keep)
 
 sce <- sce[genes.to.keep, ]
@@ -154,20 +154,19 @@ library(dplyr)
 sce = readRDS(file=paste0(RdataDir, 'scRNA_rawReadCounts_metadata_day3.day5.no.stretch_QCed_geneFiltered_scranNorm',
                           version.analysis, '.rds'))
 
-sce = sce[, which(sce$orig.ident == 'No_Stretch_RASAG_Day_5')]
+#sce = sce[, which(sce$orig.ident == 'No_Stretch_RASAG_Day_5')]
 
 Use.scTransform = FALSE
 if(!Use.scTransform){
   nt = as.Seurat(sce, counts = 'counts', data = 'logcounts', assay = "RNA") # scran normalized data were kept in Seurat
   
-  nfeatures = 1000
+  nfeatures = 5000
   nt <- FindVariableFeatures(nt, selection.method = "vst", nfeatures = nfeatures)
   
-  top10 <- head(VariableFeatures(nt), 10) # Identify the 10 most highly variable genes
-  
-  plot1 <- VariableFeaturePlot(nt)
-  plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
-  CombinePlots(plots = list(plot1, plot2)) # plot variable features with and without labels
+  #top10 <- head(VariableFeatures(nt), 10) # Identify the 10 most highly variable genes
+  #plot1 <- VariableFeaturePlot(nt)
+  #plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+  #CombinePlots(plots = list(plot1, plot2)) # plot variable features with and without labels
   
   nt = ScaleData(nt, features = rownames(nt))
   
@@ -179,9 +178,9 @@ if(!Use.scTransform){
   
 }
 
-
 cell.cycle.regression = FALSE
 if(cell.cycle.regression){
+  ## see original code from https://satijalab.org/seurat/articles/cell_cycle_vignette.html
   s.genes <- cc.genes.updated.2019$s.genes
   g2m.genes <- cc.genes.updated.2019$g2m.genes
   
@@ -190,32 +189,49 @@ if(cell.cycle.regression){
   nt <- RunPCA(nt, features = c(s.genes, g2m.genes))
   DimPlot(nt, reduction = 'pca')
   
-  nt <- ScaleData(nt, vars.to.regress = c("S.Score", "G2M.Score"), features = rownames(nt))
-  nt <- RunPCA(nt, features = c(s.genes, g2m.genes))
-  DimPlot(nt, reduction = 'pca')
+  Regress.out.S.G2M = FALSE
+  if(Regress.out.S.G2M){
+    nt <- ScaleData(nt, vars.to.regress = c("S.Score", "G2M.Score"), features = rownames(nt))
+    nt <- RunPCA(nt, features = c(s.genes, g2m.genes))
+    DimPlot(nt, reduction = 'pca')
+    
+    RidgePlot(nt, features = c("PCNA", "TOP2A", "MCM6", "MKI67"), ncol = 2)
+  }else{
+    # As an alternative, we suggest regressing out the difference between the G2M and S phase scores
+    nt$CC.Difference <- nt$S.Score - nt$G2M.Score
+    nt <- ScaleData(nt, vars.to.regress = "CC.Difference", features = rownames(nt))
+    
+    nt <- RunPCA(nt, features = c(s.genes, g2m.genes))
+    DimPlot(nt, reduction = 'pca')
+    
+  }
   
-  RidgePlot(nt, features = c("PCNA", "TOP2A", "MCM6", "MKI67"), ncol = 2)
-  
+  save(nt, file=paste0(RdataDir, 'scRNA_rawReadCounts_metadata_day3.day5.no.stretch_QCed_geneFiltered_scranNorm_cellCycleScoring',
+                              version.analysis, '.rds'))
 }
 
+##########################################
+# Run PCA, clusters and umap visualization
+##########################################
 # new normalization from Seurat
 # tried regress out the pct_counts_Mt but works less well
 #nt <- SCTransform(object = nt, variable.features.n = nfeatures) 
 nt <- RunPCA(object = nt, features = VariableFeatures(nt), verbose = FALSE, weight.by.var = FALSE)
 ElbowPlot(nt, ndims = 50)
 
+nt <- FindNeighbors(object = nt, reduction = "pca", k.param = 20, dims = 1:30)
+nt <- FindClusters(nt, resolution = 0.7, algorithm = 3)
 
-nt <- FindNeighbors(object = nt, reduction = "pca", k.param = 20, dims = 1:20)
-nt <- FindClusters(nt, resolution = 0.5, algorithm = 3)
-
-nb.pcs = 20; n.neighbors = 30; min.dist = 0.2;
+nb.pcs = 30; n.neighbors = 30; min.dist = 0.15;
 nt <- RunUMAP(object = nt, reduction = 'pca', dims = 1:nb.pcs, n.neighbors = n.neighbors, min.dist = min.dist)
 
 DimPlot(nt, reduction = "umap", group.by = 'orig.ident') + ggtitle(paste0('day3 and day5'))
 
-DimPlot(nt, reduction = "umap", group.by = 'seurat_clusters') + ggtitle('scran normalization')
+DimPlot(nt, reduction = "umap", group.by = 'seurat_clusters') + ggtitle('clusters with scran normalization')
 
-FeaturePlot(nt, features = c('FOXA2', 'FOXA1', 'LEF1', 'ID1', 'SPRY4'))
+
+FeaturePlot(nt, features = c('FOXA2', 'LEF1', 'ID1', 'SPRY4'))
+
 VlnPlot(nt, features = c("FOXA2", 'OLIG2', 'FGF8', 'NKX2.2', 'BMP7'),  pt.size = 0.2, ncol = 4)
 
 
