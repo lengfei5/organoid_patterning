@@ -150,11 +150,13 @@ saveRDS(sce, file=paste0(RdataDir, 'scRNA_rawReadCounts_metadata_day3.day5.no.st
 library(Seurat)
 library(ggplot2)
 library(dplyr)
+library(SeuratWrappers)
+library(cowplot)
 
 sce = readRDS(file=paste0(RdataDir, 'scRNA_rawReadCounts_metadata_day3.day5.no.stretch_QCed_geneFiltered_scranNorm',
                           version.analysis, '.rds'))
 
-#sce = sce[, which(sce$orig.ident == 'No_Stretch_RASAG_Day_5')]
+# sce = sce[, which(sce$orig.ident == 'No_Stretch_RASAG_Day_5')]
 
 Use.scTransform = FALSE
 if(!Use.scTransform){
@@ -219,23 +221,27 @@ if(cell.cycle.regression){
 nt <- RunPCA(object = nt, features = VariableFeatures(nt), verbose = FALSE, weight.by.var = FALSE)
 ElbowPlot(nt, ndims = 50)
 
-nt <- FindNeighbors(object = nt, reduction = "pca", k.param = 20, dims = 1:30)
-nt <- FindClusters(nt, resolution = 0.7, algorithm = 3)
 
-nb.pcs = 30; n.neighbors = 30; min.dist = 0.15;
+nb.pcs = 20; n.neighbors = 30; min.dist = 0.1;
 nt <- RunUMAP(object = nt, reduction = 'pca', dims = 1:nb.pcs, n.neighbors = n.neighbors, min.dist = min.dist)
 
-DimPlot(nt, reduction = "umap", group.by = 'orig.ident') + ggtitle(paste0('day3 and day5'))
+nt <- FindNeighbors(object = nt, reduction = "pca", k.param = 20, dims = 1:30)
+nt <- FindClusters(nt, resolution = 1.5, algorithm = 3)
 
-DimPlot(nt, reduction = "umap", group.by = 'seurat_clusters') + ggtitle('clusters with scran normalization')
+DimPlot(nt, reduction = "umap", group.by = 'orig.ident') + ggtitle(paste0('day3 and day5')) +
+  ggsave(paste0(resDir, '/UMAP_day3_day5.pdf'), width = 12, height = 8)
 
+#nt.sub = subset(nt, cells = colnames(nt)[which(nt$orig.ident == 'No_Stretch_RASAG_Day_5')])
+#DimPlot(nt.sub, reduction = "umap", group.by = 'orig.ident') + ggtitle(paste0('day5'))
+p1 = DimPlot(nt, reduction = "umap", group.by = 'seurat_clusters') + ggtitle('clusters with scran normalization')
+p2 = FeaturePlot(nt, features = c('FOXA2'))
+p3 = VlnPlot(nt, features = c("FOXA2"))
+CombinePlots(plots = list(p1, p2, p3), ncol = 3)
 
-FeaturePlot(nt, features = c('FOXA2', 'LEF1', 'ID1', 'SPRY4'))
+nt$cells = 'Foxa2.neg'
+nt$cells[which(nt$seurat_clusters == '3'| nt$seurat_clusters == '8')] = 'Foxa2.pos'
+Idents(nt) = 'cells'
 
-VlnPlot(nt, features = c("FOXA2", 'OLIG2', 'FGF8', 'NKX2.2', 'BMP7'),  pt.size = 0.2, ncol = 4)
-
-
-
-
-
+VlnPlot(nt, features = c("FOXA2", 'OLIG2', 'FGF8', 'NKX2.2', 'BMP7', 'FGF4', 'SPRY4', 'ID1', 'LEF1', 
+                         'BMP4', 'FGF8', 'FGF2'),  pt.size = 0.2, ncol = 4)
 
