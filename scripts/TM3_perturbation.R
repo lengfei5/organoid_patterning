@@ -376,6 +376,7 @@ if(Compare.RA.positve.negative){
   kk = which(design.matrix$condition == 'RA')
   
   dds1 = dds[, kk]
+  
   dds1$conds <- droplevels(dds1$conds)
   
   #dds1 <- estimateDispersions(dds1, fitType = 'parametric')
@@ -488,6 +489,7 @@ if(Compare.RA.positve.negative){
   ggplot(yy[kk, ], aes(x = gene, y = lfc, fill = day)) + 
     geom_bar(stat = "identity", position="dodge") +
     coord_flip() + ggsave(paste0(resDir, "/LFC_positive.vs.negative_Day3.Day5_BMP.pdf"), width=12, height = 10)
+  
   
 }
 
