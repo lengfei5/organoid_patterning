@@ -290,8 +290,13 @@ FeaturePlot(nt, features = c('FOXA2', toupper(examples)), ncol = 4)
 
 
 nt$cells = 'Foxa2.neg'
-nt$cells[which(nt$seurat_clusters == '4' |nt$seurat_clusters == '5')] = 'Foxa2.pos'
+nt$cells[which(nt$seurat_clusters == '5')] = 'Foxa2.pos'
 Idents(nt) = 'cells'
+
+saveRDS(nt, file = paste0(RdataDir, 
+                          'scRNA_rawReadCounts_metadata_day5.no.stretch_QCed_geneFiltered_scranNorm_cellCycleScoring_FPclusterAnnoated',
+                          version.analysis, '.rds'))
+
 
 Use.subset.nt.to.annotate.FPcluster = FALSE
 if(Use.subset.nt.to.annotate.FPcluster){
@@ -308,22 +313,35 @@ if(Use.subset.nt.to.annotate.FPcluster){
   cell.pos = colnames(nt.sub)[which(nt.sub$cells == 'Foxa2.pos')]
   nt$cells[!is.na(match(colnames(nt), cell.pos))] = 'Foxa2.pos'
   Idents(nt) = 'cells'
+  
 }
 
+nt = readRDS(file = paste0(RdataDir, 
+                           'scRNA_rawReadCounts_metadata_day5.no.stretch_QCed_geneFiltered_scranNorm_cellCycleScoring_FPclusterAnnoated',
+                           version.analysis, '.rds'))
+table(nt$annotated_clusters)
 
+nt = subset(nt, cells = colnames(nt)[which(nt$annotated_clusters != 'NC')])
 
 DimPlot(nt, reduction = "umap", group.by = 'cells') + ggtitle(paste0('day5 Foxa2 positive and negative')) 
 
-VlnPlot(nt, features = c("FOXA2", 'OLIG2', 'FGF8', 'NKX2.2', 'BMP7', 'FGF4', 'SPRY4', 'ID1', 'LEF1', 
-                         'BMP4', 'FGF8', 'FGF2', 'FGF4', 'FGF10', 'WNT4'),  pt.size = 0.2, ncol = 4)
+#VlnPlot(nt, features = c("FOXA2", 'OLIG2', 'FGF8', 'NKX2.2', 'BMP7', 'FGF4', 'SPRY4', 'ID1', 'LEF1', 
+#                         'BMP4', 'FGF8', 'FGF2', 'FGF4', 'FGF10', 'WNT4'),  pt.size = 0.2, ncol = 4)
 
 examples = c('Lef1', 'Wnt3', 'Wnt3a', 'Wnt4', 'Wnt5b', 'Wnt6', 'Wnt7a', 'Wnt7b', 'Wnt8a', 'Dkk1', 'Dkk2', 'Dkk3', 'Tcf15', 'Tcf19', 
              "Wnt1", 'Sost', 'Sfrp5', 'Lypd6')
-examples = c(c('Spry4', 'Spry2', 'Etv4', 'Etv5'), c('Fgf10', 'Fgf17','Fgf8', 'Fgf5', 'Fgf2','Fgf21', 'Fgf11','Fgf1', 'Fgf4', 'Fgfbp3'),
-             'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5')
-examples = c('Id1', 'Id3', 'Smad6', 'Nog', 'Fst', 'Bambi', 'Bmp7', 'Bmp4', 'Bmp1', 'Bmp6', 'Bmpr2', 'Bmpr1b')
+VlnPlot(nt, features = c(toupper(examples)),  pt.size = 0.2, ncol = 4) + 
+  ggsave(filename = paste0(resDir, '/FPcluster_otherClusters_WNT.pdf'), width = 16, height = 10)
 
-VlnPlot(nt, features = c('FOXA2', toupper(examples)),  pt.size = 0.2, ncol = 4)
+
+examples = c('Spry4', 'Spry2', 'Etv4', 'Etv5', 'Fgf10', 'Fgf17','Fgf8', 'Fgf5', 'Fgf2','Fgf21', 'Fgf11','Fgf1', 'Fgf4', 'Fgfbp3',
+             'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5')
+VlnPlot(nt, features = c(toupper(examples)),  pt.size = 0.2, ncol = 4)+ 
+  ggsave(filename = paste0(resDir, '/FPcluster_otherClusters_FGF.pdf'), width = 16, height = 10)
+
+examples = c('Id1', 'Id3', 'Smad6', 'Nog', 'Fst', 'Bambi', 'Bmp7', 'Bmp4', 'Bmp1', 'Bmp6', 'Bmpr2', 'Bmpr1b')
+VlnPlot(nt, features = c(toupper(examples)),  pt.size = 0.2, ncol = 4)+ 
+  ggsave(filename = paste0(resDir, '/FPcluster_otherClusters_BMP.pdf'), width = 16, height = 10)
 
 
 ##########################################
