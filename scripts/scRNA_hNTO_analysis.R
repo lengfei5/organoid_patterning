@@ -344,6 +344,7 @@ VlnPlot(nt, features = c(toupper(examples)),  pt.size = 0.2, ncol = 4)+
   ggsave(filename = paste0(resDir, '/FPcluster_otherClusters_BMP.pdf'), width = 16, height = 10)
 
 
+
 ##########################################
 # aggreate the cell counts to have pseudo-bulk 
 ##########################################
