@@ -10,7 +10,6 @@
 # Date of creation: Thu Jul 22 13:50:47 2021
 ##########################################################################
 ##########################################################################
-
 rm(list = ls())
 RNA.functions = '/Volumes/groups/tanaka/People/current/jiwang/scripts/functions/RNAseq_functions.R'
 RNA.QC.functions = '/Volumes/groups/tanaka/People/current/jiwang/scripts/functions/RNAseq_QCs.R'
@@ -156,7 +155,7 @@ library(cowplot)
 sce = readRDS(file=paste0(RdataDir, 'scRNA_rawReadCounts_metadata_day3.day5.no.stretch_QCed_geneFiltered_scranNorm',
                           version.analysis, '.rds'))
 
-# sce = sce[, which(sce$orig.ident == 'No_Stretch_RASAG_Day_5')]
+#sce = sce[, which(sce$orig.ident == 'No_Stretch_RASAG_Day_5')]
 
 Use.scTransform = FALSE
 if(!Use.scTransform){
@@ -164,13 +163,11 @@ if(!Use.scTransform){
   
   nfeatures = 5000
   nt <- FindVariableFeatures(nt, selection.method = "vst", nfeatures = nfeatures)
-  
+  nt = ScaleData(nt, features = rownames(nt))
   #top10 <- head(VariableFeatures(nt), 10) # Identify the 10 most highly variable genes
   #plot1 <- VariableFeaturePlot(nt)
   #plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
   #CombinePlots(plots = list(plot1, plot2)) # plot variable features with and without labels
-  
-  nt = ScaleData(nt, features = rownames(nt))
   
 }else{
   library(sctransform)
@@ -194,7 +191,7 @@ if(cell.cycle.regression){
   Regress.out.S.G2M = FALSE
   if(Regress.out.S.G2M){
     nt <- ScaleData(nt, vars.to.regress = c("S.Score", "G2M.Score"), features = rownames(nt))
-    nt <- RunPCA(nt, features = c(s.genes, g2m.genes))
+    nt <- RunPCA(nt, features = c(s.genes, g2m.genes), verbose = FALSE)
     DimPlot(nt, reduction = 'pca')
     
     RidgePlot(nt, features = c("PCNA", "TOP2A", "MCM6", "MKI67"), ncol = 2)
@@ -203,45 +200,201 @@ if(cell.cycle.regression){
     nt$CC.Difference <- nt$S.Score - nt$G2M.Score
     nt <- ScaleData(nt, vars.to.regress = "CC.Difference", features = rownames(nt))
     
-    nt <- RunPCA(nt, features = c(s.genes, g2m.genes))
+    nt <- RunPCA(nt, features = c(s.genes, g2m.genes), verbose = FALSE)
     DimPlot(nt, reduction = 'pca')
     
   }
   
-  save(nt, file=paste0(RdataDir, 'scRNA_rawReadCounts_metadata_day3.day5.no.stretch_QCed_geneFiltered_scranNorm_cellCycleScoring',
+  saveRDS(nt, file=paste0(RdataDir, 'scRNA_rawReadCounts_metadata_day3.day5.no.stretch_QCed_geneFiltered_scranNorm_cellCycleScoring',
                               version.analysis, '.rds'))
 }
 
 ##########################################
 # Run PCA, clusters and umap visualization
 ##########################################
-# new normalization from Seurat
-# tried regress out the pct_counts_Mt but works less well
-#nt <- SCTransform(object = nt, variable.features.n = nfeatures) 
-nt <- RunPCA(object = nt, features = VariableFeatures(nt), verbose = FALSE, weight.by.var = FALSE)
+nt = readRDS(file=paste0(RdataDir, 'scRNA_rawReadCounts_metadata_day3.day5.no.stretch_QCed_geneFiltered_scranNorm_cellCycleScoring',
+                         version.analysis, '.rds'))
+
+# subset nt for day5
+nt = subset(nt, cells = colnames(nt)[which(nt$orig.ident == 'No_Stretch_RASAG_Day_5')])
+# nt = subset(nt, cells = colnames(nt)[which(nt$annotated_clusters == 'NP-5'|nt$annotated_clusters == 'V-5')])
+
+Scran.HVGs = FALSE
+
+# HVG with Seurat
+nfeatures = 3000
+nt <- FindVariableFeatures(nt, selection.method = "vst", nfeatures = nfeatures)
+
+if(Scran.HVGs){
+  
+  sce = Seurat::as.SingleCellExperiment(nt, assay = 'RNA')
+  dec <- modelGeneVar(sce)
+  
+  plot(dec$mean, dec$total, xlab="Mean log-expression", ylab="Variance", log = '', cex = 0.5)
+  curve(metadata(dec)$trend(x), col="blue", add=TRUE)
+  
+  # Get the top 2000 genes.
+  top.hvgs <- getTopHVGs(dec, n=nfeatures)
+  
+  # Get the top 10% of genes.
+  top.hvgs2 <- getTopHVGs(dec, prop=0.1)
+  
+  # Get all genes with positive biological components.
+  top.hvgs3 <- getTopHVGs(dec, var.threshold=0)
+  
+  # Get all genes with FDR below 5%.
+  top.hvgs4 <- getTopHVGs(dec, fdr.threshold=0.05)
+  
+  
+  dec = modelGeneCV2(sce)
+  dec = dec[order(dec$p.value), ]
+  top.hvgs.cv2 = rownames(dec)[1:nfeatures]
+  
+}
+
+varFeatures = VariableFeatures(nt)
+varFeatures = top.hvgs
+varFeatures = top.hvgs.cv2
+
+nt <- RunPCA(object = nt, features = varFeatures, verbose = FALSE, weight.by.var = FALSE)
 ElbowPlot(nt, ndims = 50)
 
 
-nb.pcs = 20; n.neighbors = 30; min.dist = 0.1;
+nt <- FindNeighbors(object = nt, reduction = "pca", k.param = 20, dims = 1:30)
+nt <- FindClusters(nt, resolution = 0.7, algorithm = 3)
+
+nb.pcs = 30; n.neighbors = 20; min.dist = 0.2;
 nt <- RunUMAP(object = nt, reduction = 'pca', dims = 1:nb.pcs, n.neighbors = n.neighbors, min.dist = min.dist)
 
-nt <- FindNeighbors(object = nt, reduction = "pca", k.param = 20, dims = 1:30)
-nt <- FindClusters(nt, resolution = 1.5, algorithm = 3)
-
-DimPlot(nt, reduction = "umap", group.by = 'orig.ident') + ggtitle(paste0('day3 and day5')) +
-  ggsave(paste0(resDir, '/UMAP_day3_day5.pdf'), width = 12, height = 8)
+DimPlot(nt, reduction = "umap", group.by = 'seurat_clusters') + ggtitle(paste0('day5')) 
+FeaturePlot(nt, features = c('FOXA2', 'OLIG2', 'NKX2-2', 'NKX2-1', 'NKX6-1', 'PAX6', 'SOX10', 'TPAP2C'))
+#  ggsave(paste0(resDir, '/UMAP_day3_day5.pdf'), width = 12, height = 8)
 
 #nt.sub = subset(nt, cells = colnames(nt)[which(nt$orig.ident == 'No_Stretch_RASAG_Day_5')])
 #DimPlot(nt.sub, reduction = "umap", group.by = 'orig.ident') + ggtitle(paste0('day5'))
 p1 = DimPlot(nt, reduction = "umap", group.by = 'seurat_clusters') + ggtitle('clusters with scran normalization')
-p2 = FeaturePlot(nt, features = c('FOXA2'))
-p3 = VlnPlot(nt, features = c("FOXA2"))
-CombinePlots(plots = list(p1, p2, p3), ncol = 3)
+p2 = FeaturePlot(nt, features = c("FOXA2", 'PAX6', 'NKX2-2', 'OLIG2'), ncol = 2)
+p3 = VlnPlot(nt, features = c("FOXA2", 'PAX6', 'NKX2-2', 'OLIG2'), ncol = 2)
+p4 = DimPlot(nt, reduction = "umap", group.by = 'annotated_clusters')
+CombinePlots(plots = list(p1, p2, p3, p4), ncol = 2) + 
+  ggsave(filename = paste0(resDir, '/markerGenes_for_FPcluster.pdf'), width = 16, height = 10)
+
+
+examples = c('Lef1', 'Wnt3', 'Wnt3a', 'Wnt4', 'Wnt5b', 'Wnt6', 'Wnt7a', 'Wnt7b', 'Wnt8a', 'Dkk1', 'Dkk2', 'Dkk3', 'Tcf15', 'Tcf19', 
+             "Wnt1", 'Sost', 'Sfrp5', 'Lypd6')
+examples = c(c('Spry4', 'Spry2', 'Etv4', 'Etv5'), c('Fgf10', 'Fgf17','Fgf8', 'Fgf5', 'Fgf2','Fgf21', 'Fgf11','Fgf1', 'Fgf4', 'Fgfbp3'),
+             'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5')
+examples = c('Id1', 'Id3', 'Smad6', 'Nog', 'Fst', 'Bambi', 'Bmp7', 'Bmp4', 'Bmp1', 'Bmp6', 'Bmpr2', 'Bmpr1b')
+
+FeaturePlot(nt, features = c('FOXA2', toupper(examples)), ncol = 4)
+
 
 nt$cells = 'Foxa2.neg'
-nt$cells[which(nt$seurat_clusters == '3'| nt$seurat_clusters == '8')] = 'Foxa2.pos'
+nt$cells[which(nt$seurat_clusters == '4' |nt$seurat_clusters == '5')] = 'Foxa2.pos'
 Idents(nt) = 'cells'
 
+Use.subset.nt.to.annotate.FPcluster = FALSE
+if(Use.subset.nt.to.annotate.FPcluster){
+  #nt.sub = nt
+  #saveRDS(nt.sub, file=paste0(RdataDir, 'scRNA_rawReadCounts_metadata_day5.no.stretch_QCed_geneFiltered_scranNorm_cellCycleScoring_NP5_V5',
+  #                            version.analysis, '.rds'))
+  nt.sub = readRDS(file=paste0(RdataDir, 'scRNA_rawReadCounts_metadata_day5.no.stretch_QCed_geneFiltered_scranNorm_cellCycleScoring_NP5_V5',
+                               version.analysis, '.rds'))
+  #nt = readRDS(file=paste0(RdataDir, 'scRNA_rawReadCounts_metadata_day3.day5.no.stretch_QCed_geneFiltered_scranNorm_cellCycleScoring',
+  #                         version.analysis, '.rds'))
+  #nt = subset(nt, cells = colnames(nt)[which(nt$orig.ident == 'No_Stretch_RASAG_Day_5')])
+  
+  nt$cells = 'Foxa2.neg'
+  cell.pos = colnames(nt.sub)[which(nt.sub$cells == 'Foxa2.pos')]
+  nt$cells[!is.na(match(colnames(nt), cell.pos))] = 'Foxa2.pos'
+  Idents(nt) = 'cells'
+}
+
+
+
+DimPlot(nt, reduction = "umap", group.by = 'cells') + ggtitle(paste0('day5 Foxa2 positive and negative')) 
+
 VlnPlot(nt, features = c("FOXA2", 'OLIG2', 'FGF8', 'NKX2.2', 'BMP7', 'FGF4', 'SPRY4', 'ID1', 'LEF1', 
-                         'BMP4', 'FGF8', 'FGF2'),  pt.size = 0.2, ncol = 4)
+                         'BMP4', 'FGF8', 'FGF2', 'FGF4', 'FGF10', 'WNT4'),  pt.size = 0.2, ncol = 4)
+
+examples = c('Lef1', 'Wnt3', 'Wnt3a', 'Wnt4', 'Wnt5b', 'Wnt6', 'Wnt7a', 'Wnt7b', 'Wnt8a', 'Dkk1', 'Dkk2', 'Dkk3', 'Tcf15', 'Tcf19', 
+             "Wnt1", 'Sost', 'Sfrp5', 'Lypd6')
+examples = c(c('Spry4', 'Spry2', 'Etv4', 'Etv5'), c('Fgf10', 'Fgf17','Fgf8', 'Fgf5', 'Fgf2','Fgf21', 'Fgf11','Fgf1', 'Fgf4', 'Fgfbp3'),
+             'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5')
+examples = c('Id1', 'Id3', 'Smad6', 'Nog', 'Fst', 'Bambi', 'Bmp7', 'Bmp4', 'Bmp1', 'Bmp6', 'Bmpr2', 'Bmpr1b')
+
+VlnPlot(nt, features = c('FOXA2', toupper(examples)),  pt.size = 0.2, ncol = 4)
+
+
+##########################################
+# aggreate the cell counts to have pseudo-bulk 
+##########################################
+sce = Seurat::as.SingleCellExperiment(nt, assay = 'RNA')
+
+library(Matrix.utils)
+# Subset metadata to only include the cluster and sample IDs to aggregate across
+groups <- colData(sce)[, c("cells")]
+
+# Aggregate across cluster-sample groups
+out <- aggregate.Matrix(t(counts(sce)), groupings = groups, fun = "sum") 
+
+out = t(out)
+
+require(DESeq2)
+require(ggplot2)
+library(ggrepel)
+require(gridExtra)
+library(dplyr)
+library(patchwork)
+require(pheatmap)
+
+raw = data.frame(out)
+conds = colnames(raw)
+dds <- DESeqDataSetFromMatrix(raw, DataFrame(conds = conds), design = ~ conds)
+
+ss = rowSums(counts(dds))
+
+hist(log2(ss), breaks = 200, main = 'log2(sum of reads for each gene)')
+
+length(which(ss > quantile(ss, probs = 0.6)))
+dd0 = dds[ss > quantile(ss, probs = 0.6) , ]
+dd0 = estimateSizeFactors(dd0)
+sizefactors.UQ = sizeFactors(dd0)
+
+plot(sizeFactors(dd0), colSums(counts(dds)), log = 'xy')
+text(sizeFactors(dd0), colSums(counts(dds)), colnames(dd0), cex =0.4)
+
+sizeFactors(dds) = sizefactors.UQ
+fpm = fpm(dds, robust = TRUE)
+
+yy = data.frame(log2(fpm + 2^-6), gene = rownames(fpm), stringsAsFactors = FALSE)
+yy$lfc = yy$Foxa2.pos - yy$Foxa2.neg
+
+examples = c('Lef1', 'Wnt3', 'Wnt3a', 'Wnt4', 'Wnt5b', 'Wnt6', 'Wnt7a', 'Wnt7b', 'Wnt8a', 'Dkk1', 'Dkk2', 'Dkk3', 'Tcf15', 'Tcf19', 
+             "Wnt1", 'Sost', 'Sfrp5', 'Lypd6')
+examples = c(c('Spry4', 'Spry2', 'Etv4', 'Etv5'), c('Fgf10', 'Fgf17','Fgf8', 'Fgf5', 'Fgf2','Fgf21', 'Fgf11','Fgf1', 'Fgf4', 'Fgfbp3'),
+             'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5')
+examples = c('Id1', 'Id3', 'Smad6', 'Nog', 'Fst', 'Bambi', 'Bmp7', 'Bmp4', 'Bmp1', 'Bmp6', 'Bmpr2', 'Bmpr1b')
+
+examples = toupper(examples)
+kk = c(); for(g in examples) kk = unique(c(kk, which(as.character(yy$gene) == g)))
+
+ggplot(yy[kk, ], aes(x = gene, y = lfc)) + 
+  geom_bar(stat = "identity", position="dodge") +
+  coord_flip() + ggsave(paste0(resDir, "/LFC_positive.vs.negative_Day3.Day5_Wnt.pdf"), width=12, height = 10)
+
+examples = c(c('Spry4', 'Spry2', 'Etv4', 'Etv5'), c('Fgf10', 'Fgf17','Fgf8', 'Fgf5', 'Fgf2','Fgf21', 'Fgf11','Fgf1', 'Fgf4', 'Fgfbp3'),
+             'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5')
+kk = c(); for(g in examples) kk = unique(c(kk, which(as.character(yy$gene) == g)))
+ggplot(yy[kk, ], aes(x = gene, y = lfc, fill = day)) + 
+  geom_bar(stat = "identity", position="dodge") +
+  coord_flip() + ggsave(paste0(resDir, "/LFC_positive.vs.negative_Day3.Day5_FGF.pdf"), width=12, height = 10)
+
+examples = c('Id1', 'Id3', 'Smad6', 'Nog', 'Fst', 'Bambi', 'Bmp7', 'Bmp4', 'Bmp1', 'Bmp6', 'Bmpr2', 'Bmpr1b')
+
+kk = c(); for(g in examples) kk = unique(c(kk, which(as.character(yy$gene) == g)))
+ggplot(yy[kk, ], aes(x = gene, y = lfc, fill = day)) + 
+  geom_bar(stat = "identity", position="dodge") +
+  coord_flip() + ggsave(paste0(resDir, "/LFC_positive.vs.negative_Day3.Day5_BMP.pdf"), width=12, height = 10)
+
 
