@@ -367,7 +367,8 @@ if(Compare.with.pooledCells.timeSeries.sortedDay5){
 # Section : Pairwise comparisons 
 # Here we first identify significantly different genes in RA positive and negative genes
 # RA positive vs negative
-# perturbed-positive vs RA-positive; perturbed-negative vs RA-negative
+# In addition, the different response of Foxa2 positive and negative cells are also containing information of 
+# which genes are expressed in positive or negative cells
 ########################################################
 ########################################################
 Compare.RA.positve.negative = FALSE
@@ -399,12 +400,19 @@ if(Compare.RA.positve.negative){
   res1 = as.data.frame(res1)
   gg.signif = rownames(res1)[which(res1$padj < 0.05)]
   
+  # save the average expression of Foxa2 positive and negative cells
+  cpm = fpm(dds1)
+  cpm = cpm[, c(grep('pos', colnames(cpm)), grep('neg', colnames(cpm)))]
+  
+  res1 = data.frame(res1, cpm.foxa2.pos = apply(as.matrix(cpm[, grep('pos', colnames(cpm))]), 1, mean), 
+                    cpm.foxa2.neg = apply(as.matrix(cpm[, grep('neg', colnames(cpm))]), 1, mean))
+  
+  saveRDS(res1, file = paste0(resDir, '/TM3_Foxa2.positive_vs_neg.day3_comparison_cpm.mean.rds'))
+  
   ##########################################
   # ## visualize global DE genes 
   #  ## GO enrich analysis for upregulated and downregulated genes
   ##########################################
-  cpm = fpm(dds1)
-  cpm = cpm[, c(grep('pos', colnames(cpm)), grep('neg', colnames(cpm)))]
   df <- data.frame(cond = colnames(cpm), sorted = c(rep('Foxa2.pos', 3), rep('Foxa2.neg', 3)))
   rownames(df) = colnames(cpm)
   
@@ -448,48 +456,77 @@ if(Compare.RA.positve.negative){
   ##########################################
   # plot the fold-changes for Wnt, FGF, BMP siganling pathways
   ##########################################
-  res = res1
+  library(tidyr)
+  library(dplyr)
+  res = readRDS(file = paste0(resDir, '/TM3_Foxa2.positive_vs_neg.day3_comparison_cpm.mean.rds'))
   load(file = paste0('../results/Rdata/RNAseq_Foxa.positive_vs_neg.Day5.Rdata'))
   gene.all = unique(intersect(rownames(res), rownames(res1)))
   
-  res = data.frame(res[match(gene.all, rownames(res)), c(2, 5)], res1[match(gene.all, rownames(res1)), c(2, 5)])
-  colnames(res) = c('lfc.day3', 'pval.day3', 'lfc.day5', 'pval.day5')
-  res$gene = rownames(res)
-  yy1 = cbind(res[,c(1, 2, 5)], rep('day3', nrow(res)))
-  yy2 = cbind(res[,c(3, 4, 5)], rep('day5', nrow(res)))
-  colnames(yy1) = c('lfc', 'pval', 'gene', 'day')
-  colnames(yy2) = c('lfc', 'pval', 'gene', 'day')
-  yy = data.frame(rbind(yy1, yy2))
+  res = data.frame(res[match(gene.all, rownames(res)), c(2, 5, 7, 8)], res1[match(gene.all, rownames(res1)), c(2, 5, 7, 8)])
+  colnames(res) = c('lfc.day3', 'pval.day3', 'cpm.pos.day3', 'cpm.neg.day3',
+                    'lfc.day5', 'pval.day5', 'cpm.pos.day5', 'cpm.neg.day5')
   
-  yy$regulation = NA
-  yy$regulation[which(yy$lfc>0)] = 'upregulated'
-  yy$regulation[which(yy$lfc<0)] = 'downregulated'
-    
+  res$gene = rownames(res)
+  
+  #yy1 = cbind(res[,c(1, 2, 5)], rep('day3', nrow(res)))
+  #yy2 = cbind(res[,c(3, 4, 5)], rep('day5', nrow(res)))
   #colnames(res1) = paste0(colnames(res1), '_RA.pos_vs_RA.neg')
   #res = readRDS(file = paste0(RdataDir, '/TM3_res_pairwiseComparisons.rds'))
   #examples = c('Foxa2', 'Olig2', 'Shh')
   
+  ##########################################
+  # WNT, FGF, BMP genes in Foxa2 positive and negative cells
+  ##########################################
   examples = c('Lef1', 'Wnt3', 'Wnt3a', 'Wnt4', 'Wnt5b', 'Wnt6', 'Wnt7a', 'Wnt7b', 'Wnt8a', 'Dkk1', 'Dkk2', 'Dkk3', 'Tcf15', 'Tcf19', 
-               "Wnt1", 'Sost', 'Sfrp5', 'Lypd6')
-  kk = c(); for(g in examples) kk = unique(c(kk, which(as.character(yy$gene) == g)))
-  ggplot(yy[kk, ], aes(x = gene, y = lfc, fill = day)) + 
-    geom_bar(stat = "identity", position="dodge") +
-    coord_flip() + ggsave(paste0(resDir, "/LFC_positive.vs.negative_Day3.Day5_Wnt.pdf"), width=12, height = 10)
+               "Wnt1", 'Sost', 'Sfrp5', 'Lypd6', 'Peg12', 'Notum', 'Draxin')
+  SP = 'WNT'
   
-  examples = c(c('Spry4', 'Spry2', 'Etv4', 'Etv5'), c('Fgf10', 'Fgf17','Fgf8', 'Fgf5', 'Fgf2','Fgf21', 'Fgf11','Fgf1', 'Fgf4', 'Fgfbp3'),
+  examples = c('Spry4', 'Spry2', 'Etv4', 'Etv5', 'Fgf10', 'Fgf17','Fgf8', 'Fgf5', 'Fgf2','Fgf21', 'Fgf11','Fgf1', 'Fgf4', 'Fgfbp3',
                'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5')
-  kk = c(); for(g in examples) kk = unique(c(kk, which(as.character(yy$gene) == g)))
-  ggplot(yy[kk, ], aes(x = gene, y = lfc, fill = day)) + 
-    geom_bar(stat = "identity", position="dodge") +
-    coord_flip() + ggsave(paste0(resDir, "/LFC_positive.vs.negative_Day3.Day5_FGF.pdf"), width=12, height = 10)
+  SP = 'FGF'
   
-  examples = c('Id1', 'Id3', 'Smad6', 'Nog', 'Fst', 'Bambi', 'Bmp7', 'Bmp4', 'Bmp1', 'Bmp6', 'Bmpr2', 'Bmpr1b')
+  examples = c('Id1', 'Id3', 'Smad6', 'Nog', 'Fst', 'Bambi', 'Bmp7', 'Bmp4', 'Bmp1', 'Bmp6', 'Bmpr2', 'Bmpr1b', 'Bmp2', 'Bmp3', 'Bmp5', 
+               'Runx1', 'Runx2')
+  SP = 'BMP'
   
-  kk = c(); for(g in examples) kk = unique(c(kk, which(as.character(yy$gene) == g)))
-  ggplot(yy[kk, ], aes(x = gene, y = lfc, fill = day)) + 
-    geom_bar(stat = "identity", position="dodge") +
-    coord_flip() + ggsave(paste0(resDir, "/LFC_positive.vs.negative_Day3.Day5_BMP.pdf"), width=12, height = 10)
+    
+  kk = which(!is.na(match(rownames(res), examples)) == TRUE)
+  yy = res[, c(1, 3, 4, 9)]; colnames(yy) = c('lfc', 'cpm.pos', 'cpm.neg', 'gene')
+  yy$regulation = 'Foxa2+'; yy$regulation[which(yy$lfc<0)] = 'Foxa2-'
   
+  ggplot(yy[kk, ], aes(x = gene, y = lfc, fill = regulation)) + 
+    geom_bar(stat = "identity", position="dodge") + ylim(-1, 1) +
+    coord_flip() + 
+    theme(axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12)) + 
+    labs(title = paste0(SP, ' day3'), y = 'LFC', x = '') + 
+    ggsave(paste0(resDir, "/LFC_positive.vs.negative_Day3_", SP, ".pdf"), width=8, height = 6)
+  
+  as_tibble(yy[kk, ]) %>% gather(cells, cpm, 2:3) %>%
+    ggplot(aes(x = gene, y = cpm, fill = cells)) +
+    geom_bar(stat = "identity", position="dodge", width = 0.7) + 
+    coord_flip() +
+    theme(axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12)) + 
+    labs(title = paste0(SP, ' day3'), y = 'CPM', x = '') + 
+    ggsave(paste0(resDir, "/CPM_positive.vs.negative_Day3_", SP, ".pdf"), width=8, height = 10)
+  
+  
+  yy = res[, c(5, 7, 8, 9)]; colnames(yy) = c('lfc', 'cpm.pos', 'cpm.neg', 'gene')
+  yy$regulation = 'Foxa2+'; yy$regulation[which(yy$lfc<0)] = 'Foxa2-'
+  
+  ggplot(yy[kk, ], aes(x = gene, y = lfc, fill = regulation)) + 
+    geom_bar(stat = "identity", position="dodge")  +
+    coord_flip() + 
+    theme(axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12)) + 
+    labs(title = paste0(SP, ' day5'), y = 'LFC', x = '') + 
+    ggsave(paste0(resDir, "/LFC_positive.vs.negative_Day5_", SP, ".pdf"), width=8, height = 6)
+  
+  as_tibble(yy[kk, ]) %>% gather(cells, cpm, 2:3) %>%
+    ggplot(aes(x = gene, y = cpm, fill = cells)) +
+    geom_bar(stat = "identity", position="dodge", width = 0.7) + 
+    coord_flip() +
+    theme(axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12)) + 
+    labs(title = paste0(SP,  ' day5'), y = 'CPM', x = '') + 
+    ggsave(paste0(resDir, "/CPM_positive.vs.negative_Day5_", SP, ".pdf"), width=8, height = 10)
   
 }
 
@@ -651,6 +688,8 @@ if(Calculate.pairwise.comparisons){
     res = readRDS(file = paste0(RdataDir, '/TM3_res_pairwiseComparisons_perturbation.vs.RA_positive.negative.pooled.rds'))
     ggs = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
     
+    Compare.positive.vs.pooled.samples = FALSE
+    
     cc = unique(design.matrix$condition)
     cc = cc[which(cc != "N2B27" & cc != 'RA')]
     
@@ -663,13 +702,15 @@ if(Calculate.pairwise.comparisons){
                  'Wnt5b', 'Wnt6', 'Wnt7a', 'Wnt7b', 'Wnt8a', 'Sfrp5', 'Lypd6', 'Spry4', 'Etv5', 'Etv4', 'Fgf10', 'Fgf17', 
                  'Fgf8', 'Fgf5', 'Fgf2', 'Fgf21', 'Fgf11', 'Fgf1', 'Fgf4')
     
-    pdfname = paste0(resDir, '/TM3_comparing_response_signalingPathways_positve.negative.pooled.pdf')
-    pdf(pdfname,  width = 12, height = 10)
+    
+    
+    pdfname = paste0(resDir, '/TM3_comparing_response_signalingPathways_positve.negative_v2.pdf')
+    pdf(pdfname,  width = 16, height = 12)
     #par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
     
     for(n in 1:length(cc))
     {
-      # n = 1
+      # n = 5
       cat(n, ' -- ', cc[n], '\n')
       jj = grep(cc[n], colnames(res))
       yy = res[, jj]
@@ -699,39 +740,57 @@ if(Calculate.pairwise.comparisons){
         #geom_text(data=subset(yy, pvalue_pos > 2), size = 4, nudge_y = 0.5) + 
         geom_text_repel(data=subset(yy, pvalue_neg > 2), size = 4)
       
-      p3 = ggplot(data = yy,  aes(y = pvalue_pooled, x = lfc_pooled,  label = gene)) + 
-        geom_point(size = 1) + 
-        labs(title = paste0(cc[n], " - pooled  "), x = '', y = '-log10(pval)') + 
-        theme(axis.text.x = element_text(size = 12), 
-              axis.text.y = element_text(size = 12)) + 
-        geom_hline(yintercept = 2, colour = "red") +
-        #geom_text(data=subset(yy, pvalue_pos > 2), size = 4, nudge_y = 0.5) + 
-        geom_text_repel(data=subset(yy, pvalue_pooled > 2), size = 4)
-      
+      if(Compare.positive.vs.pooled.samples){
+        p3 = ggplot(data = yy,  aes(y = pvalue_pooled, x = lfc_pooled,  label = gene)) + 
+          geom_point(size = 1) + 
+          labs(title = paste0(cc[n], " - pooled  "), x = '', y = '-log10(pval)') + 
+          theme(axis.text.x = element_text(size = 12), 
+                axis.text.y = element_text(size = 12)) + 
+          geom_hline(yintercept = 2, colour = "red") +
+          #geom_text(data=subset(yy, pvalue_pos > 2), size = 4, nudge_y = 0.5) + 
+          geom_text_repel(data=subset(yy, pvalue_pooled > 2), size = 4)
+      }
+     
       examples.sel = unique(c(examples, rownames(yy)[which(yy$pvalue_pos > 2 | yy$pvalue_neg > 2)]))
-      p4 = ggplot(data = yy, aes(x = pvalue_pooled, y = pvalue_neg , label = gene)) +
+      
+      if(Compare.positive.vs.pooled.samples){
+        p4 = ggplot(data = yy, aes(x = pvalue_pooled, y = pvalue_neg , label = gene)) +
+          geom_point(size = 1) + 
+          xlim(0, 6) + ylim(0, 6) + geom_hline(yintercept = 1.3, colour = "blue") +
+          geom_vline(xintercept = 1.3, colour = "blue") + 
+          labs(title = paste0(cc[n], " - neg vs pooled : -log10(pval) "), x = 'pooled', y = 'negative') +
+          geom_abline(slope = 1, intercept = 0, colour = 'red') + 
+          geom_label_repel(data=  as.tibble(yy) %>%  dplyr::mutate_if(is.factor, as.character) %>% dplyr::filter(gene %in% examples.sel),
+                           size = 3)
+        #examples.sel = unique(c(examples, rownames(yy)[which(yy$pvalue_pos > 2 | yy$pvalue_neg > 2)]))
+        p5 = ggplot(data = yy, aes(x = pvalue_pooled, y = pvalue_pos, label = gene)) +
+          geom_point(size = 1) + 
+          xlim(0, 6) + ylim(0, 6) + geom_hline(yintercept = 1.3, colour = "blue") +
+          geom_vline(xintercept = 1.3, colour = "blue") + 
+          labs(title = paste0(cc[n], " - pos vs pooled : -log10(pval) "), x = 'pooled', y = 'positive') + 
+          geom_abline(slope = 1, intercept = 0, colour = 'red') + 
+          geom_label_repel(data=  as.tibble(yy) %>%  dplyr::mutate_if(is.factor, as.character) %>% dplyr::filter(gene %in% examples.sel),
+                           size = 3)
+      }
+      
+      p6 = ggplot(data = yy, aes(x = pvalue_neg, y = pvalue_pos, label = gene)) +
         geom_point(size = 1) + 
-        xlim(0, 6) + ylim(0, 6) + geom_hline(yintercept = 1.3, colour = "blue") +
-        geom_vline(xintercept = 1.3, colour = "blue") + 
-        labs(title = paste0(cc[n], " - neg vs pooled : -log10(pval) "), x = 'pooled', y = 'negative') +
+        xlim(0, 6) + ylim(0, 6) + geom_hline(yintercept = 2, colour = "blue") +
+        geom_vline(xintercept = 2, colour = "blue") + 
+        labs(title = paste0(cc[n], " - pos vs neg : -log10(pval) "), x = 'negative', y = 'positive') + 
         geom_abline(slope = 1, intercept = 0, colour = 'red') + 
         geom_label_repel(data=  as.tibble(yy) %>%  dplyr::mutate_if(is.factor, as.character) %>% dplyr::filter(gene %in% examples.sel),
                          size = 3)
-      #examples.sel = unique(c(examples, rownames(yy)[which(yy$pvalue_pos > 2 | yy$pvalue_neg > 2)]))
-      p5 = ggplot(data = yy, aes(x = pvalue_pooled, y = pvalue_pos, label = gene)) +
-        geom_point(size = 1) + 
-        xlim(0, 6) + ylim(0, 6) + geom_hline(yintercept = 1.3, colour = "blue") +
-        geom_vline(xintercept = 1.3, colour = "blue") + 
-        labs(title = paste0(cc[n], " - pos vs pooled : -log10(pval) "), x = 'pooled', y = 'positive') + 
-        geom_abline(slope = 1, intercept = 0, colour = 'red') + 
-        geom_label_repel(data=  as.tibble(yy) %>%  dplyr::mutate_if(is.factor, as.character) %>% dplyr::filter(gene %in% examples.sel),
-                         size = 3)
+      
       plot(p1)
       plot(p2)
-      #grid.arrange(p1, p2, nrow = 1, ncol = 2)
-      plot(p3)
-      plot(p4)
-      plot(p5)
+      if(Compare.positive.vs.pooled.samples){
+        plot(p3)
+        plot(p4)
+        plot(p5)
+      }
+      plot(p6)
+      
       #grid.arrange(p1, p2, p3, p4, p5, nrow = 2, ncol = 3)
     }
     

@@ -20,7 +20,7 @@ dataDir = '../data/'
 require(ggplot2)
 require(DESeq2)
 require(dplyr)
-require("pheatmap")
+require(pheatmap)
 
 ########################################################
 ########################################################
@@ -719,5 +719,8 @@ xx = xx[which(xx$padj < 0.05), ]
 xx = xx[!is.na(match(rownames(xx), ggs$gene)), ]
 
 cpm = fpm(dds1)
+
+res1 = data.frame(res1, cpm.foxa2.pos = apply(as.matrix(cpm[, grep('GFPp', colnames(cpm))]), 1, mean), 
+                  cpm.foxa2.neg = apply(as.matrix(cpm[, grep('AF', colnames(cpm))]), 1, mean))
 
 save(dds1, res1, file = paste0(RdataDir, '/RNAseq_Foxa.positive_vs_neg.Day5.Rdata'))
