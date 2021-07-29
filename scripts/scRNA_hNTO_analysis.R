@@ -51,7 +51,7 @@ kk = match(rownames(design), colnames(raw))
 raw = raw[, kk]
 
 # select no stretch day 3 and day5 but not day11
-cells.sel = grep('No_Stretch_No_RASAG_Day_3|No_Stretch_RASAG_Day_5', design$orig.ident)
+cells.sel = grep('No_Stretch_No_RASAG_Day_3|No_Stretch_RASAG_Day_5|No_Stretch_RASAG_Day_11', design$orig.ident)
 design = design[cells.sel, ]
 raw = raw[, cells.sel]
 
@@ -207,6 +207,7 @@ if(cell.cycle.regression){
   
   saveRDS(nt, file=paste0(RdataDir, 'scRNA_rawReadCounts_metadata_day3.day5.no.stretch_QCed_geneFiltered_scranNorm_cellCycleScoring',
                               version.analysis, '.rds'))
+  
 }
 
 ##########################################
@@ -216,13 +217,13 @@ nt = readRDS(file=paste0(RdataDir, 'scRNA_rawReadCounts_metadata_day3.day5.no.st
                          version.analysis, '.rds'))
 
 # subset nt for day5
-nt = subset(nt, cells = colnames(nt)[which(nt$orig.ident == 'No_Stretch_RASAG_Day_5')])
+#nt = subset(nt, cells = colnames(nt)[which(nt$orig.ident == 'No_Stretch_RASAG_Day_5')])
 # nt = subset(nt, cells = colnames(nt)[which(nt$annotated_clusters == 'NP-5'|nt$annotated_clusters == 'V-5')])
 
 Scran.HVGs = FALSE
 
 # HVG with Seurat
-nfeatures = 3000
+nfeatures = 5000
 nt <- FindVariableFeatures(nt, selection.method = "vst", nfeatures = nfeatures)
 
 if(Scran.HVGs){
@@ -266,7 +267,34 @@ nt <- FindClusters(nt, resolution = 0.7, algorithm = 3)
 nb.pcs = 30; n.neighbors = 20; min.dist = 0.2;
 nt <- RunUMAP(object = nt, reduction = 'pca', dims = 1:nb.pcs, n.neighbors = n.neighbors, min.dist = min.dist)
 
-DimPlot(nt, reduction = "umap", group.by = 'seurat_clusters') + ggtitle(paste0('day5')) 
+DimPlot(nt, reduction = "umap", group.by = 'seurat_clusters') + ggtitle(paste0('all')) 
+
+DimPlot(nt, reduction = "umap", group.by = 'orig.ident') + ggtitle(paste0('all')) 
+DimPlot(nt, reduction = "umap", group.by = 'annotated_clusters') + ggtitle(paste0('all')) 
+
+p1 = FeaturePlot(nt, features = c('FOXA2', 'SHH', 'ARX', 'HOXB4','ZNF703', 'CYP26A1', 'STRA8', 'HHIP1', 'PTCH1', 'GLI1', 'GLI2', 'GLI3'))
+p2 = DimPlot(nt, reduction = "umap", group.by = 'orig.ident') + ggtitle(paste0('all')) 
+
+CombinePlots(plots = list(p1, p2, ), ncol = 1)
+
+
+xx = nt@assays$RNA@scale.data
+
+kk = match(c('POU5F1', 'PAX6'), rownames(xx))
+
+kk = match(c('SHH', 'FOXA2'), rownames(xx))
+
+plot(xx[kk[1], ], xx[kk[2], ], xlab = 'SHH', ylab = 'FOXA2', cex  = 0.1)
+jj = grep('Day_3', nt$orig.ident)
+points(xx[kk[1],jj], xx[kk[2], jj], col = 'blue')
+
+jj = grep('Day_5', nt$orig.ident)
+points(xx[kk[1],jj], xx[kk[2], jj], col = 'red')
+
+jj = grep('Day_11', nt$orig.ident)
+points(xx[kk[1],jj], xx[kk[2], jj], col = 'green')
+
+
 FeaturePlot(nt, features = c('FOXA2', 'OLIG2', 'NKX2-2', 'NKX2-1', 'NKX6-1', 'PAX6', 'SOX10', 'TPAP2C'))
 #  ggsave(paste0(resDir, '/UMAP_day3_day5.pdf'), width = 12, height = 8)
 
