@@ -606,7 +606,7 @@ if(Make.example.plots){
   sorted = cbind(apply(rpkm[ , grep('s48h_RA_AF', colnames(rpkm))], 1, median), 
                  apply(rpkm[ , grep('s48h_RA_GFPp', colnames(rpkm))], 1, median),
                  apply(rpkm[ , grep('s48h_SAG_GFPp', colnames(rpkm))], 1, median))
-  
+  colnames(sorted) = c('s48h_RA_GFP.neg', 's48h_RA_GFP.pos', 's48h_SAG_GFP.pos')
   
   examples = unique(c('Foxa2', # FoxA 
                       'Lef1', 'Mapk1', rownames(rpkm)[grep('Smad', rownames(rpkm))], 
@@ -617,7 +617,9 @@ if(Make.example.plots){
                       'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5', 'Mapk10', 'Mapk4', 'Mapk8ip2', 'Spry4', 'Rbpj', 'Hes1', 'Hes5',
                       'Hes7', 'Hey1', 'Hey2',
                       rownames(rpkm)[grep('Notch|Jag|Dll|Dlk', rownames(rpkm))], 
-                      rownames(rpkm)[grep('Tgf', rownames(rpkm))]
+                      rownames(rpkm)[grep('Tgf', rownames(rpkm))], 
+                      'Irx3', 'Dbx2', 'Dbx1', 'Pax6', 'Pax7', # NT genes
+                      'Nkx6-1', 'Nkx6-2', 'Nkx2-2', 'Olig2'
   ))
   
   examples = unique(c(examples, ggs$gene))
@@ -654,15 +656,17 @@ if(Make.example.plots){
       
       points(48, sorted[kk, 1], col = 'darkblue', type = 'p', cex = 2.0, pch = 21, bg = 'magenta')
       points(48, sorted[kk, 2], col = 'darkblue', type = 'p', cex = 2.0, pch = 21, bg = 'darkgreen')
-      #points(48, sorted[kk, 3], col = 'darkorange', type = 'p', cex = 2.0, pch = 18)
+      points(48, sorted[kk, 3], col = 'deepskyblue', type = 'p', cex = 2.0, pch = 18, bg = 'darkgreen')
       
       abline(h = c(0, 1), col = 'darkgray', lwd = 2.0)
       abline(v = c(6, 32, 54), col = 'cornflowerblue', lwd = 2.0, lty=3)
-      legend('topleft', legend = c('RA', 'no.RA', 's48h.RA.AF', 's48h.RA.GFPp'), bty = 'n', 
-             col = c('darkblue', 'darkred', 'magenta', 'darkgreen'), lwd =2.0, pch = c(16, 1, 16, 16), lty = c(1, 1, 0, 0))
+      legend('topleft', legend = c('RA', 'no.RA', 's48h.RA.AF', 's48h.RA.GFPp', 's48.SAG.GFPp'), bty = 'n', 
+             col = c('darkblue', 'darkred', 'magenta', 'darkgreen', 'deepskyblue'), lwd =2.0, 
+             pch = c(16, 1, 16, 16, 18), lty = c(1, 1, 0, 0, 0))
       
     }else{
       cat(g, 'Not Found \n')
+      
     }
   }
   
