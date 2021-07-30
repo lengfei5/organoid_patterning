@@ -223,7 +223,7 @@ nt = readRDS(file=paste0(RdataDir, 'scRNA_rawReadCounts_metadata_day3.day5.no.st
 Scran.HVGs = FALSE
 
 # HVG with Seurat
-nfeatures = 5000
+nfeatures = 3000
 nt <- FindVariableFeatures(nt, selection.method = "vst", nfeatures = nfeatures)
 
 if(Scran.HVGs){
@@ -275,8 +275,9 @@ DimPlot(nt, reduction = "umap", group.by = 'annotated_clusters') + ggtitle(paste
 p1 = FeaturePlot(nt, features = c('FOXA2', 'SHH', 'ARX', 'HOXB4','ZNF703', 'CYP26A1', 'STRA8', 'HHIP1', 'PTCH1', 'GLI1', 'GLI2', 'GLI3'))
 p2 = DimPlot(nt, reduction = "umap", group.by = 'orig.ident') + ggtitle(paste0('all')) 
 
-CombinePlots(plots = list(p1, p2, ), ncol = 1)
-
+p1 = FeaturePlot(nt, features = c('BMP4', 'BMP7'))
+p2 = DimPlot(nt, reduction = "umap", group.by = 'annotated_clusters') + ggtitle(paste0('all')) 
+p1 + p2
 
 xx = nt@assays$RNA@scale.data
 

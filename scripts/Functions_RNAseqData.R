@@ -86,14 +86,30 @@ Manual.curate.geneList.signalingPathways = function()
   
   saveRDS(ggs, file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
   
-  spg = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
+  ##########################################
+  # manually add some examples 
+  ##########################################
+  spg = readRDS(file = '../results/Rdata/TM3_examplesGenes_withGOterm.rds')
   spg = rbind(c('Olig2', NA), spg)
   spg = rbind(spg, c('Shh', 'SHH'))
   spg = rbind(spg, c('Runx1', 'BMP'))
   
   spg = spg[match(unique(spg$gene), spg$gene), ]
-  save(spg, file = paste0('../results/Rdata/curated_signaling.pathways_gene.list.rds'))
+  saveRDS(spg, file = paste0('../results/Rdata/curated_signaling.pathways_gene.list.rds'))
   
+  ##########################################
+  # add SHH pathways  
+  ##########################################
+  genes = readRDS(file = '../results/Rdata/curated_signaling.pathways_gene.list.rds')
+  
+  xx = read.xlsx('../data/GO_term_summary_SHH.xlsx')
+  xx = unique(xx$Symbol)
+  xx = cbind(xx, rep('SHH', length(xx)))
+  colnames(xx) = colnames(genes)
+  genes = rbind(genes, xx)  
+  #genes = genes[, genes$gene), ]
+  
+  saveRDS(genes, file = paste0('../results/Rdata/curated_signaling.pathways_gene.list_v2.rds'))
   #write.csv(ggs, file = paste0(resDir, '/genes_signalingPathways.csv'), row.names = FALSE)
 }
 

@@ -408,7 +408,7 @@ load(file = paste0(RdataDir, '/RNAseq_timeSeries_fpmMean_DEtestRes.timepoints.an
 #fpm = fpm(dds, robust = TRUE)
 #sps = read.table(file = paste0(resDir, '/enrichGO_RNAseq_timeSeries_siganificantGenes.dynamicGenes.logFC.1_singalingPathways.txt'),
 #sep = '\t', header = TRUE, row.names = 1)
-ggs = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
+ggs = readRDS(file = paste0('../results/Rdata/curated_signaling.pathways_gene.list_v2.rds'))
 
 ##########################################
 # normalize with gene length 
@@ -621,10 +621,9 @@ if(Make.example.plots){
   ))
   
   examples = unique(c(examples, ggs$gene))
-  
   cat('nb of genes to check :', length(examples), '\n')
   
-  pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_v7.pdf')
+  pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_v8.pdf')
   pdf(pdfname,  width = 10, height = 6)
   par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
   
