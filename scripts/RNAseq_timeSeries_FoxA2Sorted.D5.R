@@ -618,14 +618,19 @@ if(Make.example.plots){
                       'Hes7', 'Hey1', 'Hey2',
                       rownames(rpkm)[grep('Notch|Jag|Dll|Dlk', rownames(rpkm))], 
                       rownames(rpkm)[grep('Tgf', rownames(rpkm))], 
-                      'Irx3', 'Dbx2', 'Dbx1', 'Pax6', 'Pax7', # NT genes
+                      # NT genes
+                      'Pax6', 'Irx3', 'Irx5', 'Msx1', 'Dbx2', 'Nkx2-9', 
+                      'Olig3', 'Gsx1', 'Dbx1', 'Prdm12', 'Foxn4', 'Olig2', 'Nkx2-2', 
+                      'Pax3', 'Pax7', 'Nkx6-2', 'Nkx6-1',
+                      'Irx3', 'Dbx2', 'Dbx1', 'Pax6', 'Pax7', 
                       'Nkx6-1', 'Nkx6-2', 'Nkx2-2', 'Olig2'
+                      
   ))
   
   examples = unique(c(examples, ggs$gene))
   cat('nb of genes to check :', length(examples), '\n')
   
-  pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_v8.pdf')
+  pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_v9.pdf')
   pdf(pdfname,  width = 10, height = 6)
   par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
   
@@ -673,7 +678,6 @@ if(Make.example.plots){
   dev.off()
   
 }
-
 
 ########################################################
 ########################################################

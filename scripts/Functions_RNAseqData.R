@@ -111,6 +111,20 @@ Manual.curate.geneList.signalingPathways = function()
   
   saveRDS(genes, file = paste0('../results/Rdata/curated_signaling.pathways_gene.list_v2.rds'))
   #write.csv(ggs, file = paste0(resDir, '/genes_signalingPathways.csv'), row.names = FALSE)
+  
+  ##########################################
+  # add ligand-receptor pairs from CellChat database 
+  ##########################################
+  ggs = readRDS(file = paste0('../results/Rdata/curated_signaling.pathways_gene.list_v2.rds'))
+  
+  load('~/workspace/imp/positional_memory/data/CellChat_ligand.receptor/CellChatDB.human.rda')
+  xx = CellChatDB.human
+  
+  write.table(xx$cofactor, file = paste0('../results/Rdata/cofactors_signaling.pathways.txt'), sep = '\t',
+              col.names = TRUE, row.names = TRUE, quote = FALSE)
+  
+  # xx = xx$interaction
+  
 }
 
 Save.median.transcript.lengths.for.each.gene = function()

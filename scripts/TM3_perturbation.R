@@ -279,7 +279,7 @@ Counts.to.Use = 'UMI'
 
 load(file = paste0(RdataDir, '/design.detailed_RawUMI_', Counts.to.Use, version.analysis, '.Rdata'))
 genes = readRDS(file = paste0(RdataDir, '/mm10_ens_BioMart_GRCm38.p6_ensID.geneSymbol.length.rds'))
-ggs = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
+ggs = readRDS(file = paste0('../results/Rdata/curated_signaling.pathways_gene.list_v2.rds'))
 
 sels = which(design$SampleID != '161040')
 
@@ -322,6 +322,7 @@ dds <- dds[ss > cutoff.gene, ]
 sizeFactors(dds) = sizefactors.UQ
 fpm = fpm(dds, robust = TRUE)
 
+save(dds, file = paste0(RdataDir, 'TM3_dds_normalized.Rdata'))
 #save(fpm, design, file = paste0(tfDir, '/RNAseq_fpm_fitered.cutoff.', cutoff.gene, '.Rdata'))
 vsd <- varianceStabilizingTransformation(dds, blind = FALSE)
 
@@ -823,7 +824,6 @@ if(Calculate.pairwise.comparisons){
 }
 
 
-
 ########################################################
 ########################################################
 # Section : plotting results
@@ -834,7 +834,10 @@ if(Calculate.pairwise.comparisons){
 ##########################################
 # plot individual examples
 ##########################################
-ggs = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
+load(file = paste0(RdataDir, 'TM3_dds_normalized.Rdata'))
+#ggs = readRDS(file = paste0(RdataDir, '/TM3_examplesGenes_withGOterm.rds'))
+ggs = readRDS(file = paste0('../results/Rdata/curated_signaling.pathways_gene.list_v2.rds'))
+
 ggs$pathway[which(is.na(ggs$pathway))] = 'A' 
 ggs = ggs[order(ggs$pathway), ]
 res = readRDS(file = paste0(RdataDir, '/TM3_res_pairwiseComparisons_perturbation.vs.RA_positive.negative.pooled.rds'))
@@ -872,7 +875,7 @@ level_order = apply(expand.grid(c(1:3), c('RA', 'BMP', 'LDN', 'FGF', 'PD', 'CHIR
                     1, function(x) paste(x[2], x[1], sep="_"))
 
 #n = which(rownames(fpm) == 'Foxa2')
-pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive_negative.pooled_v10_log2scale_signalingPathway.pdf')
+pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive_negative.pooled_v11_log2scale_signalingPathway.withSHH.pdf')
 pdf(pdfname,  width = 20, height = 16)
 #par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
 library(reshape2)
