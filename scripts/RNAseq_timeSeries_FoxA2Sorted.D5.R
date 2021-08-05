@@ -175,6 +175,7 @@ dds1 = dds[,kk]
 dds1$condition = droplevels(dds1$condition)
 res1 = DESeq(dds1, test="LRT", reduced=~1)
 
+
 res1 <- as.data.frame(results(res1))
 
 fpm1 = fpm[, kk]
