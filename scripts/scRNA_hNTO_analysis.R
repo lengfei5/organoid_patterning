@@ -211,7 +211,8 @@ if(cell.cycle.regression){
 }
 
 ##########################################
-# Run PCA, clusters and umap visualization
+# Run PCA, clusters and umap visualization and 
+# FeaturePlot for signaling pathways
 ##########################################
 library(SingleCellExperiment)
 library(scater)
@@ -226,12 +227,27 @@ library(cowplot)
 options(stringsAsFactors = FALSE)
 nt = readRDS(file=paste0(RdataDir, 'scRNA_rawReadCounts_metadata_day3.day5.no.stretch_QCed_geneFiltered_scranNorm_cellCycleScoring',
                          version.analysis, '.rds'))
+subsets = 'Day5'
 
-# subset nt for day5
-#nt = subset(nt, cells = colnames(nt)[which(nt$orig.ident == 'No_Stretch_RASAG_Day_5')])
-# nt = subset(nt, cells = colnames(nt)[which(nt$annotated_clusters == 'NP-5'|nt$annotated_clusters == 'V-5')])
+# subset nt for day5 or day 11
+if(subsets == 'Day11'){
+  nt = subset(nt, cells = colnames(nt)[which(nt$orig.ident == 'No_Stretch_RASAG_Day_11')])
+  nt = subset(nt, cells = colnames(nt)[which(nt$annotated_clusters == 'D-11'|
+                                               nt$annotated_clusters == 'FB'|
+                                               nt$annotated_clusters == 'I-11'|
+                                               nt$annotated_clusters == 'T-a'|
+                                               nt$annotated_clusters == 'V-11')])
+}
 
-Scran.HVGs = FALSE
+if(subsets == 'Day5'){
+  nt = subset(nt, cells = colnames(nt)[which(nt$orig.ident == 'No_Stretch_RASAG_Day_5')])
+  nt = subset(nt, cells = colnames(nt)[which(nt$annotated_clusters == 'NP-5'|
+                                               nt$annotated_clusters == 'T-b'|
+                                               nt$annotated_clusters == 'V-5')])
+}
+
+
+Scran.HVGs = TRUE
 
 # HVG with Seurat
 nfeatures = 3000
@@ -275,16 +291,19 @@ ElbowPlot(nt, ndims = 50)
 nt <- FindNeighbors(object = nt, reduction = "pca", k.param = 20, dims = 1:20)
 nt <- FindClusters(nt, resolution = 0.7, algorithm = 3)
 
-nb.pcs = 30; n.neighbors = 20; min.dist = 0.1;
+nb.pcs = 20; n.neighbors = 10; min.dist = 0.1;
 nt <- RunUMAP(object = nt, reduction = 'pca', dims = 1:nb.pcs, n.neighbors = n.neighbors, min.dist = min.dist)
 
-p1 = DimPlot(nt, reduction = "umap", group.by = 'orig.ident') + ggtitle(paste0('all')) 
-p2 = DimPlot(nt, reduction = "umap", group.by = 'annotated_clusters') + ggtitle(paste0('all')) 
+p1 = DimPlot(nt, reduction = "umap", group.by = 'orig.ident') + ggtitle(subsets) 
+p2 = DimPlot(nt, reduction = "umap", group.by = 'annotated_clusters') + ggtitle(subsets)
 
-p1 + p2
+p1 + p2 + ggsave(filename = paste0(resDir, '/No_stretch_day', subsets, '_annotatedClusters.pdf'), width = 12, height = 6)
 
+FeaturePlot(nt, features = 'FOXA2') + 
+  ggsave(filename = paste0(resDir, '/No_stretch_day', subsets, '_FOXA2.positive.cells.pdf'), width = 8, height = 6)
 
 DimPlot(nt, reduction = "umap", group.by = 'seurat_clusters') + ggtitle(paste0('all')) 
+
 examples =  unique(toupper(c('FOXA2', 'SHH', 'ARX', 'HOXB4','ZNF703', 'CYP26A1', 'STRA8', 'HHIP1',
              'PTCH1', 'GLI1', 'GLI2', 'GLI3', 'BMP4', 'BMP7', 
              'POU5F1', 'PAX6', 'NKX2-2', 'NKX2-1', 'NKX6-1', 'PAX6', 'SOX10', 'TPAP2C',
@@ -295,7 +314,7 @@ examples =  unique(toupper(c('FOXA2', 'SHH', 'ARX', 'HOXB4','ZNF703', 'CYP26A1',
              'Nkx6-1', 'Nkx6-2', 'Nkx2-2', 'Olig2')))
 
 
-pdfname = paste0(resDir, '/hNTO_scRNAseq_examples.pdf')
+pdfname = paste0(resDir, '/hNTO_scRNAseq_examples_NT.marker.genes_Day', subsets, '.pdf')
 pdf(pdfname,  width = 10, height = 8)
 par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
 
@@ -307,17 +326,40 @@ for(n in 1:length(examples))
   
 dev.off()
 
-# Roofplate markers
-FeaturePlot(nt, features = c('BMP4', 'BMP7', 'LMX1A',  'LMX1B', 'GDF7', 'RSPO1', 'HES4', 'MSX1', 'MSX2'),
-            ncol = 3
-            )
-            
-p1 = FeaturePlot(nt, features = c('FOXA2', 'SHH', 'ARX', 'HOXB4','ZNF703', 'CYP26A1', 'STRA8', 'HHIP1', 'PTCH1', 'GLI1', 'GLI2', 'GLI3'))
-p2 = DimPlot(nt, reduction = "umap", group.by = 'orig.ident') + ggtitle(paste0('all')) 
+## Roofplate markers
+FeaturePlot(nt, features = c('BMP4', 'BMP7', 'FOXD3',  'LMX1A',  'LMX1B', 'GDF7', 'RSPO1', 'HES4'), ncol = 3) 
 
-p1 = FeaturePlot(nt, features = c('BMP4', 'BMP7'))
-p2 = DimPlot(nt, reduction = "umap", group.by = 'annotated_clusters') + ggtitle(paste0('all')) 
-p1 + p2
+FeaturePlot(nt, features = c('BMP4', 'BMP7', 'LMX1A',  'LMX1B', 'GDF7', 'RSPO1', 'HES4', 'MSX1', 'MSX2'), ncol = 3) +
+  ggsave(filename = paste0(resDir, '/FeaturePlot_day', subsets, '_RP.pdf'), width = 18, height = 12)
+
+         
+## WNT signaling pathways 
+examples = c('Lef1', 'Wnt3', 'Wnt3a', 'Wnt4', 'Wnt5b', 'Wnt6', 'Wnt7a', 'Wnt7b', 'Wnt8a', 'Dkk1', 'Dkk2', 'Dkk3', 'Tcf15', 'Tcf19', 
+             "Wnt1", 'Sost', 'Sfrp5', 'Peg12', 'Notum', 'Draxin')
+FeaturePlot(nt, features = toupper(examples), ncol = 4) + 
+  ggsave(filename = paste0(resDir, '/FeaturePlot_day', subsets, '_WNT.pdf'), width = 18, height = 12)
+
+examples = c('Spry4', 'Spry2', 'Etv4', 'Etv5', 'Fgf10', 'Fgf17','Fgf8', 'Fgf5', 'Fgf2','Fgf21', 'Fgf11','Fgf1', 'Fgf4', 'Fgfbp3',
+             'Dusp1', 'Dusp10', 'Dusp27', 'Dusp4', 'Dusp5')
+FeaturePlot(nt, features = toupper(examples), ncol = 4) + 
+  ggsave(filename = paste0(resDir, '/FeaturePlot_day', subsets, '_FGF.pdf'), width = 18, height = 12)
+
+examples = c('Id1', 'Id3', 'Smad6', 'Nog', 'Fst', 'Bambi', 'Bmp7', 'Bmp4', 'Bmp1', 'Bmp6', 'Bmpr2', 'Bmpr1b', 'Bmp2', 'Bmp3', 'Bmp5', 
+             'Runx1')
+FeaturePlot(nt, features = toupper(examples), ncol = 4) + 
+  ggsave(filename = paste0(resDir, '/FeaturePlot_day', subsets, '_BMP.pdf'), width = 18, height = 12)
+
+examples = c('SHH', 'GLI1', 'GLI2', 'GLI3', 'Ptch1', 'FZD10', 'FZD2', 'FZD4', 'FZD8', 'LRP1', 'LRP2', 'BOC', 'GAS1', 'CDON', 'HHIP')
+FeaturePlot(nt, features = toupper(examples), ncol = 4) + 
+  ggsave(filename = paste0(resDir, '/FeaturePlot_day', subsets, '_SHH.pdf'), width = 18, height = 12)
+
+
+# p1 = FeaturePlot(nt, features = c('FOXA2', 'SHH', 'ARX', 'HOXB4','ZNF703', 'CYP26A1', 'STRA8', 'HHIP1', 'PTCH1', 'GLI1', 'GLI2', 'GLI3'))
+# p2 = DimPlot(nt, reduction = "umap", group.by = 'orig.ident') + ggtitle(paste0('all')) 
+# 
+# p1 = FeaturePlot(nt, features = c('BMP4', 'BMP7'))
+# p2 = DimPlot(nt, reduction = "umap", group.by = 'annotated_clusters') + ggtitle(paste0('all')) 
+# p1 + p2
 
 # check the co-location of gene expression in the same cells
 if(check.coexpression.within.same.cell){
