@@ -213,6 +213,17 @@ if(cell.cycle.regression){
 ##########################################
 # Run PCA, clusters and umap visualization
 ##########################################
+library(SingleCellExperiment)
+library(scater)
+library(scRNA.seq.funcs)
+library(scran)
+library(Seurat)
+library(ggplot2)
+library(dplyr)
+library(SeuratWrappers)
+library(cowplot)
+
+options(stringsAsFactors = FALSE)
 nt = readRDS(file=paste0(RdataDir, 'scRNA_rawReadCounts_metadata_day3.day5.no.stretch_QCed_geneFiltered_scranNorm_cellCycleScoring',
                          version.analysis, '.rds'))
 
@@ -253,25 +264,54 @@ if(Scran.HVGs){
   
 }
 
-varFeatures = VariableFeatures(nt)
-varFeatures = top.hvgs
+#varFeatures = VariableFeatures(nt)
+#varFeatures = top.hvgs
 varFeatures = top.hvgs.cv2
 
 nt <- RunPCA(object = nt, features = varFeatures, verbose = FALSE, weight.by.var = FALSE)
 ElbowPlot(nt, ndims = 50)
 
 
-nt <- FindNeighbors(object = nt, reduction = "pca", k.param = 20, dims = 1:30)
+nt <- FindNeighbors(object = nt, reduction = "pca", k.param = 20, dims = 1:20)
 nt <- FindClusters(nt, resolution = 0.7, algorithm = 3)
 
-nb.pcs = 30; n.neighbors = 20; min.dist = 0.2;
+nb.pcs = 30; n.neighbors = 20; min.dist = 0.1;
 nt <- RunUMAP(object = nt, reduction = 'pca', dims = 1:nb.pcs, n.neighbors = n.neighbors, min.dist = min.dist)
 
+p1 = DimPlot(nt, reduction = "umap", group.by = 'orig.ident') + ggtitle(paste0('all')) 
+p2 = DimPlot(nt, reduction = "umap", group.by = 'annotated_clusters') + ggtitle(paste0('all')) 
+
+p1 + p2
+
+
 DimPlot(nt, reduction = "umap", group.by = 'seurat_clusters') + ggtitle(paste0('all')) 
+examples =  unique(toupper(c('FOXA2', 'SHH', 'ARX', 'HOXB4','ZNF703', 'CYP26A1', 'STRA8', 'HHIP1',
+             'PTCH1', 'GLI1', 'GLI2', 'GLI3', 'BMP4', 'BMP7', 
+             'POU5F1', 'PAX6', 'NKX2-2', 'NKX2-1', 'NKX6-1', 'PAX6', 'SOX10', 'TPAP2C',
+             'Pax6', 'Irx3', 'Irx5', 'Msx1', 'Dbx2', 'Nkx2-9', 
+             'Olig3', 'Gsx1', 'Dbx1', 'Prdm12', 'Foxn4', 'Olig2', 'Nkx2-2', 
+             'Pax3', 'Pax7', 'Nkx6-2', 'Nkx6-1',
+             'Irx3', 'Dbx2', 'Dbx1', 'Pax6', 'Pax7', 
+             'Nkx6-1', 'Nkx6-2', 'Nkx2-2', 'Olig2')))
 
-DimPlot(nt, reduction = "umap", group.by = 'orig.ident') + ggtitle(paste0('all')) 
-DimPlot(nt, reduction = "umap", group.by = 'annotated_clusters') + ggtitle(paste0('all')) 
 
+pdfname = paste0(resDir, '/hNTO_scRNAseq_examples.pdf')
+pdf(pdfname,  width = 10, height = 8)
+par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
+
+for(n in 1:length(examples))
+  if(length(which(rownames(nt) == examples[n])) > 0){
+    p1 = FeaturePlot(nt, features = examples[n])
+    plot(p1)
+  }
+  
+dev.off()
+
+# Roofplate markers
+FeaturePlot(nt, features = c('BMP4', 'BMP7', 'LMX1A',  'LMX1B', 'GDF7', 'RSPO1', 'HES4', 'MSX1', 'MSX2'),
+            ncol = 3
+            )
+            
 p1 = FeaturePlot(nt, features = c('FOXA2', 'SHH', 'ARX', 'HOXB4','ZNF703', 'CYP26A1', 'STRA8', 'HHIP1', 'PTCH1', 'GLI1', 'GLI2', 'GLI3'))
 p2 = DimPlot(nt, reduction = "umap", group.by = 'orig.ident') + ggtitle(paste0('all')) 
 
@@ -279,22 +319,24 @@ p1 = FeaturePlot(nt, features = c('BMP4', 'BMP7'))
 p2 = DimPlot(nt, reduction = "umap", group.by = 'annotated_clusters') + ggtitle(paste0('all')) 
 p1 + p2
 
-xx = nt@assays$RNA@scale.data
-
-kk = match(c('POU5F1', 'PAX6'), rownames(xx))
-
-kk = match(c('SHH', 'FOXA2'), rownames(xx))
-
-plot(xx[kk[1], ], xx[kk[2], ], xlab = 'SHH', ylab = 'FOXA2', cex  = 0.1)
-jj = grep('Day_3', nt$orig.ident)
-points(xx[kk[1],jj], xx[kk[2], jj], col = 'blue')
-
-jj = grep('Day_5', nt$orig.ident)
-points(xx[kk[1],jj], xx[kk[2], jj], col = 'red')
-
-jj = grep('Day_11', nt$orig.ident)
-points(xx[kk[1],jj], xx[kk[2], jj], col = 'green')
-
+# check the co-location of gene expression in the same cells
+if(check.coexpression.within.same.cell){
+  xx = nt@assays$RNA@scale.data
+  kk = match(c('POU5F1', 'PAX6'), rownames(xx))
+  
+  kk = match(c('SHH', 'FOXA2'), rownames(xx))
+  
+  plot(xx[kk[1], ], xx[kk[2], ], xlab = 'SHH', ylab = 'FOXA2', cex  = 0.1)
+  jj = grep('Day_3', nt$orig.ident)
+  points(xx[kk[1],jj], xx[kk[2], jj], col = 'blue')
+  
+  jj = grep('Day_5', nt$orig.ident)
+  points(xx[kk[1],jj], xx[kk[2], jj], col = 'red')
+  
+  jj = grep('Day_11', nt$orig.ident)
+  points(xx[kk[1],jj], xx[kk[2], jj], col = 'green')
+  
+}
 
 FeaturePlot(nt, features = c('FOXA2', 'OLIG2', 'NKX2-2', 'NKX2-1', 'NKX6-1', 'PAX6', 'SOX10', 'TPAP2C'))
 #  ggsave(paste0(resDir, '/UMAP_day3_day5.pdf'), width = 12, height = 8)
