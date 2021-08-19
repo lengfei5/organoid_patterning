@@ -14,6 +14,7 @@ resDir = paste0("../results/RNAseq.old.by.Maria.", version.analysis)
 RdataDir = paste0('../results/Rdata')
 if(!dir.exists(resDir)) dir.create(resDir)
 if(!dir.exists(RdataDir)) dir.create(RdataDir)
+shareDir = '/Volumes/groups/tanaka/Collaborations/Jingkui-Hannah/sharedFiles/'
 
 dataDir = '../data/'
 
@@ -169,12 +170,14 @@ load(file = paste0(RdataDir, '/RNAseq_timeSeries_sortedDay5_count_design_geneSym
 
 fpm = fpm(dds, robust = TRUE)
 
+##########################################
+# Identify genes which are changing by RA treatment and also changing differently from control 
+##########################################
 ## RA treatment only
 kk = setdiff(grep('RA', design$condition), grep('RA_AF|RA_GFPp', design$condition))
 dds1 = dds[,kk]
 dds1$condition = droplevels(dds1$condition)
 res1 = DESeq(dds1, test="LRT", reduced=~1)
-
 
 res1 <- as.data.frame(results(res1))
 
@@ -220,12 +223,49 @@ yy = log2(cpm[jj,] + 2^-6)
 diff = apply(yy, 1, max) - apply(yy, 1, min)
 yy = yy[which(diff>=1), ]
 
+d <- dist(yy, method = "euclidean") # distance matrix
+fit <- hclust(d, method="ward.D2")
+plot(fit) # display dendogram
+groups <- cutree(fit, k=12) # cut tree into 5 clusters
+# draw dendogram with red borders around the 5 clusters
+rect.hclust(fit, k=12, border="red") 
+
+yy = yy[order(groups), ]
+groups = groups[order(groups)]
+
 df <- data.frame(cond = colnames(yy), time = c(rep('day2', 3), rep('day3', 2), rep('day4', 2), rep('day5', 1)))
 rownames(df) = colnames(yy)
 
-pheatmap(yy, cluster_rows=TRUE, show_rownames=FALSE, scale = 'row', show_colnames = TRUE, 
+pheatmap(yy, cluster_rows=FALSE, show_rownames=FALSE, scale = 'row', show_colnames = TRUE, 
          cluster_cols=FALSE, na_col = 'gray',  annotation_col = df, gaps_col = c(3, 5, 7),
-         filename = paste0(resDir, '/timeSeries_variableGenes.pdf'), width = 10, height = 8)
+         filename = paste0(shareDir, 'timeSeries_variableGenes_diff.vs.control.pdf'), width = 10, height = 8)
+
+yy = data.frame(yy, cluster = groups)
+saveRDS(yy, file = paste0(RdataDir, '/quickClustering_variableGenes_RA_also.vs.control.rds'))
+
+# save the tables and test results
+Save.table.test.results = FALSE
+if(Save.table.test.results){
+  colnames(res1) = paste0(colnames(res1), '_variableGene.test')
+  colnames(resTC) = paste0(colnames(resTC), '_geneChangeDifferent.vs.control')
+  
+  cc = unique(design$condition)
+  #cc = cc[c(1,5,6,2,7,8,3,4)]
+  cpm = matrix(NA, nrow = nrow(fpm), ncol = length(cc))
+  rownames(cpm) = rownames(fpm)
+  colnames(cpm) = cc
+  
+  for(n in 1:ncol(cpm))
+  {
+    # n = 1
+    jj = which(design$condition == colnames(cpm)[n])
+    cpm[,n] = apply(fpm[,jj], 1, median)
+  }
+  
+  yy = data.frame(gene = rownames(cpm), cpm, res1, as.data.frame(resTC), stringsAsFactors = FALSE)
+  write.csv(yy, file = paste0(shareDir, 'Elena_RNAseq_timeSeries_Foxa2.pos_allgenes_test.variableGenes.vs.control.csv'),
+            col.names = TRUE, row.names = FALSE, quote = FALSE)
+}
 
 ##########################################
 # pathways analysis 
@@ -479,7 +519,7 @@ if(Select.signficant.Genes){
   
   xx = data.frame(gene = names(df), diff = df, vars = vars, stringsAsFactors = FALSE)
   
-  ggs = readRDS(file = paste0('../results/Rdata/TM3_examplesGenes_withGOterm.rds'))
+  #ggs = readRDS(file = paste0('../results/Rdata/TM3_examplesGenes_withGOterm.rds'))
   mm = match(xx$gene, ggs$gene)
   xx = xx[!is.na(mm), ]
   
@@ -560,42 +600,35 @@ if(Select.signficant.Genes){
       geom_text(data = subset(df, time == "X60h"), aes(label = gene, colour = gene, x = time, y = expression), hjust = -0.2, size = 5) +
       theme(legend.position="none")
     
-    
   }
   
   MakeHeatmap = FALSE
   if(MakeHeatmap){
-    diff = apply(rpkm, 1, max) - apply(rpkm, 1, min)
+    load(file = paste0(RdataDir, '/RNAseq_timeSeries_fpmMean_DEtestRes.timepoints.and.vs.control.Rdata'))
+    jj = which(res1$padj< 0.01 & resTC$padj< 0.01)
+    cpm = cpm[jj, ]
+    diff = apply(cpm, 1, max) - apply(cpm, 1, min)
     hist(diff, breaks = 100)
     abline(v = c(1, 0.5), col = 'red', lwd = 2.0)
     length(which(diff>1))
     length(which(diff>0.5))
     
-    rpkm = rpkm[which(diff>=1), ]
+    cpm = cpm[which(diff>=1), ]
     
-    kk = match(rownames(rpkm), ggs$gene)
-    rpkm = rpkm[which(!is.na(kk)), ]
+    kk = match(rownames(cpm), ggs$gene)
+    cpm = cpm[which(!is.na(kk)), ]
     
-    rpkm = rpkm[c(which(rownames(rpkm) == 'Foxa2'), 
-                  which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'WNT')]))),
-                  which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'FGF')]))),
-                  which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'BMP')]))),
-                  which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'NOTCH')]))),
-                  which(!is.na(match(rownames(rpkm), ggs$gene[which(ggs$pathway == 'SHH')])))
-    ), ]
-    
-    yy = rpkm
+    yy = cpm
     max = apply(yy, 1, max)
     yy = yy[which(max>1), ]
     #yy[which(yy<0)] = NA
     pheatmap(yy, cluster_rows=TRUE, show_rownames=TRUE, scale = 'row', show_colnames = TRUE, 
              cluster_cols=FALSE, na_col = 'gray', gaps_col = c(3, 5, 7), fontsize_row = 8,
-             filename = paste0(resDir, '/siganling_pathways_geneExpression_timeSeries.pdf'), 
-             width = 12, height = 28)
+             filename = paste0(shareDir, 'siganling_pathways_geneExpression_timeSeries.pdf'), 
+             width = 12, height = 45)
     
   }
   
- 
 }
 
 ##########################################
@@ -629,9 +662,13 @@ if(Make.example.plots){
   ))
   
   examples = unique(c(examples, ggs$gene))
+  xx = readRDS(file = paste0(RdataDir, '/quickClustering_variableGenes_RA_also.vs.control.rds'))
+  xx = data.frame(xx, resTC[match(rownames(xx), rownames(resTC)), ])
+  xx = xx[order(xx$pvalue), ]
+  examples = unique(c(rownames(xx)))
   cat('nb of genes to check :', length(examples), '\n')
   
-  pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_v9.pdf')
+  pdfname = paste0(resDir, '/RANseq_timeSeries_sortedFoxA2positive_genes_pathways_and_varialbeGenes_v10.pdf')
   pdf(pdfname,  width = 10, height = 6)
   par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
   
