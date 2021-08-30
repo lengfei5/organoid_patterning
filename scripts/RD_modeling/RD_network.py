@@ -44,25 +44,22 @@ import math
 from RD_network_functions import *
 from itertools import permutations
 
-
-
-#%% specify parameters
 ID = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_test/3N_testExample_python'
 
-n = 3 # nb of node
-k_length = 17 # nb of reaction parameters
 
-states = 0 # steady state
-turing = 0 # patterning 
+#%% specify the network topology or model with parameters
+n = 3 # nb of node
+
+k_length = 15 # nb of reaction parameters: 3* number of nodes (3*3) + number of interactions (6)
 
 # define ODE model without diffusion
 def f_ode(x, t, k):
     #dRdt = np.empty(n)
     
     ## the test example from Zheng et al, 2016, Fig.S1A
-    dx0dt = 55.14*x[2]**2/(18.48**2 + x[2]**2) + 0.1 - 1.341*x[0]
-    dx1dt = 29.28*x[2]**2/(15.90**2 + x[2]**2) + 0.1 - 0.3508*x[1]
-    dx2dt = 16.17*x[0]**2/(x[0]**2 + 0.6421**2)*1.316**2/(1.316**2 + x[1]**2) + 0.1 - 1.203*x[2]
+    #dx0dt = 55.14*x[2]**2/(18.48**2 + x[2]**2) + 0.1 - 1.341*x[0]
+    #dx1dt = 29.28*x[2]**2/(15.90**2 + x[2]**2) + 0.1 - 0.3508*x[1]
+    #dx2dt = 16.17*x[0]**2/(x[0]**2 + 0.6421**2)*1.316**2/(1.316**2 + x[1]**2) + 0.1 - 1.203*x[2]
     
     ## the test example from Zheng et al, 2016, Fig.S1B (something not right in the formula)
     #dx0dt = 50.86*x[0]**2/(x[0]**2 + 0.02315**2)*17.64**2/(17.64**2 + x[1]**2) + 0.1 - 0.09367*x[0]
@@ -71,28 +68,32 @@ def f_ode(x, t, k):
     #dx1dt = 17.43*(5.230**2/(x[0]**2 + 5.230**2) * 1.038**2/(1.038**2 + x[2]**2)) + 0.1 - 2.699*x[1]
     #dx2dt = 69.57*x[2]**2/(x[2]**2 + 1.000**2)*0.02100**2/(0.02100**2 + x[1]**2) + 0.1 - 0.1503*x[2]
     
-    ## example of FGF, BMP, FoxA2 
-    #dx0dt = k[0] - k[3]*x[0] + k[6]*((x[0]**2/(x[0]**2 + k[9]**2) * x[2]**2/(x[2]**2 + k[10]**2))*k[11]**2/(k[11]**2 + x[1]**2)) 
-    #dx1dt = k[1] - k[4]*x[1] + k[7]*(x[0]**2/(x[0]**2 + k[12]**2) * x[1]**2/(x[1]**2 + k[13]**2))
-    #dx2dt = k[2] - k[5]*x[2] + k[8]*(x[2]**2/(x[2]**2 + k[14]**2) * x[0]**2/(x[0]**2 + k[15]**2))*k[16]**2/(k[16]**2 + x[1]**2)
+    ## only non-competitive interactions were chosen for approximiation 
+    ## NT organoid phase III pattern selection: FoxA2, Noggin and BMP
+    dx0dt = k[0] - k[3]*x[0] + k[6]*(x[0]**2/(x[0]**2 + k[9]**2) * k[10]**2/(x[2]**2 + k[10]**2)) # Foxa2
+    dx1dt = k[1] - k[4]*x[1] + k[7]*(x[0]**2/(x[0]**2 + k[11]**2) * x[2]**2/(x[2]**2 + k[12]**2)) # Noggin
+    dx2dt = k[2] - k[5]*x[2] + k[8]*(x[0]**2/(x[0]**2 + k[13]**2) * k[14]**2/(x[1]**2 + k[14]**2)) # BMP
     
     dRdt = [dx0dt, dx1dt, dx2dt]
     
     return dRdt
-
-#%% speicify parameters k, which node is difusor and d
+    
+        
+#%% sampling the parameters, which node is difusor and diffusion coeffs
+binary_diffusor = [0, 1, 1]
 k = np.ones(k_length)
+
 k[0], k[1], k[2] = 0.1, 0.1, 0.1
 k[3], k[4], k[5] = 0.3, 0.5, 0.4
 #k[6], k[7], k[8] = math.log(2)/10, math.log(2)/5, math.log(2)/10
 k[6], k[7], k[8] = 30, 50, 20
 k[9], k[10], k[11], k[12], k[13], k[14], k[15], k[16] = 14, 3, 0.2, 5, 10, 1, 2, 5
 
-binary_diffusor = [1, 1, 0]
+
 d = [1.0, 10, 0]
 
-
 # %% find the steady state by integration (initial guess)
+
 x0 = np.random.random(1) * np.ones(n)
 #x0 = [2.3, 0.4, 1.3]
 #x0 = [0.0975, 0.0975, 0.0975]
