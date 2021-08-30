@@ -173,6 +173,7 @@ for i in range(len(ss_saved)):
     q_max = q[index_max]
 
 
+
 #%% define turing pattern types according to the eigenvalues (to finish)
 # matlab code from Scholes how to distinguish type I and II
 if max(Eig_save) > threshold % Check if any positive real eigenwert exists 
