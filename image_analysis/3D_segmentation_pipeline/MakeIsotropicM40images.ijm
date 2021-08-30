@@ -6,7 +6,7 @@
 #@ File (label = "Input directory", style = "directory") input
 #@ File (label = "Output directory", style = "directory") output
 #@ String (label = "File suffix", value = ".vsi") suffix
-//#@ Integer (label = "Nr. of files to process.", value = 1) n2process
+#@ Integer (label = "Nr. of files to process.", value = 1) n2process
 
 // See also Process_Folder.py for a version of this code
 // in the Python scripting language.
@@ -30,8 +30,8 @@ function processFolder(input) {
 	}
 
 	n_processed = 0;
-//	for (i = 0; i < list.length; i++) {
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < list.length; i++) {
+//	for (i = 0; i < 5; i++) {
 		if(endsWith(list[i], suffix)) {
 			n_processed += 1;
 //			print("File " + toString(i) + " of " + toString(list.length) +": "+ list[i]);
@@ -39,7 +39,7 @@ function processFolder(input) {
 			processFile(input, output, list[i]);
 		}
 	}
-	print("Processed"+toString(n_processed)+" files.");
+	print("Processed "+toString(n_processed)+" files.");
 }
 
 function processFile(input, output, file) {

@@ -97,6 +97,7 @@ function processFile(input, output, file) {
 		Ext.CLIJ2_pull("isotemp1");
 		
 		saveAs("Tiff", output + File.separator + replace(file, suffix, "") + "_isotropic_C"+ toString(j) +".tif");
+		
 		Ext.CLIJ2_clear();
 	}
 	run("Close All");

@@ -78,7 +78,7 @@ function processFile(input, output, file) {
 	run("Bio-Formats", "open=["+input+File.separator+file+"] color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT series_1");
 	rename("stack");
 	getDimensions( width, height, channels, slices, frames );
-
+	
 	run("Split Channels");
 	
 	// make isotropic
@@ -86,14 +86,15 @@ function processFile(input, output, file) {
 		input_image = "C"+toString(j)+"-stack";
 		Ext.CLIJ2_push(input_image);
 		isotropic_image = "isotemp";
-		original_voxel_size_x = 0.65;
-		original_voxel_size_y = 0.65;
-		original_voxel_size_z = 3.0;
-		new_voxel_size = 3.0;
+		original_voxel_size_x = 1.3;
+		original_voxel_size_y = 1.3;
+		original_voxel_size_z = 2.0;
+		new_voxel_size = 2.0;
 		Ext.CLIJx_makeIsotropic(input_image, isotropic_image, original_voxel_size_x, original_voxel_size_y, original_voxel_size_z, new_voxel_size);
 		
 		// convert 32 to 16 bits
-		Ext.CLIJ_convertUInt16("isotemp", "isotemp1"); // for some reason this needs to CLIJ not CLIJ2, CLIJx
+		//Ext.CLIJ_convertUInt16("isotemp", "isotemp1"); // for some reason this needs to CLIJ not CLIJ2, CLIJx
+		Ext.CLIJx_convertUInt16("isotemp", "isotemp1"); // doesn't work in my laptop, try to modify here
 		Ext.CLIJ2_pull("isotemp1");
 		
 		saveAs("Tiff", output + File.separator + replace(file, suffix, "") + "_isotropic_C"+ toString(j) +".tif");
