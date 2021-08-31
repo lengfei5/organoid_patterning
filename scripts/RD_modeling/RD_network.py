@@ -40,6 +40,7 @@ import panel as pn
 pn.extension()
 
 import math
+import itertools
 
 from RD_network_functions import *
 from itertools import permutations
@@ -81,7 +82,11 @@ def f_ode(x, t, k):
         
 #%% sampling the parameters, which node is difusor and diffusion coeffs
 binary_diffusor = [0, 1, 1]
-k = np.ones(k_length)
+
+nb_sampling = 2
+
+ks = np.logspace(-1, 2.0, num=nb_sampling)
+k_grid = list(itertools.product(ks, repeat=k_length))
 
 k[0], k[1], k[2] = 0.1, 0.1, 0.1
 k[3], k[4], k[5] = 0.3, 0.5, 0.4
@@ -90,10 +95,11 @@ k[6], k[7], k[8] = 30, 50, 20
 k[9], k[10], k[11], k[12], k[13], k[14], k[15], k[16] = 14, 3, 0.2, 5, 10, 1, 2, 5
 
 
-d = [1.0, 10, 0]
+d_range = np.logspace(-1, 2.0, num = 10)
+d_grid = list(itertools.product(d_range, repeat=2))
+
 
 # %% find the steady state by integration (initial guess)
-
 x0 = np.random.random(1) * np.ones(n)
 #x0 = [2.3, 0.4, 1.3]
 #x0 = [0.0975, 0.0975, 0.0975]
