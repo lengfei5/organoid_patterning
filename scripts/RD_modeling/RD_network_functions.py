@@ -285,7 +285,7 @@ def check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final):
     
     return  ss
 
-def Multi_steadyStates(ss0, nb_init, f_ode, k, n):
+def Multi_steadyStates(ss0, c_init, f_ode, k, n):
     import itertools
     from scipy.integrate import odeint
     
@@ -294,8 +294,8 @@ def Multi_steadyStates(ss0, nb_init, f_ode, k, n):
     t_final = 2000
     t = np.linspace(0, t_final, 200)
     
-    x_init = np.logspace(-2, 4, nb_init)
-    c_init = itertools.combinations_with_replacement(x_init, n)
+    #x_init = np.logspace(-2, 4, nb_init)
+    #c_init = itertools.combinations_with_replacement(x_init, n)
     for val in c_init:
         x0 = np.asarray(val)
         #print(x0)

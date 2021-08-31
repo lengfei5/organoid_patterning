@@ -41,7 +41,8 @@ pn.extension()
 
 import math
 import itertools
-
+import sympy as sym
+ 
 from RD_network_functions import *
 from itertools import permutations
 
@@ -51,6 +52,10 @@ ID = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_test/3
 #%% specify the network topology or model with parameters
 n = 3 # nb of node
 k_length = 15 # nb of reaction parameters: 3* number of nodes (3*3) + number of interactions (6)
+
+# define symbolic variables for Jacobian matrix 
+X = sym.symbols(('x0:3'))
+K = sym.symbols(('k0:15'))
 
 # define ODE model without diffusion
 def f_ode(x, t, k):
@@ -83,111 +88,124 @@ def f_ode(x, t, k):
 binary_diffusor = [0, 1, 1]
 nb_sampling = 2
 
-# paramtere
+# paramtere vector k sampling
 ks = np.logspace(-1, 2.0, num=nb_sampling)
 k_grid = list(itertools.product(ks, repeat=k_length))
+#k_grid = itertools.combinations_with_replacement(ks, repeat = k_length)
 
-# diffusion rate
+# diffusion rate sampling
 d_range = np.logspace(-1, 2.0, num = 10)
 d_grid = list(itertools.product(d_range, repeat=2))
 
-# initial conditions
-nb_init = 4
+# initial conditions: each node has 3 initial values
+nb_init = 3
 x_init = np.logspace(-1, 4, nb_init)
 c_init = itertools.combinations_with_replacement(x_init, n)
 
-
-#%% assign values to parameters k 
-#k[0], k[1], k[2] = 0.1, 0.1, 0.1
-#k[3], k[4], k[5] = 0.3, 0.5, 0.4
-#k[6], k[7], k[8] = math.log(2)/10, math.log(2)/5, math.log(2)/10
-#k[6], k[7], k[8] = 30, 50, 20
-#k[9], k[10], k[11], k[12], k[13], k[14], k[15], k[16] = 14, 3, 0.2, 5, 10, 1, 2, 5
-
-
-    
-# %% find the steady state by integration (initial guess)
-x0 = np.random.random(1) * np.ones(n)
-#x0 = [2.3, 0.4, 1.3]
-#x0 = [0.0975, 0.0975, 0.0975]
+# time 
 t_final = 1000
-t = np.linspace(0, t_final, 200)
-sol = odeint(f_ode, x0, t, args=(k,))
 
-## check the integration solution
-fig,ax = plt.subplots()
-ax.plot(t,sol[:,0],label='x1')
-ax.plot(t,sol[:,1],label='x2')
-ax.plot(t,sol[:,2],label='x3')
-#ax.plot(t,result[:,2],label='R0=1')
-ax.legend()
-ax.set_xlabel('t')
-ax.set_ylabel('x')
-sol[199, ]
-
-# double check if steady state is reache by considering the first 100 time points as BurnIn
-ss0 = check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final)
-
-#%% check if multiple steady states exist and save
-# define initial conditions for ODE
-ss_saved = Multi_steadyStates(ss0, nb_init, f_ode, k, n)
-
-# check if ss is negative or imaginary solution
-for i in range(len(ss_saved)):
-    ss = ss_saved[i]    
-    if any(ss <= 0) or any([isinstance(j, complex) for j in ss]):
-       ss_saved.remove(ss)
-
-#%% calculate the eigenvalue of Jacobian matrix without and with diffusion matrix
-# some codes from https://www.sympy.org/scipy-2017-codegen-tutorial/notebooks/20-ordinary-differential-equations.html were 
-# very helpful
-import sympy as sym
-X = sym.symbols(('x0:3'))
-K = sym.symbols(('k0:17'))
-
-f_sym = sym.Matrix(f_ode(X, None, K))
-J = f_sym.jacobian(X)
-J_func = sym.lambdify((X, K),  J)
-
-#%% eigenvalue computation with diffusion matrix to test if Turing instability 
-# disperion relation plot for specific set of parameters
-d = [0.07018, 1, 0.01057]
-#d = [1, 10.03, 0]
-q = np.linspace(0, 5, 50)
-
-for i in range(len(ss_saved)):
-    i = 0
-    ss = ss_saved[i]
-    #J_inputs = J.free_symbols
-    S = J_func(ss, k)
-    w  =  np.linalg.eigvals(S)
-    max(w), S
-    lam_real = np.empty_like(q)
-    lam_im = np.empty_like(q)
-
-    for j in range(len(q)):
-        #j = 1
-        S2 = S - np.diag(np.multiply(d, q[j]**2))
-        #wk,vk =  np.linalg.eig(S2)
-        wk = np.linalg.eigvals(S2)
-        lam_real[j] = wk.real.max()
-        lam_im[j] = wk.imag[np.argmax(wk.real)]
+#%% big loop over each k parameter vector and save the result for each sampled d combination
+for i in range(len(k_grid)):
     
-    plt.plot(q, lam_real)
-    #plt.axis([0, max(q), -1, 1])
-    plt.axhline(y=0, color='r', linestyle='-')
-    plt.show()
+    i = 0 # test first k_grid
+    import time
+    start_time = time.process_time()
+    k = np.asarray(k_grid[i])
     
-    max(lam_real)
+    #k[0], k[1], k[2] = 0.1, 0.1, 0.1
+    #k[3], k[4], k[5] = 0.3, 0.5, 0.4
+    #k[6], k[7], k[8] = math.log(2)/10, math.log(2)/5, math.log(2)/10
+    #k[6], k[7], k[8] = 30, 50, 20
+    #k[9], k[10], k[11], k[12], k[13], k[14], k[15], k[16] = 14, 3, 0.2, 5, 10, 1, 2, 5
     
-    index_max = np.argmax(lam_real) 
-    lam_real_max = lam_real[index_max]
-    lam_im_max = lam_im[index_max]
-    q_max = q[index_max]
+    
+    # %% find the steady state by integration (initial guess)
+    x0 = np.random.random(1) * np.ones(n)
+    #x0 = [2.3, 0.4, 1.3]
+    #x0 = [0.0975, 0.0975, 0.0975]
+    
+    t = np.linspace(0, t_final, 200)
+    sol = odeint(f_ode, x0, t, args=(k,))
 
+    ## check the integration solution
+    fig,ax = plt.subplots()
+    ax.plot(t,sol[:,0],label='x1')
+    ax.plot(t,sol[:,1],label='x2')
+    ax.plot(t,sol[:,2],label='x3')
+    #ax.plot(t,result[:,2],label='R0=1')
+    ax.legend()
+    ax.set_xlabel('t')
+    ax.set_ylabel('x')
+    sol[199, ]
 
+    # double check if steady state is reache by considering the first 100 time points as BurnIn
+    ss0 = check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final)
 
-#%% define turing pattern types according to the eigenvalues (to finish)
+    #%% check if multiple steady states exist and save
+    # define initial conditions for ODE
+    ss_saved = Multi_steadyStates(ss0, c_init, f_ode, k, n)
+    
+       
+    for kk in range(len(ss_saved)):
+        ss = ss_saved[kk]    
+        if any(ss <= 0) or any([isinstance(j, complex) for j in ss]):
+            ss_saved.remove(ss)
+
+    #%% calculate the eigenvalue of Jacobian matrix without and with diffusion matrix
+    # some codes from https://www.sympy.org/scipy-2017-codegen-tutorial/notebooks/20-ordinary-differential-equations.html were 
+    # very helpful
+    f_sym = sym.Matrix(f_ode(X, None, K))
+    J = f_sym.jacobian(X)
+    J_func = sym.lambdify((X, K),  J)
+
+    #%% eigenvalue computation with diffusion matrix to test if Turing instability 
+    # disperion relation plot for specific set of parameters
+    #d = [0, 0.01057, 1]
+    #d = [1, 10.03, 0]
+    q = 2*3.15169 / np.logspace(0, 3.0, num=25) # wavenumber 
+    
+    # loop over stedy states
+    for ii in range(len(ss_saved)):
+        ii = 0
+        ss = ss_saved[ii]
+        #J_inputs = J.free_symbols
+        S = J_func(ss, k)
+        w  =  np.linalg.eigvals(S)
+        max(w), S
+        
+        for val in d_grid: # loop diffusion matrix for each steady state
+            d = np.asarray(val)
+            d = [0.0, d[0], d[1]]
+            
+            lam_real = np.empty_like(q)
+            lam_im = np.empty_like(q)
+            
+            # loop over the wavenumber 
+            for j in range(len(q)):
+                #j = 1
+                S2 = S - np.diag(np.multiply(d, q[j]**2))
+                #wk,vk =  np.linalg.eig(S2)
+                wk = np.linalg.eigvals(S2)
+                lam_real[j] = wk.real.max()
+                lam_im[j] = wk.imag[np.argmax(wk.real)]
+                
+            #plt.plot(q, lam_real)
+            #plt.axis([0, max(q), -1, 1])
+            #plt.axhline(y=0, color='r', linestyle='-')
+            #plt.show()
+        
+            #print(max(lam_real))
+            index_max = np.argmax(lam_real) 
+            lam_real_max = lam_real[index_max]
+            lam_im_max = lam_im[index_max]
+            q_max = q[index_max]
+            
+        # save the result, k parameter, steady state, d parameters, q values, lambda_real, lambda imaginary
+        
+    print(time.process_time() - start_time, "seconds")
+
+    #%% define turing pattern types according to the eigenvalues (to finish)
 # matlab code from Scholes how to distinguish type I and II
 if max(Eig_save) > threshold % Check if any positive real eigenwert exists 
         if Eig_save(length(Eig_save)) < max(Eig_save)-0.01*max(Eig_save)
