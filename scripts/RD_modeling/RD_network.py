@@ -42,9 +42,9 @@ pn.extension()
 import math
 import itertools
 import sympy as sym
- 
-from RD_network_functions import *
 from itertools import permutations
+
+from RD_network_functions import *
 
 ID = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_test/3N_testExample_python'
 
@@ -127,18 +127,17 @@ for i in range(len(k_grid)):
     
     t = np.linspace(0, t_final, 200)
     sol = odeint(f_ode, x0, t, args=(k,))
-
     ## check the integration solution
-    fig,ax = plt.subplots()
-    ax.plot(t,sol[:,0],label='x1')
-    ax.plot(t,sol[:,1],label='x2')
-    ax.plot(t,sol[:,2],label='x3')
-    #ax.plot(t,result[:,2],label='R0=1')
-    ax.legend()
-    ax.set_xlabel('t')
-    ax.set_ylabel('x')
-    sol[199, ]
-
+    # fig,ax = plt.subplots()
+    # ax.plot(t,sol[:,0],label='x1')
+    # ax.plot(t,sol[:,1],label='x2')
+    # ax.plot(t,sol[:,2],label='x3')
+    # #ax.plot(t,result[:,2],label='R0=1')
+    # ax.legend()
+    # ax.set_xlabel('t')
+    # ax.set_ylabel('x')
+    # sol[199, ]
+    
     # double check if steady state is reache by considering the first 100 time points as BurnIn
     ss0 = check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final)
 
@@ -146,7 +145,6 @@ for i in range(len(k_grid)):
     # define initial conditions for ODE
     ss_saved = Multi_steadyStates(ss0, c_init, f_ode, k, n)
     
-       
     for kk in range(len(ss_saved)):
         ss = ss_saved[kk]    
         if any(ss <= 0) or any([isinstance(j, complex) for j in ss]):
@@ -163,11 +161,11 @@ for i in range(len(k_grid)):
     # disperion relation plot for specific set of parameters
     #d = [0, 0.01057, 1]
     #d = [1, 10.03, 0]
-    q = 2*3.15169 / np.logspace(0, 3.0, num=25) # wavenumber 
+    q = 2*3.15169 / np.logspace(0, 3.0, num=20) # wavenumber 
     
     # loop over stedy states
     for ii in range(len(ss_saved)):
-        ii = 0
+        #ii = 0
         ss = ss_saved[ii]
         #J_inputs = J.free_symbols
         S = J_func(ss, k)
@@ -190,48 +188,50 @@ for i in range(len(k_grid)):
                 lam_real[j] = wk.real.max()
                 lam_im[j] = wk.imag[np.argmax(wk.real)]
                 
-            #plt.plot(q, lam_real)
+            plt.plot(q, lam_real)
+            plt.show()
             #plt.axis([0, max(q), -1, 1])
-            #plt.axhline(y=0, color='r', linestyle='-')
-            #plt.show()
-        
+            #plt.axhline(y=0, color='r', linestyle='-'
             #print(max(lam_real))
+            
             index_max = np.argmax(lam_real) 
             lam_real_max = lam_real[index_max]
-            lam_im_max = lam_im[index_max]
-            q_max = q[index_max]
+            #lam_im_max = lam_im[index_max]
+            #q_max = q[index_max]
             
-        # save the result, k parameter, steady state, d parameters, q values, lambda_real, lambda imaginary
+            # save the result, k parameter, steady state, d parameters, q values, lambda_real, lambda imaginary
+            if lam_real_max >= 0:
+                # save  
+                turing = 0 
+    #         else:
+    #             if np.abs(lam_im_max) > 0:
+    #    turing = 1
+    # else:
+    #     if lam_real_max > 0 and k_max < 0.000001:
+    #         turing = 3
+    #     else: 
+    #         if lam_real_max > 0 and k_max > 0.000001:
+    #             turing = 4
         
     print(time.process_time() - start_time, "seconds")
 
-    #%% define turing pattern types according to the eigenvalues (to finish)
-# matlab code from Scholes how to distinguish type I and II
-if max(Eig_save) > threshold % Check if any positive real eigenwert exists 
-        if Eig_save(length(Eig_save)) < max(Eig_save)-0.01*max(Eig_save)
-            %Check if Type I
-            w = 1;
-        else
-            %This is Type II
-            w = 2;
-        end
-    else 
-        %No Turing instability
-        w = 0;
-    end
+#%% define turing pattern types according to the eigenvalues (to finish)
+# # matlab code from Scholes how to distinguish type I and II
+# if max(Eig_save) > threshold % Check if any positive real eigenwert exists 
+#         if Eig_save(length(Eig_save)) < max(Eig_save)-0.01*max(Eig_save)
+#             %Check if Type I
+#             w = 1;
+#         else
+#             %This is Type II
+#             w = 2;
+#         end
+#     else 
+#         %No Turing instability
+#         w = 0;
+#     end
 
 
-if lam_real_max < 0:
-    turing = 0 
-else:
-    if np.abs(lam_im_max) > 0:
-       turing = 1
-    else:
-        if lam_real_max > 0 and k_max < 0.000001:
-            turing = 3
-        else: 
-            if lam_real_max > 0 and k_max > 0.000001:
-                turing = 4
+
         
 
 
