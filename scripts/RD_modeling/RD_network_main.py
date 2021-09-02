@@ -24,6 +24,7 @@ Output of function for each of given parameters (reaction, diffusion):
 """
 import numpy as np
 import pandas as pd
+import os
 import numba
 import scipy.integrate
 from scipy.integrate import odeint
@@ -132,8 +133,17 @@ def f_ode(x, t, k):
 
 #%% linear stability analysis for given kinetic prameter;
 # save the parameter, k, steady state, x, sampled diffusion d, wavenumber q and lambda (real and imaginary)
-def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q):
+def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q, i):
     
+    names = [sym.symbols('k0:' + str(len(k))), 
+             sym.symbols('X0:' + str(n)), 
+             sym.symbols('d0:' + str(len(d_grid[0]))), 
+             sym.symbols('q0:' + str(len(q))), 
+             sym.symbols('lambda_re0:' + str(len(q))), 
+             sym.symbols('lambda_im0:' + str(len(q)))]
+    
+    names = [element for tupl in names for element in tupl]
+    keep = pd.DataFrame(columns=names)
     # start with some test
     #i = 0 # test first k_grid
     #k = np.asarray(k_grid[i])
@@ -143,7 +153,6 @@ def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q):
     #k[6], k[7], k[8] = math.log(2)/10, math.log(2)/5, math.log(2)/10
     #k[6], k[7], k[8] = 30, 50, 20
     #k[9], k[10], k[11], k[12], k[13], k[14], k[15], k[16] = 14, 3, 0.2, 5, 10, 1, 2, 5
-    
     
     # %% find the steady state by integration (initial guess)
     x0 = np.random.random(1) * np.ones(n)
@@ -185,8 +194,7 @@ def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q):
     #%% eigenvalue computation with diffusion matrix to test if Turing instability 
     # disperion relation plot for specific set of parameters
     #d = [0, 0.01057, 1]
-    #d = [1, 10.03, 0]
-    
+        
     # loop over stedy states
     for ii in range(len(ss_saved)):
         #ii = 0
@@ -194,11 +202,11 @@ def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q):
         #J_inputs = J.free_symbols
         S = J_func(ss, k)
         w  =  np.linalg.eigvals(S)
-        max(w), S
+        # max(w), S
         
         for val in d_grid: # loop diffusion matrix for each steady state
             d = np.asarray(val)
-            d = [0.0, d[0], d[1]]
+            #d = [0.0, d[0], d[1]]
             
             lam_real = np.empty_like(q)
             lam_im = np.empty_like(q)
@@ -217,48 +225,58 @@ def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q):
             #plt.axis([0, max(q), -1, 1])
             #plt.axhline(y=0, color='r', linestyle='-'
             #print(max(lam_real))
-            
             index_max = np.argmax(lam_real) 
             lam_real_max = lam_real[index_max]
             #lam_im_max = lam_im[index_max]
             #q_max = q[index_max]
             
             # save the result, k parameter, steady state, d parameters, q values, lambda_real, lambda imaginary
-            if lam_real_max >= 0:
-                # save  
-                turing = 0 
+            if lam_real_max >= 0:  
+                arr = np.concatenate((k, ss, d, q, lam_real, lam_im))
+                keep = keep.append(pd.DataFrame(arr.reshape(1,-1), columns=list(keep)), ignore_index=True)
+        
                 
+    if keep.shape[0] > 1:
+        keep.to_csv('./RD_out/linear_stability_out_' + str(i) + '.csv', sep='\t') # Use Tab to seperate data
                 
     
 def main():
     
-    print('main function')
     import time
+    print('main function')
+    
+    try:
+        os.makedirs("./RD_out")
+    except FileExistsError:
+        # directory already exists
+        pass
+    
     start_time = time.process_time()
     #ID = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_test/3N_testExample_python'
-
+    
     n = 3 # nb of node
     k_length = 15 # nb of reaction parameters: 3* number of nodes (3*3) + number of interactions (6)
 
     # define symbolic variables for Jacobian matrix 
-    X = sym.symbols(('x0:3'))
-    K = sym.symbols(('k0:15'))
+    X = sym.symbols(('x0:' + str(n)))
+    K = sym.symbols(('k0:' + str(k_length)))
         
     #%% sampling the parameters, which node is difusor and diffusion coeffs
-    nb_sampling = 2
+    nb_sampling = 3
     binary_diffusor = [0, 1, 1]
     
     # paramtere vector k sampling
-    ks = np.logspace(-1, 2.0, num=nb_sampling)
-    gammas = np.logspace(-2, 1, num = nb_sampling)
-
-    k_grid1 = list(itertools.product(ks, ks, ks, gammas, gammas, gammas))
-    k_grid2 = list(itertools.product(ks, repeat = (k_length - 6)))
+    ks = np.logspace(-2, 2.0, num=nb_sampling)
+    k9 = np.ones(1)
+    
+    k_grid1 = list(itertools.product(ks, repeat = 9))
+    k_grid2 = list(itertools.product(k9, ks, ks, 
+                                     ks, ks, ks))
     k_grid = list(itertools.product(k_grid1, k_grid2))
     
     # diffusion rate sampling
-    d_range = np.logspace(-1, 2.0, num = 10)
-    d_grid = list(itertools.product(d_range, repeat=2))
+    d_range = np.logspace(-3, 3.0, num = 20)
+    d_grid = list(itertools.product(np.zeros(1), np.ones(1),  d_range))
     
     # initial conditions: each node has 3 initial values
     nb_init = 3
@@ -276,7 +294,7 @@ def main():
         print(i) 
         k = [element for tupl in k_grid[i] for element in tupl]
         k = np.asarray(k)
-        linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q)
+        linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q, i)
                     
     
     print(time.process_time() - start_time, "seconds")
