@@ -44,10 +44,10 @@ import itertools
 import sympy as sym
 from itertools import permutations
 
+
 from RD_network_functions import *
 
-ID = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_test/3N_testExample_python'
-
+#ID = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_test/3N_testExample_python'
 
 #%% specify the network topology or model with parameters
 n = 3 # nb of node
@@ -85,13 +85,20 @@ def f_ode(x, t, k):
     
         
 #%% sampling the parameters, which node is difusor and diffusion coeffs
-binary_diffusor = [0, 1, 1]
 nb_sampling = 2
+binary_diffusor = [0, 1, 1]
 
 # paramtere vector k sampling
 ks = np.logspace(-1, 2.0, num=nb_sampling)
-k_grid = list(itertools.product(ks, repeat=k_length))
+gammas = np.logspace(-2, 1, num = nb_sampling)
+
+k_grid1 = list(itertools.product(ks, ks, ks, gammas, gammas, gammas))
+k_grid2 = list(itertools.product(ks, repeat = (k_length - 6)))
+k_grid = list(itertools.product(k_grid1, k_grid2))
 #k_grid = itertools.combinations_with_replacement(ks, repeat = k_length)
+#k_grid = pd.DataFrame(k_grid)
+#k_grid.columns = K
+#gamma_grid = 
 
 # diffusion rate sampling
 d_range = np.logspace(-1, 2.0, num = 10)
@@ -105,13 +112,18 @@ c_init = itertools.combinations_with_replacement(x_init, n)
 # time 
 t_final = 1000
 
+
 #%% big loop over each k parameter vector and save the result for each sampled d combination
-for i in range(len(k_grid)):
+#for i in range(len(k_grid)):
+for i in range(100):
+    #i = 0 # test first k_grid
     
-    i = 0 # test first k_grid
     import time
     start_time = time.process_time()
-    k = np.asarray(k_grid[i])
+    #k = np.asarray(k_grid[i])
+    #k0 = k_grid[i]
+    k = [element for tupl in k_grid[i] for element in tupl]
+    k = np.asarray(k)
     
     #k[0], k[1], k[2] = 0.1, 0.1, 0.1
     #k[3], k[4], k[5] = 0.3, 0.5, 0.4
@@ -140,7 +152,7 @@ for i in range(len(k_grid)):
     
     # double check if steady state is reache by considering the first 100 time points as BurnIn
     ss0 = check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final)
-
+    
     #%% check if multiple steady states exist and save
     # define initial conditions for ODE
     ss_saved = Multi_steadyStates(ss0, c_init, f_ode, k, n)
@@ -156,7 +168,7 @@ for i in range(len(k_grid)):
     f_sym = sym.Matrix(f_ode(X, None, K))
     J = f_sym.jacobian(X)
     J_func = sym.lambdify((X, K),  J)
-
+    
     #%% eigenvalue computation with diffusion matrix to test if Turing instability 
     # disperion relation plot for specific set of parameters
     #d = [0, 0.01057, 1]
@@ -188,8 +200,8 @@ for i in range(len(k_grid)):
                 lam_real[j] = wk.real.max()
                 lam_im[j] = wk.imag[np.argmax(wk.real)]
                 
-            plt.plot(q, lam_real)
-            plt.show()
+            #plt.plot(q, lam_real)
+            #plt.show()
             #plt.axis([0, max(q), -1, 1])
             #plt.axhline(y=0, color='r', linestyle='-'
             #print(max(lam_real))
@@ -203,35 +215,24 @@ for i in range(len(k_grid)):
             if lam_real_max >= 0:
                 # save  
                 turing = 0 
-    #         else:
-    #             if np.abs(lam_im_max) > 0:
-    #    turing = 1
-    # else:
-    #     if lam_real_max > 0 and k_max < 0.000001:
-    #         turing = 3
-    #     else: 
-    #         if lam_real_max > 0 and k_max > 0.000001:
-    #             turing = 4
-        
+    
+                
     print(time.process_time() - start_time, "seconds")
+    
 
-#%% define turing pattern types according to the eigenvalues (to finish)
-# # matlab code from Scholes how to distinguish type I and II
-# if max(Eig_save) > threshold % Check if any positive real eigenwert exists 
-#         if Eig_save(length(Eig_save)) < max(Eig_save)-0.01*max(Eig_save)
-#             %Check if Type I
-#             w = 1;
-#         else
-#             %This is Type II
-#             w = 2;
-#         end
-#     else 
-#         %No Turing instability
-#         w = 0;
-#     end
+def main():
+
+    data = "My data read from the Web"
+
+    print(data)
+
+    modified_data = process_data(data)
+
+    print(modified_data)
 
 
+if __name__ == "__main__":
 
-        
+    main()
 
 
