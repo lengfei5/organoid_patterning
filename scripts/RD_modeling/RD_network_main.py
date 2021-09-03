@@ -29,7 +29,7 @@ import numba
 import scipy.integrate
 from scipy.integrate import odeint
 from scipy.integrate import solve_ivp
-from RD_network_functions import state_plotter
+#from RD_network_functions import state_plotter
 
 import matplotlib.pyplot as plt
 
@@ -161,7 +161,8 @@ def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q, i
     
     t = np.linspace(0, t_final, 200)
     sol = odeint(f_ode, x0, t, args=(k,))
-    ## check the integration solution
+    
+    # check the integration solution with plot
     # fig,ax = plt.subplots()
     # ax.plot(t,sol[:,0],label='x1')
     # ax.plot(t,sol[:,1],label='x2')
@@ -170,7 +171,7 @@ def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q, i
     # ax.legend()
     # ax.set_xlabel('t')
     # ax.set_ylabel('x')
-    # sol[199, ]
+    # # sol[199, ]
     
     # double check if steady state is reache by considering the first 100 time points as BurnIn
     ss0 = check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final)
@@ -179,11 +180,11 @@ def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q, i
     # define initial conditions for ODE
     ss_saved = Multi_steadyStates(ss0, c_init, f_ode, k, n)
     
-    for kk in range(len(ss_saved)):
-        ss = ss_saved[kk]    
-        if any(ss <= 0) or any([isinstance(j, complex) for j in ss]):
-            ss_saved.remove(ss)
-
+    # for kk in range(len(ss_saved)):
+    #     ss = ss_saved[kk]    
+    #     if any(ss <= 0) or any([isinstance(j, complex) for j in ss]):
+    #         ss_saved.remove(ss)
+    
     #%% calculate the eigenvalue of Jacobian matrix without and with diffusion matrix
     # some codes from https://www.sympy.org/scipy-2017-codegen-tutorial/notebooks/20-ordinary-differential-equations.html were 
     # very helpful
@@ -237,42 +238,54 @@ def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q, i
         
                 
     if keep.shape[0] > 1:
-        keep.to_csv('./RD_out/linear_stability_out_' + str(i) + '.csv', sep='\t') # Use Tab to seperate data
+        keep.to_csv('./RD_out/linear_stability_out_' + str(i) + '.csv', index = False) # Use Tab to seperate data
                 
     
 def main():
     
     import time
+    start_time = time.process_time()
     print('main function')
     
+    Total_samples = 50000
+    n = 3 # nb of node
+    k_length = 15 # nb of reaction parameters: 3* number of nodes (3*3) + number of interactions (6)
+    
+    nb_sampling = 3
+    binary_diffusor = [0, 1, 1]
+    
+    
+    #%% sampling the parameters, which node is difusor and diffusion coeffs
     try:
         os.makedirs("./RD_out")
     except FileExistsError:
         # directory already exists
         pass
     
-    start_time = time.process_time()
-    #ID = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_test/3N_testExample_python'
-    
-    n = 3 # nb of node
-    k_length = 15 # nb of reaction parameters: 3* number of nodes (3*3) + number of interactions (6)
-
-    # define symbolic variables for Jacobian matrix 
+    # paramtere vector k sampling
+    #ks = np.logspace(-2, 2.0, num=nb_sampling)
+    #k9 = np.ones(1)
+    #k_grid1 = list(itertools.product(ks, repeat = 9))
+    #k_grid2 = list(itertools.product(k9, ks, ks, 
+    #                                 ks, ks, ks))
+    #k_grid = list(itertools.product(k_grid1, k_grid2))
+     # define symbolic variables for Jacobian matrix 
     X = sym.symbols(('x0:' + str(n)))
     K = sym.symbols(('k0:' + str(k_length)))
-        
-    #%% sampling the parameters, which node is difusor and diffusion coeffs
-    nb_sampling = 3
-    binary_diffusor = [0, 1, 1]
     
-    # paramtere vector k sampling
-    ks = np.logspace(-2, 2.0, num=nb_sampling)
-    k9 = np.ones(1)
+    ## lhs sampling for parameter
+    from skopt.space import Space
+    from skopt.sampler import Lhs
+    np.random.seed(123)
     
-    k_grid1 = list(itertools.product(ks, repeat = 9))
-    k_grid2 = list(itertools.product(k9, ks, ks, 
-                                     ks, ks, ks))
-    k_grid = list(itertools.product(k_grid1, k_grid2))
+    space = Space([(-2., 2.), (-2., 2.), (-2, 2), 
+                   (-2., 2.), (-2., 2.), (-2, 2),
+                   (-2., 2.), (-2., 2.), (-2, 2), 
+                   (-2, 2), (-2, 2),
+                   (-2., 2.), (-2., 2.), (-2, 2)
+                   ])
+    lhs = Lhs(criterion="maximin", iterations=1000)
+    k_grid_log = lhs.generate(space.dimensions, Total_samples)
     
     # diffusion rate sampling
     d_range = np.logspace(-3, 3.0, num = 20)
@@ -287,13 +300,18 @@ def main():
     
     # time 
     t_final = 1000
-
+    
     #%% big loop over each k parameter vector and save the result for each sampled d combination
     #for i in range(len(k_grid)):
-    for i in range(100):
-        print(i) 
-        k = [element for tupl in k_grid[i] for element in tupl]
-        k = np.asarray(k)
+    for i in range(len(k_grid_log)):
+        #if i % 100 == 0:
+        print(i)
+        
+        #k = [element for tupl in k_grid[i] for element in tupl]
+        k = np.asarray(k_grid_log[i])
+        k = np.power(10, k) # transform to linear scale 
+        k = np.concatenate((k[0:9], np.ones(1), k[9:14])) # add k9 = 1
+        
         linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q, i)
                     
     
