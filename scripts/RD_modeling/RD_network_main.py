@@ -247,7 +247,7 @@ def main():
     start_time = time.process_time()
     print('main function')
     
-    Total_samples = 50000
+    Total_samples = 200
     n = 3 # nb of node
     k_length = 15 # nb of reaction parameters: 3* number of nodes (3*3) + number of interactions (6)
     
@@ -304,8 +304,8 @@ def main():
     #%% big loop over each k parameter vector and save the result for each sampled d combination
     #for i in range(len(k_grid)):
     for i in range(len(k_grid_log)):
-        #if i % 100 == 0:
-        print(i)
+        if i % 100 == 0:
+            print(i)
         
         #k = [element for tupl in k_grid[i] for element in tupl]
         k = np.asarray(k_grid_log[i])
