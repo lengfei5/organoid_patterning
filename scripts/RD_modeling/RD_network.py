@@ -117,7 +117,7 @@ t_final = 1000
 #for i in range(len(k_grid)):
 for i in range(100):
     #i = 0 # test first k_grid
-    
+    i = 0
     import time
     start_time = time.process_time()
     #k = np.asarray(k_grid[i])
@@ -125,7 +125,21 @@ for i in range(100):
     k = [element for tupl in k_grid[i] for element in tupl]
     k = np.asarray(k)
     
-    #k[0], k[1], k[2] = 0.1, 0.1, 0.1
+    k[0] = 0.0256364845015646
+    k[1] = 0.196353074934487
+    k[2] = 0.01
+    k[3] = 0.312886357461524
+    k[4] = 0.058476504153979
+    k[5] = 0.1
+    k[6] = 2.89617848764822
+    k[7] = 0.317400763608912
+    k[8] = 1
+    k[9] = 1
+    k[10] = 1
+    k[11] = 1
+    k[12] = 7.65768501184393
+    k[13] = 0.949509951832922
+    k[14] = 100
     #k[3], k[4], k[5] = 0.3, 0.5, 0.4
     #k[6], k[7], k[8] = math.log(2)/10, math.log(2)/5, math.log(2)/10
     #k[6], k[7], k[8] = 30, 50, 20
@@ -139,16 +153,17 @@ for i in range(100):
     
     t = np.linspace(0, t_final, 200)
     sol = odeint(f_ode, x0, t, args=(k,))
+    
     ## check the integration solution
-    # fig,ax = plt.subplots()
-    # ax.plot(t,sol[:,0],label='x1')
-    # ax.plot(t,sol[:,1],label='x2')
-    # ax.plot(t,sol[:,2],label='x3')
-    # #ax.plot(t,result[:,2],label='R0=1')
-    # ax.legend()
-    # ax.set_xlabel('t')
-    # ax.set_ylabel('x')
-    # sol[199, ]
+    fig,ax = plt.subplots()
+    ax.plot(t,sol[:,0],label='x1')
+    ax.plot(t,sol[:,1],label='x2')
+    ax.plot(t,sol[:,2],label='x3')
+    #ax.plot(t,result[:,2],label='R0=1')
+    ax.legend()
+    ax.set_xlabel('t')
+    ax.set_ylabel('x')
+    sol[199, ]
     
     # double check if steady state is reache by considering the first 100 time points as BurnIn
     ss0 = check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final)
@@ -161,7 +176,7 @@ for i in range(100):
         ss = ss_saved[kk]    
         if any(ss <= 0) or any([isinstance(j, complex) for j in ss]):
             ss_saved.remove(ss)
-
+    
     #%% calculate the eigenvalue of Jacobian matrix without and with diffusion matrix
     # some codes from https://www.sympy.org/scipy-2017-codegen-tutorial/notebooks/20-ordinary-differential-equations.html were 
     # very helpful
@@ -171,23 +186,23 @@ for i in range(100):
     
     #%% eigenvalue computation with diffusion matrix to test if Turing instability 
     # disperion relation plot for specific set of parameters
-    #d = [0, 0.01057, 1]
     #d = [1, 10.03, 0]
-    q = 2*3.15169 / np.logspace(0, 3.0, num=20) # wavenumber 
+    q = 2*3.15169 / np.logspace(0, 3.0, num=50) # wavenumber 
     
     # loop over stedy states
     for ii in range(len(ss_saved)):
-        #ii = 0
+        # ii = 0
         ss = ss_saved[ii]
         #J_inputs = J.free_symbols
         S = J_func(ss, k)
         w  =  np.linalg.eigvals(S)
-        max(w), S
+        w.real.max(), S
         
         for val in d_grid: # loop diffusion matrix for each steady state
             d = np.asarray(val)
             d = [0.0, d[0], d[1]]
             
+            d = [0, 1, 1.4]
             lam_real = np.empty_like(q)
             lam_im = np.empty_like(q)
             
@@ -200,11 +215,11 @@ for i in range(100):
                 lam_real[j] = wk.real.max()
                 lam_im[j] = wk.imag[np.argmax(wk.real)]
                 
-            #plt.plot(q, lam_real)
-            #plt.show()
+            plt.plot(q, lam_real)
+            plt.show()
             #plt.axis([0, max(q), -1, 1])
-            #plt.axhline(y=0, color='r', linestyle='-'
-            #print(max(lam_real))
+            #plt.Axes.axhline(y=0, color='r', linestyle='-', xmin = np.min(lam_real), xmax = np.max(lam_real))
+            print(max(lam_real))
             
             index_max = np.argmax(lam_real) 
             lam_real_max = lam_real[index_max]

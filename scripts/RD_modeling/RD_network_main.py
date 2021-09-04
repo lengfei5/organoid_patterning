@@ -25,7 +25,7 @@ Output of function for each of given parameters (reaction, diffusion):
 import numpy as np
 import pandas as pd
 import os
-import numba
+#import numba
 import scipy.integrate
 from scipy.integrate import odeint
 from scipy.integrate import solve_ivp
@@ -33,18 +33,19 @@ from scipy.integrate import solve_ivp
 
 import matplotlib.pyplot as plt
 
-import biocircuits
-import bokeh.io
-import bokeh.plotting
+#import biocircuits
+#import bokeh.io
+#import bokeh.plotting
 
 import panel as pn
 pn.extension()
 
-import math
+#import math
 import itertools
 import sympy as sym
 from itertools import permutations
-
+from skopt.space import Space
+from skopt.sampler import Lhs
 
 #%% utility functions
 def check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final):
@@ -136,7 +137,8 @@ def f_ode(x, t, k):
 def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q, i):
     
     names = [sym.symbols('k0:' + str(len(k))), 
-             sym.symbols('X0:' + str(n)), 
+             sym.symbols('X0:' + str(n)),
+             sym.symbols('noDiffusion0:2'),
              sym.symbols('d0:' + str(len(d_grid[0]))), 
              sym.symbols('q0:' + str(len(q))), 
              sym.symbols('lambda_re0:' + str(len(q))), 
@@ -180,72 +182,84 @@ def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q, i
     # define initial conditions for ODE
     ss_saved = Multi_steadyStates(ss0, c_init, f_ode, k, n)
     
-    # for kk in range(len(ss_saved)):
-    #     ss = ss_saved[kk]    
-    #     if any(ss <= 0) or any([isinstance(j, complex) for j in ss]):
-    #         ss_saved.remove(ss)
+    for kk in range(len(ss_saved)):
+        ss = ss_saved[kk]    
+        if any(ss < 0) or any([isinstance(j, complex) for j in ss]):
+            ss_saved.remove(ss)
     
-    #%% calculate the eigenvalue of Jacobian matrix without and with diffusion matrix
-    # some codes from https://www.sympy.org/scipy-2017-codegen-tutorial/notebooks/20-ordinary-differential-equations.html were 
-    # very helpful
-    f_sym = sym.Matrix(f_ode(X, None, K))
-    J = f_sym.jacobian(X)
-    J_func = sym.lambdify((X, K),  J)
-    
-    #%% eigenvalue computation with diffusion matrix to test if Turing instability 
-    # disperion relation plot for specific set of parameters
-    #d = [0, 0.01057, 1]
+    if len(ss_saved) > 0: 
+        #%% calculate the eigenvalue of Jacobian matrix without and with diffusion matrix
+        # some codes from https://www.sympy.org/scipy-2017-codegen-tutorial/notebooks/20-ordinary-differential-equations.html were 
+        # very helpful
+        f_sym = sym.Matrix(f_ode(X, None, K))
+        J = f_sym.jacobian(X)
+        J_func = sym.lambdify((X, K),  J)
         
-    # loop over stedy states
-    for ii in range(len(ss_saved)):
-        #ii = 0
-        ss = ss_saved[ii]
-        #J_inputs = J.free_symbols
-        S = J_func(ss, k)
-        w  =  np.linalg.eigvals(S)
-        # max(w), S
+        #%% eigenvalue computation with diffusion matrix to test if Turing instability 
+        # disperion relation plot for specific set of parameters
+        #d = [0, 0.01057, 1]
         
-        for val in d_grid: # loop diffusion matrix for each steady state
-            d = np.asarray(val)
-            #d = [0.0, d[0], d[1]]
+        # loop over stedy states
+        for ii in range(len(ss_saved)):
+            #ii = 0
+            ss = ss_saved[ii]
+            #J_inputs = J.free_symbols
+            S = J_func(ss, k)
+            try:
+                w  =  np.linalg.eigvals(S)
+                # max(w), S
+            except:
+                return True
             
-            lam_real = np.empty_like(q)
-            lam_im = np.empty_like(q)
+            eigen0 = np.zeros(2)
+            eigen0[0] = w.real.max()
+            eigen0[1] = w.imag[np.argmax(w.real)]
             
-            # loop over the wavenumber 
-            for j in range(len(q)):
-                #j = 1
-                S2 = S - np.diag(np.multiply(d, q[j]**2))
-                #wk,vk =  np.linalg.eig(S2)
-                wk = np.linalg.eigvals(S2)
-                lam_real[j] = wk.real.max()
-                lam_im[j] = wk.imag[np.argmax(wk.real)]
+            for val in d_grid: # loop diffusion matrix for each steady state
+                d = np.asarray(val)
+                #d = [0.0, d[0], d[1]]
                 
-            #plt.plot(q, lam_real)
-            #plt.show()
-            #plt.axis([0, max(q), -1, 1])
-            #plt.axhline(y=0, color='r', linestyle='-'
-            #print(max(lam_real))
-            index_max = np.argmax(lam_real) 
-            lam_real_max = lam_real[index_max]
-            #lam_im_max = lam_im[index_max]
-            #q_max = q[index_max]
-            
-            # save the result, k parameter, steady state, d parameters, q values, lambda_real, lambda imaginary
-            if lam_real_max >= 0:  
-                arr = np.concatenate((k, ss, d, q, lam_real, lam_im))
-                keep = keep.append(pd.DataFrame(arr.reshape(1,-1), columns=list(keep)), ignore_index=True)
+                lam_real = np.empty_like(q)
+                lam_im = np.empty_like(q)
+                
+                # loop over the wavenumber 
+                for j in range(len(q)):
+                    #j = 1
+                    S2 = S - np.diag(np.multiply(d, q[j]**2))
+                    #wk,vk =  np.linalg.eig(S2)
+                    try:
+                        wk = np.linalg.eigvals(S2)
+                    except:
+                        return True
+                    
+                    lam_real[j] = wk.real.max()
+                    lam_im[j] = wk.imag[np.argmax(wk.real)]
+                
+                #plt.plot(q, lam_real)
+                #plt.show()
+                #plt.axis([0, max(q), -1, 1])
+                #plt.axhline(y=0, color='r', linestyle='-'
+                #print(max(lam_real))
+                index_max = np.argmax(lam_real) 
+                lam_real_max = lam_real[index_max]
+                #lam_im_max = lam_im[index_max]
+                #q_max = q[index_max]
+                
+                # save the result, k parameter, steady state, d parameters, q values, lambda_real, lambda imaginary
+                if lam_real_max >= 0:  
+                    arr = np.concatenate((k, ss, eigen0,  d, q, lam_real, lam_im))
+                    keep = keep.append(pd.DataFrame(arr.reshape(1,-1), columns=list(keep)), ignore_index=True)
         
                 
-    if keep.shape[0] > 1:
-        keep.to_csv('./RD_out/linear_stability_out_' + str(i) + '.csv', index = False) # Use Tab to seperate data
+        if keep.shape[0] > 1:
+            keep.to_csv('./RD_out/linear_stability_out_' + str(i) + '.csv', index = False) # Use Tab to seperate data
                 
     
 def main():
     
     import time
     start_time = time.process_time()
-    print('main function')
+    print('--  main function starts --')
     
     Total_samples = 200
     n = 3 # nb of node
@@ -274,8 +288,6 @@ def main():
     K = sym.symbols(('k0:' + str(k_length)))
     
     ## lhs sampling for parameter
-    from skopt.space import Space
-    from skopt.sampler import Lhs
     np.random.seed(123)
     
     space = Space([(-2., 2.), (-2., 2.), (-2, 2), 
@@ -284,6 +296,7 @@ def main():
                    (-2, 2), (-2, 2),
                    (-2., 2.), (-2., 2.), (-2, 2)
                    ])
+    
     lhs = Lhs(criterion="maximin", iterations=1000)
     k_grid_log = lhs.generate(space.dimensions, Total_samples)
     
