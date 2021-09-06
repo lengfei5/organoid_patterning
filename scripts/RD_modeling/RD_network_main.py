@@ -259,9 +259,10 @@ def main():
     
     import time
     start_time = time.process_time()
+    
     print('--  main function starts --')
     
-    Total_samples = 200
+    Total_samples = 1000
     n = 3 # nb of node
     k_length = 15 # nb of reaction parameters: 3* number of nodes (3*3) + number of interactions (6)
     
@@ -276,20 +277,14 @@ def main():
         # directory already exists
         pass
     
-    # paramtere vector k sampling
-    #ks = np.logspace(-2, 2.0, num=nb_sampling)
-    #k9 = np.ones(1)
-    #k_grid1 = list(itertools.product(ks, repeat = 9))
-    #k_grid2 = list(itertools.product(k9, ks, ks, 
-    #                                 ks, ks, ks))
-    #k_grid = list(itertools.product(k_grid1, k_grid2))
-     # define symbolic variables for Jacobian matrix 
+    # define symbolic variables for Jacobian matrix 
     X = sym.symbols(('x0:' + str(n)))
     K = sym.symbols(('k0:' + str(k_length)))
     
     ## lhs sampling for parameter
     np.random.seed(123)
     
+    #start_time = time.process_time()
     space = Space([(-2., 2.), (-2., 2.), (-2, 2), 
                    (-2., 2.), (-2., 2.), (-2, 2),
                    (-2., 2.), (-2., 2.), (-2, 2), 
@@ -300,6 +295,8 @@ def main():
     lhs = Lhs(criterion="maximin", iterations=1000)
     k_grid_log = lhs.generate(space.dimensions, Total_samples)
     
+    #print(time.process_time() - start_time, "seconds")
+    
     # diffusion rate sampling
     d_range = np.logspace(-3, 3.0, num = 20)
     d_grid = list(itertools.product(np.zeros(1), np.ones(1),  d_range))
@@ -309,7 +306,7 @@ def main():
     x_init = np.logspace(-1, 4, nb_init)
     c_init = itertools.combinations_with_replacement(x_init, n)
     
-    q = 2*3.15169 / np.logspace(0, 3.0, num=20) # wavenumber
+    q = 2*3.1416 / np.logspace(0, 3.0, num=20) # wavenumber
     
     # time 
     t_final = 1000
