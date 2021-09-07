@@ -160,9 +160,10 @@ def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q
     x0 = np.random.random(1) * np.ones(n)
     #x0 = [2.3, 0.4, 1.3]
     
+    #f_ode_xk = f_ode(x, None, k, S)
     t = np.linspace(0, t_final, 200)
     sol = odeint(f_ode, x0, t, args=(k,S))
-    #sol_test = odeint(f_ode_simple, x0, t, args=(k,))
+    #sol_test = odeint(f_ode_xk, x0, t, args=(k,))
     # check the integration solution with plot
     # fig,ax = plt.subplots()
     # ax.plot(t,sol[:,0],label='x1')
@@ -255,11 +256,36 @@ def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q
         if keep.shape[0] > 1:
             keep.to_csv('./RD_out/linear_stability_out_' + str(i) + '.csv', index = False) # Use Tab to seperate data
                 
+def linear_stability_singleParam(i, k_grid_log, nb_params, Index_K_unsampled, n, f_ode, S, t_final, c_init, X, K, d_grid, q):
+    # i = 50
+    #if i % 100 == 0:
+    #print(i)
+        
+    ks = np.asarray(k_grid_log[i])
+    ks = np.power(10.0, ks) # transform to linear scale
+        
+    k = np.ones(nb_params)
+        
+    if len(ks) < len(k) :
+        index_ks = 0
+        for index_k in range(nb_params):
+            if index_k not in Index_K_unsampled:
+                k[index_k] = ks[index_ks]
+                index_ks = index_ks + 1
+    
+        # test if the parameter assignment correct             
+        for index_kns in Index_K_unsampled:
+            if k[index_kns] > 1.0 or k[index_kns] < 1.0:
+                print(" non smpled parameters assignment not correct  !")
+                os._exit(1)
+        
+    linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q, i)
     
 def main():
     
     # total number for parameter sampling 
-    nb_sampling_parameters = 100 # reaction parameters
+    nb_sampling_parameters = 1000 # reaction parameters
+    
     nb_sampling_diffusion = 20 # diffusion rate
     nb_sampling_init = 3 # nb of initial condtion sampled
     
@@ -269,11 +295,11 @@ def main():
     nb_params = 14
     binary_diffusor = [1, 1, 0]
     
+    print('--  main function starts --')
     
     import time
     start_time = time.process_time()
     
-    print('--  main function starts --')
     # read the network topology
     S = pd.read_csv('3N2M_topology_enumerate/Model_1.csv', index_col=0) 
     
@@ -342,13 +368,31 @@ def main():
     # time 
     t_final = 1000
     
+    print(time.process_time() - start_time, "seconds to set up parameters ")
+    
     #%% big loop over each k parameter vector and save the result for each sampled d combination
+    start_time = time.process_time()
+    
+    # try to parallize the for loop
+    #from joblib import Parallel, delayed
+    #import multiprocessing
+    # #pool_obj = multiprocessing.Pool()
+    # pool = multiprocessing.Pool()
+    # args = ((foo, bar, foobar, baz) 
+    #     for foo in range(3) 
+    #     for bar in range(5) 
+    #     for baz in range(4) 
+    #     for foobar in range(10))
+    # pool.starmap(calculation, args)
+    # pool.close()
+    # pool.join()
+    # pool_obj.map(sumall, range(0, len(k_grid_log)))
+    
     #for i in range(len(k_grid)):
     for i in range(len(k_grid_log)):
-        # i = 50
-        #if i % 100 == 0:
-        print(i)
         
+        if i % 100 == 0 and i > 0:
+            print(i)
         ks = np.asarray(k_grid_log[i])
         ks = np.power(10.0, ks) # transform to linear scale
         
@@ -361,19 +405,18 @@ def main():
                     k[index_k] = ks[index_ks]
                     index_ks = index_ks + 1
     
-        # test if the parameter assignment correct             
-        for index_kns in Index_K_unsampled:
-            if k[index_kns] > 1.0 or k[index_kns] < 1.0:
-                print(" non smpled parameters assignment not correct  !")
-                os._exit(1)
-            
-        #k = np.concatenate((k[0:9], np.ones(1), k[9:14])) # add k9 = 1
+            # test if the parameter assignment correct             
+            for index_kns in Index_K_unsampled:
+                if k[index_kns] > 1.0 or k[index_kns] < 1.0:
+                    print(" non smpled parameters assignment not correct  !")
+                    os._exit(1)
         
         linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q, i)
-                    
+        #Parallel(n_jobs=2)(delayed(linear_stability_singleParam)(i, k_grid_log, nb_params, Index_K_unsampled, n, f_ode, S, t_final, c_init, X, K, d_grid, q) for i in range(len(k_grid_log)))
     
-    print(time.process_time() - start_time, "seconds")
-
+    print(time.process_time() - start_time, "seconds for for loop")
+    
+    
 if __name__ == "__main__":
 
     main()
