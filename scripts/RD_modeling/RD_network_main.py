@@ -107,26 +107,13 @@ def Multi_steadyStates(ss0, c_init, f_ode, k, n):
 
 #%% specify the network topology or model with parameters
  # define ODE model without diffusion
-def f_ode(x, t, k):
+def f_ode(x, t, k, S):
     #dRdt = np.empty(n)
     
-    ## the test example from Zheng et al, 2016, Fig.S1A
-    #dx0dt = 55.14*x[2]**2/(18.48**2 + x[2]**2) + 0.1 - 1.341*x[0]
-    #dx1dt = 29.28*x[2]**2/(15.90**2 + x[2]**2) + 0.1 - 0.3508*x[1]
-    #dx2dt = 16.17*x[0]**2/(x[0]**2 + 0.6421**2)*1.316**2/(1.316**2 + x[1]**2) + 0.1 - 1.203*x[2]
-    
-    ## the test example from Zheng et al, 2016, Fig.S1B (something not right in the formula)
-    #dx0dt = 50.86*x[0]**2/(x[0]**2 + 0.02315**2)*17.64**2/(17.64**2 + x[1]**2) + 0.1 - 0.09367*x[0]
-    #dx0dt = 50.86*x[0]**2/(x[0]**2 + 0.02315**2)*x[1]**2/(17.64**2 + x[1]**2) + 0.1 - 0.09367*x[0]
-    #dx1dt = 17.43*x[0]**2/(x[0]**2 + 5.230**2)*1.038**2/(1.038**2 + x[2]**2) + 0.1 - 2.699*x[1]
-    #dx1dt = 17.43*(5.230**2/(x[0]**2 + 5.230**2) * 1.038**2/(1.038**2 + x[2]**2)) + 0.1 - 2.699*x[1]
-    #dx2dt = 69.57*x[2]**2/(x[2]**2 + 1.000**2)*0.02100**2/(0.02100**2 + x[1]**2) + 0.1 - 0.1503*x[2]
-    
-    ## only non-competitive interactions were chosen for approximiation 
-    ## NT organoid phase III pattern selection: FoxA2, Noggin and BMP
-    dx0dt = k[0] - k[3]*x[0] + k[6]*(x[0]**2/(x[0]**2 + k[9]**2) * k[10]**2/(x[2]**2 + k[10]**2)) # Foxa2
-    dx1dt = k[1] - k[4]*x[1] + k[7]*(x[0]**2/(x[0]**2 + k[11]**2) * x[2]**2/(x[2]**2 + k[12]**2)) # Noggin
-    dx2dt = k[2] - k[5]*x[2] + k[8]*(x[0]**2/(x[0]**2 + k[13]**2) * k[14]**2/(x[1]**2 + k[14]**2)) # BMP
+    ## NT organoid phase III pattern selection:  Noggin, BMP, FoxA2
+    dx0dt = k[0]  -     x[0] + k[5]*(1.0/(1.0+(1.0/x[0])**(2.0*S.iloc[0,0])) * 1.0/(1.0 + (k[8]/x[1])**(2.0*S.iloc[1, 0])) * 1.0/(1.0 + (k[9]/x[2])**(2.0*S.iloc[2, 0]))) # Noggin
+    dx1dt = k[1] - k[3]*x[1] + k[6]*(1.0/(1.0+(k[10]/x[0])**(2.0*S.iloc[0,1])) * 1.0/(1.0 + (1.0/x[1])**(2.0*S.iloc[1, 1])) * 1.0/(1.0 + (k[11]/x[2])**(2.0*S.iloc[2, 1]))) # BMP
+    dx2dt = k[2] - k[4]*x[2] + k[7]*(1.0/(1.0+(k[12]/x[0])**(2.0*S.iloc[0,2])) * 1.0/(1.0 + (k[13]/x[1])**(2.0*S.iloc[1, 2])) * 1.0/(1.0 + (1.0/x[2])**(2.0*S.iloc[2, 2]))) # Foxa2
     
     dRdt = [dx0dt, dx1dt, dx2dt]
     
@@ -134,7 +121,7 @@ def f_ode(x, t, k):
 
 #%% linear stability analysis for given kinetic prameter;
 # save the parameter, k, steady state, x, sampled diffusion d, wavenumber q and lambda (real and imaginary)
-def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q, i):
+def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, S, d_grid, q, i):
     
     names = [sym.symbols('k0:' + str(len(k))), 
              sym.symbols('X0:' + str(n)),
@@ -204,9 +191,9 @@ def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q, i
             #ii = 0
             ss = ss_saved[ii]
             #J_inputs = J.free_symbols
-            S = J_func(ss, k)
+            S0 = J_func(ss, k)
             try:
-                w  =  np.linalg.eigvals(S)
+                w  =  np.linalg.eigvals(S0)
                 # max(w), S
             except:
                 return True
@@ -257,19 +244,63 @@ def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q, i
     
 def main():
     
+    # total number for parameter sampling 
+    nb_sampling_parameters = 100 # reaction parameters
+    nb_sampling_diffusion = 20 # diffusion rate
+    nb_sampling_init = 3 # nb of initial condtion sampled
+    
+    q = 2*3.1416 / np.logspace(-2, 3.0, num=20) # wavenumber
+    
+    n = 3 # nb of node
+    nb_params = 14
+    #binary_diffusor = [1, 1, 0]
+    
     import time
     start_time = time.process_time()
     
     print('--  main function starts --')
+    # read the network topology
+    S = pd.read_csv('3N2M_topology_enumerate/Model_1.csv', index_col=0) 
     
-    Total_samples = 1000
-    n = 3 # nb of node
-    k_length = 15 # nb of reaction parameters: 3* number of nodes (3*3) + number of interactions (6)
+    if S.shape[0] != 3 or S.shape[1] != 3:
+        print("Required 3x3 matrix for network topology !")
+        os._exit(1)
     
-    nb_sampling = 3
-    binary_diffusor = [0, 1, 1]
+    # define symbolic variables for Jacobian matrix 
+    X = sym.symbols(('x0:' + str(n)))
+    K = sym.symbols(('k0:' + str(nb_params)))
+    
+    ## keep a record of sampled parameters
+    K_total = [None] * nb_params
+    for index_par in range(nb_params):
+        K_total[index_par] = 'k' + str(index_par)
+        
+    Index_K_unsampled = []
+    k_length = 8 # nb of reaction parameters: 3* number of nodes (3*3) + number of interactions (6)
+    for index_j in range(3): 
+        for index_i in range(3):
+            #print(S.iloc[index_j, index_i])
+            if index_i != index_j:
+                if np.abs(S.iloc[index_j, index_i]) > 0: 
+                    k_length = k_length + 1
+                else:
+                    if index_i == 1 and index_j == 0:
+                        Index_K_unsampled.append(8)
+                    elif index_i ==2 and index_j == 0:
+                        Index_K_unsampled.append(9)
+                    elif index_i == 0 and index_j == 1:
+                        Index_K_unsampled.append(10)
+                    elif index_i == 2 and index_j == 1:
+                        Index_K_unsampled.append(11)
+                    elif index_i == 0 and index_j == 2:
+                        Index_K_unsampled.append(12)
+                    elif index_i == 1 and index_j == 2:
+                        Index_K_unsampled.append(13)
+
+                        
     
     
+     
     #%% sampling the parameters, which node is difusor and diffusion coeffs
     try:
         os.makedirs("./RD_out")
@@ -277,36 +308,25 @@ def main():
         # directory already exists
         pass
     
-    # define symbolic variables for Jacobian matrix 
-    X = sym.symbols(('x0:' + str(n)))
-    K = sym.symbols(('k0:' + str(k_length)))
-    
     ## lhs sampling for parameter
     np.random.seed(123)
     
     #start_time = time.process_time()
-    space = Space([(-2., 2.), (-2., 2.), (-2, 2), 
-                   (-2., 2.), (-2., 2.), (-2, 2),
-                   (-2., 2.), (-2., 2.), (-2, 2), 
-                   (-2, 2), (-2, 2),
-                   (-2., 2.), (-2., 2.), (-2, 2)
-                   ])
+    #space = Space([(-2.0, 2.0)], shape = (k_length, ))
+    
+    list_dimensions = [(-2, 2)]*k_length
+    space = Space(list_dimensions)
     
     lhs = Lhs(criterion="maximin", iterations=1000)
-    k_grid_log = lhs.generate(space.dimensions, Total_samples)
-    
-    #print(time.process_time() - start_time, "seconds")
+    k_grid_log = lhs.generate(space.dimensions, nb_sampling_parameters)
     
     # diffusion rate sampling
-    d_range = np.logspace(-3, 3.0, num = 20)
+    d_range = np.logspace(-3, 3.0, num = nb_sampling_diffusion)
     d_grid = list(itertools.product(np.zeros(1), np.ones(1),  d_range))
     
     # initial conditions: each node has 3 initial values
-    nb_init = 3
-    x_init = np.logspace(-1, 4, nb_init)
+    x_init = np.logspace(-1, 4, nb_sampling_init)
     c_init = itertools.combinations_with_replacement(x_init, n)
-    
-    q = 2*3.1416 / np.logspace(0, 3.0, num=20) # wavenumber
     
     # time 
     t_final = 1000
@@ -314,15 +334,17 @@ def main():
     #%% big loop over each k parameter vector and save the result for each sampled d combination
     #for i in range(len(k_grid)):
     for i in range(len(k_grid_log)):
+        # i = 0
         if i % 100 == 0:
             print(i)
         
         #k = [element for tupl in k_grid[i] for element in tupl]
         k = np.asarray(k_grid_log[i])
-        k = np.power(10, k) # transform to linear scale 
+        k = np.power(10.0, k) # transform to linear scale
+        
         k = np.concatenate((k[0:9], np.ones(1), k[9:14])) # add k9 = 1
         
-        linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, d_grid, q, i)
+        linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, S, d_grid, q, i)
                     
     
     print(time.process_time() - start_time, "seconds")
