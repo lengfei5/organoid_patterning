@@ -48,7 +48,7 @@ from skopt.space import Space
 from skopt.sampler import Lhs
 
 #%% utility functions
-def check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final):
+def check_BurnIn_steadyState(sol, f_ode, k, S, n, x0, t_final):
     from scipy.integrate import odeint
     err_tole = 0.00001
     ss = np.zeros(n)
@@ -66,7 +66,7 @@ def check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final):
         nb_try = nb_try + 1
         t_final = t_final*2
         t = np.linspace(0, t_final, 200)
-        sol = odeint(f_ode, x0, t,args=(k,))
+        sol = odeint(f_ode, x0, t,args=(k,S))
         ss = np.zeros(n)
         ss_fluc = np.zeros(n)
         nb_passThreshold = 0
@@ -78,7 +78,7 @@ def check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final):
     
     return  ss
 
-def Multi_steadyStates(ss0, c_init, f_ode, k, n):
+def Multi_steadyStates(ss0, c_init, f_ode, k, S, n):
     import itertools
     from scipy.integrate import odeint
     
@@ -92,8 +92,8 @@ def Multi_steadyStates(ss0, c_init, f_ode, k, n):
     for val in c_init:
         x0 = np.asarray(val)
         #print(x0)
-        sol2 = odeint(f_ode, x0, t,args=(k,))
-        ss2 = check_BurnIn_steadyState(sol2, f_ode, k, n, x0, t_final)
+        sol2 = odeint(f_ode, x0, t,args=(k,S))
+        ss2 = check_BurnIn_steadyState(sol2, f_ode, k, S, n, x0, t_final)
         
         dists = np.ones(len(ss_saved))
         for j in range(len(ss_saved)):
@@ -106,7 +106,19 @@ def Multi_steadyStates(ss0, c_init, f_ode, k, n):
     return ss_saved
 
 #%% specify the network topology or model with parameters
- # define ODE model without diffusion
+def f_ode_simple(x, t, k): # simplified version of ode for specific S matrix
+    #dRdt = np.empty(n)
+    
+    ## NT organoid phase III pattern selection:  Noggin, BMP, FoxA2
+    dx0dt = k[0]  -     x[0] + k[5]*(1.0/2.0 * 1.0/(1.0 + (k[8]/x[1])**(2.0)) * 1.0/(1.0 + (k[9]/x[2])**(2.0))) # Noggin
+    dx1dt = k[1] - k[3]*x[1] + k[6]*(1.0/(1.0+(k[10]/x[0])**(-2.0)) * 1.0/(2.0) * 1.0/(1.0 + (k[11]/x[2])**(2.0))) # BMP
+    dx2dt = k[2] - k[4]*x[2] + k[7]*(1.0/2.0 * 1.0/(1.0 + (k[13]/x[1])**(-2.0)) * 1.0/(1.0 + (1.0/x[2])**(2.0))) # Foxa2
+    
+    dRdt = [dx0dt, dx1dt, dx2dt]
+    
+    return dRdt
+
+# define ODE model in general form without diffusion 
 def f_ode(x, t, k, S):
     #dRdt = np.empty(n)
     
@@ -119,9 +131,10 @@ def f_ode(x, t, k, S):
     
     return dRdt
 
+
 #%% linear stability analysis for given kinetic prameter;
 # save the parameter, k, steady state, x, sampled diffusion d, wavenumber q and lambda (real and imaginary)
-def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, S, d_grid, q, i):
+def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q, i):
     
     names = [sym.symbols('k0:' + str(len(k))), 
              sym.symbols('X0:' + str(n)),
@@ -129,12 +142,12 @@ def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, S, d_grid, q
              sym.symbols('d0:' + str(len(d_grid[0]))), 
              sym.symbols('q0:' + str(len(q))), 
              sym.symbols('lambda_re0:' + str(len(q))), 
-             sym.symbols('lambda_im0:' + str(len(q)))]
+             sym.symbols('lambda_im0:' + str(len(q))) ]
     
     names = [element for tupl in names for element in tupl]
     keep = pd.DataFrame(columns=names)
+    
     # start with some test
-    #i = 0 # test first k_grid
     #k = np.asarray(k_grid[i])
     #k0 = k_grid[i]
     #k[0], k[1], k[2] = 0.1, 0.1, 0.1
@@ -146,11 +159,10 @@ def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, S, d_grid, q
     # %% find the steady state by integration (initial guess)
     x0 = np.random.random(1) * np.ones(n)
     #x0 = [2.3, 0.4, 1.3]
-    #x0 = [0.0975, 0.0975, 0.0975]
     
     t = np.linspace(0, t_final, 200)
-    sol = odeint(f_ode, x0, t, args=(k,))
-    
+    sol = odeint(f_ode, x0, t, args=(k,S))
+    #sol_test = odeint(f_ode_simple, x0, t, args=(k,))
     # check the integration solution with plot
     # fig,ax = plt.subplots()
     # ax.plot(t,sol[:,0],label='x1')
@@ -163,22 +175,22 @@ def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, S, d_grid, q
     # # sol[199, ]
     
     # double check if steady state is reache by considering the first 100 time points as BurnIn
-    ss0 = check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final)
+    ss0 = check_BurnIn_steadyState(sol, f_ode, k, S, n, x0, t_final)
     
     #%% check if multiple steady states exist and save
     # define initial conditions for ODE
-    ss_saved = Multi_steadyStates(ss0, c_init, f_ode, k, n)
+    ss_saved = Multi_steadyStates(ss0, c_init, f_ode, k, S, n)
     
     for kk in range(len(ss_saved)):
         ss = ss_saved[kk]    
-        if any(ss < 0) or any([isinstance(j, complex) for j in ss]):
+        if any(ss <= 0) or any([isinstance(j, complex) for j in ss]):
             ss_saved.remove(ss)
     
     if len(ss_saved) > 0: 
         #%% calculate the eigenvalue of Jacobian matrix without and with diffusion matrix
-        # some codes from https://www.sympy.org/scipy-2017-codegen-tutorial/notebooks/20-ordinary-differential-equations.html were 
-        # very helpful
-        f_sym = sym.Matrix(f_ode(X, None, K))
+        # some codes from https://www.sympy.org/scipy-2017-codegen-tutorial/notebooks/20-ordinary-differential-equations.html 
+        # were very helpful
+        f_sym = sym.Matrix(f_ode(X, None, K, S))
         J = f_sym.jacobian(X)
         J_func = sym.lambdify((X, K),  J)
         
@@ -188,12 +200,13 @@ def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, S, d_grid, q
         
         # loop over stedy states
         for ii in range(len(ss_saved)):
-            #ii = 0
+            # ii = 0
             ss = ss_saved[ii]
             #J_inputs = J.free_symbols
-            S0 = J_func(ss, k)
+            S1 = J_func(ss, k)
+            
             try:
-                w  =  np.linalg.eigvals(S0)
+                w  =  np.linalg.eigvals(S1)
                 # max(w), S
             except:
                 return True
@@ -203,6 +216,7 @@ def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, S, d_grid, q
             eigen0[1] = w.imag[np.argmax(w.real)]
             
             for val in d_grid: # loop diffusion matrix for each steady state
+                
                 d = np.asarray(val)
                 #d = [0.0, d[0], d[1]]
                 
@@ -212,7 +226,7 @@ def linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, S, d_grid, q
                 # loop over the wavenumber 
                 for j in range(len(q)):
                     #j = 1
-                    S2 = S - np.diag(np.multiply(d, q[j]**2))
+                    S2 = S1 - np.diag(np.multiply(d, q[j]**2))
                     #wk,vk =  np.linalg.eig(S2)
                     try:
                         wk = np.linalg.eigvals(S2)
@@ -253,7 +267,8 @@ def main():
     
     n = 3 # nb of node
     nb_params = 14
-    #binary_diffusor = [1, 1, 0]
+    binary_diffusor = [1, 1, 0]
+    
     
     import time
     start_time = time.process_time()
@@ -270,10 +285,10 @@ def main():
     X = sym.symbols(('x0:' + str(n)))
     K = sym.symbols(('k0:' + str(nb_params)))
     
-    ## keep a record of sampled parameters
-    K_total = [None] * nb_params
-    for index_par in range(nb_params):
-        K_total[index_par] = 'k' + str(index_par)
+    ## keep a record of unsampled parameters
+    #K_total = [None] * nb_params
+    #for index_par in range(nb_params):
+    #    K_total[index_par] = 'k' + str(index_par)
         
     Index_K_unsampled = []
     k_length = 8 # nb of reaction parameters: 3* number of nodes (3*3) + number of interactions (6)
@@ -284,23 +299,22 @@ def main():
                 if np.abs(S.iloc[index_j, index_i]) > 0: 
                     k_length = k_length + 1
                 else:
-                    if index_i == 1 and index_j == 0:
+                    if index_i == 0 and index_j == 1:
                         Index_K_unsampled.append(8)
-                    elif index_i ==2 and index_j == 0:
+                    elif index_i ==0 and index_j == 2:
                         Index_K_unsampled.append(9)
-                    elif index_i == 0 and index_j == 1:
+                    elif index_i == 1 and index_j == 0:
                         Index_K_unsampled.append(10)
-                    elif index_i == 2 and index_j == 1:
-                        Index_K_unsampled.append(11)
-                    elif index_i == 0 and index_j == 2:
-                        Index_K_unsampled.append(12)
                     elif index_i == 1 and index_j == 2:
+                        Index_K_unsampled.append(11)
+                    elif index_i == 2 and index_j == 0:
+                        Index_K_unsampled.append(12)
+                    elif index_i == 2 and index_j == 1:
                         Index_K_unsampled.append(13)
-
-                        
-    
-    
-     
+    if len(Index_K_unsampled) + k_length != nb_params:
+        print(" nb of sampled parameters not correct  !")
+        os._exit(1)
+                            
     #%% sampling the parameters, which node is difusor and diffusion coeffs
     try:
         os.makedirs("./RD_out")
@@ -311,9 +325,6 @@ def main():
     ## lhs sampling for parameter
     np.random.seed(123)
     
-    #start_time = time.process_time()
-    #space = Space([(-2.0, 2.0)], shape = (k_length, ))
-    
     list_dimensions = [(-2, 2)]*k_length
     space = Space(list_dimensions)
     
@@ -322,7 +333,7 @@ def main():
     
     # diffusion rate sampling
     d_range = np.logspace(-3, 3.0, num = nb_sampling_diffusion)
-    d_grid = list(itertools.product(np.zeros(1), np.ones(1),  d_range))
+    d_grid = list(itertools.product(np.ones(1),  d_range, np.zeros(1)))
     
     # initial conditions: each node has 3 initial values
     x_init = np.logspace(-1, 4, nb_sampling_init)
@@ -334,17 +345,31 @@ def main():
     #%% big loop over each k parameter vector and save the result for each sampled d combination
     #for i in range(len(k_grid)):
     for i in range(len(k_grid_log)):
-        # i = 0
-        if i % 100 == 0:
-            print(i)
+        # i = 50
+        #if i % 100 == 0:
+        print(i)
         
-        #k = [element for tupl in k_grid[i] for element in tupl]
-        k = np.asarray(k_grid_log[i])
-        k = np.power(10.0, k) # transform to linear scale
+        ks = np.asarray(k_grid_log[i])
+        ks = np.power(10.0, ks) # transform to linear scale
         
-        k = np.concatenate((k[0:9], np.ones(1), k[9:14])) # add k9 = 1
+        k = np.ones(nb_params)
         
-        linear_stability_test_param(n, k, f_ode, t_final, c_init, X, K, S, d_grid, q, i)
+        if len(ks) < len(k) :
+            index_ks = 0
+            for index_k in range(nb_params):
+                if index_k not in Index_K_unsampled:
+                    k[index_k] = ks[index_ks]
+                    index_ks = index_ks + 1
+    
+        # test if the parameter assignment correct             
+        for index_kns in Index_K_unsampled:
+            if k[index_kns] > 1.0 or k[index_kns] < 1.0:
+                print(" non smpled parameters assignment not correct  !")
+                os._exit(1)
+            
+        #k = np.concatenate((k[0:9], np.ones(1), k[9:14])) # add k9 = 1
+        
+        linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q, i)
                     
     
     print(time.process_time() - start_time, "seconds")

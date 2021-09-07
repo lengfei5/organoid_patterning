@@ -262,7 +262,7 @@ def main():
     
     print('--  main function starts --')
     
-    Total_samples = 1000
+    Total_samples = 100
     n = 3 # nb of node
     k_length = 15 # nb of reaction parameters: 3* number of nodes (3*3) + number of interactions (6)
     
