@@ -36,7 +36,6 @@ import matplotlib.pyplot as plt
 #import biocircuits
 #import bokeh.io
 #import bokeh.plotting
-
 import panel as pn
 pn.extension()
 
@@ -46,6 +45,8 @@ import sympy as sym
 from itertools import permutations
 from skopt.space import Space
 from skopt.sampler import Lhs
+
+import sys, getopt
 
 #%% utility functions
 def check_BurnIn_steadyState(sol, f_ode, k, S, n, x0, t_final):
@@ -134,7 +135,7 @@ def f_ode(x, t, k, S):
 
 #%% linear stability analysis for given kinetic prameter;
 # save the parameter, k, steady state, x, sampled diffusion d, wavenumber q and lambda (real and imaginary)
-def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q, i):
+def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q, i, outputDir):
     
     names = [sym.symbols('k0:' + str(len(k))), 
              sym.symbols('X0:' + str(n)),
@@ -254,7 +255,7 @@ def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q
         
                 
         if keep.shape[0] > 1:
-            keep.to_csv('./RD_out/linear_stability_out_' + str(i) + '.csv', index = False) # Use Tab to seperate data
+            keep.to_csv(outputDir + '/linear_stability_out_' + str(i) + '.csv', index = False) # Use Tab to seperate data
                 
 def linear_stability_singleParam(i, k_grid_log, nb_params, Index_K_unsampled, n, f_ode, S, t_final, c_init, X, K, d_grid, q):
     # i = 50
@@ -265,7 +266,7 @@ def linear_stability_singleParam(i, k_grid_log, nb_params, Index_K_unsampled, n,
     ks = np.power(10.0, ks) # transform to linear scale
         
     k = np.ones(nb_params)
-        
+    
     if len(ks) < len(k) :
         index_ks = 0
         for index_k in range(nb_params):
@@ -281,10 +282,35 @@ def linear_stability_singleParam(i, k_grid_log, nb_params, Index_K_unsampled, n,
         
     linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q, i)
     
-def main():
+def main(argv):
+    
+    inputfile = ''
+    try:
+        opts, args = getopt.getopt(argv,"hi:",["ifile="])
+    except getopt.GetoptError:
+        print('python RDnetwork_main.py.py -i <inputfile> ')
+        sys.exit(2)
+      
+    for opt, arg in opts:
+        if opt == '-h':
+            print('python RDnetwork_main.py -i <inputfile> ')
+            sys.exit()
+        elif opt in ("-i", "--ifile"):
+            inputfile = arg
+            
+    print('Input file is ', inputfile)
+    outputDir = os.path.basename(inputfile)
+    outputDir = './RD_out/' + outputDir.rsplit('.', 1)[0]
+    print('Output directory is ', outputDir)
+    
+    try:
+        os.makedirs(outputDir)
+    except FileExistsError:
+        # directory already exists
+        pass
     
     # total number for parameter sampling 
-    nb_sampling_parameters = 1000 # reaction parameters
+    nb_sampling_parameters = 100 # reaction parameters
     
     nb_sampling_diffusion = 20 # diffusion rate
     nb_sampling_init = 3 # nb of initial condtion sampled
@@ -301,7 +327,7 @@ def main():
     start_time = time.process_time()
     
     # read the network topology
-    S = pd.read_csv('3N2M_topology_enumerate/Model_1.csv', index_col=0) 
+    S = pd.read_csv(inputfile, index_col=0) 
     
     if S.shape[0] != 3 or S.shape[1] != 3:
         print("Required 3x3 matrix for network topology !")
@@ -342,11 +368,6 @@ def main():
         os._exit(1)
                             
     #%% sampling the parameters, which node is difusor and diffusion coeffs
-    try:
-        os.makedirs("./RD_out")
-    except FileExistsError:
-        # directory already exists
-        pass
     
     ## lhs sampling for parameter
     np.random.seed(123)
@@ -411,7 +432,7 @@ def main():
                     print(" non smpled parameters assignment not correct  !")
                     os._exit(1)
         
-        linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q, i)
+        linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q, i, outputDir)
         #Parallel(n_jobs=2)(delayed(linear_stability_singleParam)(i, k_grid_log, nb_params, Index_K_unsampled, n, f_ode, S, t_final, c_init, X, K, d_grid, q) for i in range(len(k_grid_log)))
     
     print(time.process_time() - start_time, "seconds for for loop")
@@ -419,6 +440,6 @@ def main():
     
 if __name__ == "__main__":
 
-    main()
+    main(sys.argv[1:])
 
 
