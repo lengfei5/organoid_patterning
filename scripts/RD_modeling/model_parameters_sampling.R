@@ -39,9 +39,13 @@ for(n in 1:nrow(xx))
   
 }
 
-##########################################
-# summary of models  
-##########################################
+########################################################
+########################################################
+# Section : summary of models 
+# 
+########################################################
+########################################################
+
 s[1, 1] = 0; s[1, 2] = -1; s[1, 3] = 0;
 s[2, 1] = 1; s[2, 2] = 0; s[2, 3] = -1
 s[3, 1] = 1; s[3, 2] = 1; s[3, 3] = 1
@@ -61,3 +65,31 @@ plot(g1, edge.color = 'blue')
 # gamma = lseq(0.01, 1, length.out = 3)
 # 
 # tidyr::expand(data.frame(ks), data.frame(gamma))
+
+model.list = list.files(path = "RD_modeling/3N2M_topology_enumerate", pattern = '*.csv', full.names = TRUE)
+
+for(n in 1:length(model.list)){
+  # n = 55
+  Model = basename(model.list[n])
+  Model = gsub('.csv', '', Model)
+  
+  param.list = list.files(path = paste0('../results/RD_topology_test/RD_out_topology.108_params.50K/', Model), 
+                          pattern = '*.csv', full.names = TRUE)
+  
+  if(length(param.list) > 0){
+    nb.param = 0
+    for(i in 1:length(param.list))
+    {
+      # i = 15
+      res = read.csv(file = param.list[i], header = TRUE)
+      res = res[which(res$noDiffusion0 <0 ), ]
+      if(nrow(res) > 0) nb.param = nb.param + 1
+    }
+    
+    if(nb.param >0) cat(n, ' -- ', Model,  ': nb of param --', nb.param, '\n')
+        
+  }
+  
+}
+
+
