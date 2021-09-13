@@ -50,6 +50,7 @@ s[1, 1] = 0; s[1, 2] = -1; s[1, 3] = 0;
 s[2, 1] = 1; s[2, 2] = 0; s[2, 3] = -1
 s[3, 1] = 1; s[3, 2] = 1; s[3, 3] = 1
 
+s0 = s
 # make graph from adjacency matrix
 g1 = graph_from_adjacency_matrix(s, mode = 'directed', weighted =TRUE)
 edge.start <- ends(g1, es=E(g1), names=F)[,1]
@@ -68,8 +69,9 @@ plot(g1, edge.color = 'blue')
 
 model.list = list.files(path = "RD_modeling/3N2M_topology_enumerate", pattern = '*.csv', full.names = TRUE)
 
+nb = 0
 for(n in 1:length(model.list)){
-  # n = 55
+  # n = 4
   Model = basename(model.list[n])
   Model = gsub('.csv', '', Model)
   
@@ -77,17 +79,35 @@ for(n in 1:length(model.list)){
                           pattern = '*.csv', full.names = TRUE)
   
   if(length(param.list) > 0){
+    
     nb.param = 0
+    ss = read.csv(model.list[n], header = TRUE, row.names = 1)
+    
     for(i in 1:length(param.list))
     {
       # i = 15
       res = read.csv(file = param.list[i], header = TRUE)
       res = res[which(res$noDiffusion0 <0 ), ]
-      if(nrow(res) > 0) nb.param = nb.param + 1
+      if(nrow(res) > 0) {
+        nb.param = nb.param + 1
+        
+        k = res[, match(paste0('q', c(0:19)) , colnames(res))]
+        lam = res[, grep('lambda_re', colnames(res))]
+        
+        for(j in 1:nrow(k))
+        {
+          plot(as.numeric(k[j, ]), as.numeric(lam[j, ]), main = paste0('d = ', signif(res$d1[j], digits = 3)), 
+               log = 'x', type = 'l', col = 'blue', lwd = 2.0, xlab = 'wavenumber (k)', ylab = 'Re(lamba.max)')
+          abline(h = 0, lwd = 2.0, col = 'red')
+        }
+        
+      }
     }
     
-    if(nb.param >0) cat(n, ' -- ', Model,  ': nb of param --', nb.param, '\n')
-        
+    if(nb.param >0) {
+      nb = nb + 1
+      cat(n, ' -- ', Model,  ': nb of param --', nb.param,  '-- nb : ', nb, '\n')
+    }  
   }
   
 }

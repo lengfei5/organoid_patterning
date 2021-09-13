@@ -322,7 +322,7 @@ dds <- dds[ss > cutoff.gene, ]
 sizeFactors(dds) = sizefactors.UQ
 fpm = fpm(dds, robust = TRUE)
 
-save(dds, file = paste0(RdataDir, 'TM3_dds_normalized.Rdata'))
+save(dds, design.matrix,  file = paste0(RdataDir, 'TM3_dds_normalized.Rdata'))
 #save(fpm, design, file = paste0(tfDir, '/RNAseq_fpm_fitered.cutoff.', cutoff.gene, '.Rdata'))
 vsd <- varianceStabilizingTransformation(dds, blind = FALSE)
 
@@ -839,7 +839,10 @@ load(file = paste0(RdataDir, 'TM3_dds_normalized.Rdata'))
 ggs = readRDS(file = paste0('../results/Rdata/curated_signaling.pathways_gene.list_v2.rds'))
 
 ggs$pathway[which(is.na(ggs$pathway))] = 'A' 
-ggs = ggs[order(ggs$pathway), ]
+
+#ggs = ggs[order(ggs$pathway), ]
+ggs = ggs[which(ggs$pathway == 'SHH'), ]
+
 res = readRDS(file = paste0(RdataDir, '/TM3_res_pairwiseComparisons_perturbation.vs.RA_positive.negative.pooled.rds'))
 #load(file = paste0(RdataDir, '/TM3_positive.negative.pooled_', Counts.to.Use, version.analysis, '.Rdata'))
 #load(file = paste0(RdataDir, '/TM3_pooled.positive.negative_', Counts.to.Use, version.analysis, '.Rdata'))
@@ -875,7 +878,7 @@ level_order = apply(expand.grid(c(1:3), c('RA', 'BMP', 'LDN', 'FGF', 'PD', 'CHIR
                     1, function(x) paste(x[2], x[1], sep="_"))
 
 #n = which(rownames(fpm) == 'Foxa2')
-pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive_negative.pooled_v11_log2scale_signalingPathway.withSHH.pdf')
+pdfname = paste0(resDir, '/TM3_examples_FoxA2.positive_negative.pooled_v12_log2scale_signalingPathwaySHH.pdf')
 pdf(pdfname,  width = 20, height = 16)
 #par(cex = 1.0, las = 1, mgp = c(3,2,0), mar = c(6,6,2,0.2), tcl = -0.3)
 library(reshape2)
