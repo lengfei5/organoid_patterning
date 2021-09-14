@@ -143,7 +143,9 @@ def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q
              sym.symbols('d0:' + str(len(d_grid[0]))), 
              sym.symbols('q0:' + str(len(q))), 
              sym.symbols('lambda_re0:' + str(len(q))), 
-             sym.symbols('lambda_im0:' + str(len(q))) ]
+             sym.symbols('lambda_im0:' + str(len(q))), 
+             sym.symbols('eigenvec_posSign0:' + str(len(q)))
+             ]
     
     names = [element for tupl in names for element in tupl]
     keep = pd.DataFrame(columns=names)
@@ -182,7 +184,6 @@ def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q
     #%% check if multiple steady states exist and save
     # define initial conditions for ODE
     ss_saved = Multi_steadyStates(ss0, c_init, f_ode, k, S, n)
-    
     for kk in range(len(ss_saved)):
         ss = ss_saved[kk]    
         if any(ss <= 0) or any([isinstance(j, complex) for j in ss]):
@@ -209,6 +210,7 @@ def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q
             
             try:
                 w  =  np.linalg.eigvals(S1)
+                #w, v = np.linalg.eig(S1)
                 # max(w), S
             except:
                 return True
@@ -217,45 +219,47 @@ def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q
             eigen0[0] = w.real.max()
             eigen0[1] = w.imag[np.argmax(w.real)]
             
-            for val in d_grid: # loop diffusion matrix for each steady state
+            if eigen0[0] < 0.0: # if stabe without diffusion; otherwise don't continue the test
                 
-                d = np.asarray(val)
-                #d = [0.0, d[0], d[1]]
+                for val in d_grid: # loop diffusion matrix for each steady state
                 
-                lam_real = np.empty_like(q)
-                lam_im = np.empty_like(q)
-                
-                # loop over the wavenumber 
-                for j in range(len(q)):
-                    #j = 1
-                    S2 = S1 - np.diag(np.multiply(d, q[j]**2))
-                    #wk,vk =  np.linalg.eig(S2)
-                    try:
-                        wk = np.linalg.eigvals(S2)
-                    except:
-                        return True
+                    d = np.asarray(val)
+                    #d = [0.0, d[0], d[1]]
                     
-                    lam_real[j] = wk.real.max()
-                    lam_im[j] = wk.imag[np.argmax(wk.real)]
+                    lam_real = np.empty_like(q)
+                    lam_im = np.empty_like(q)
+                    eigenvec = []
+                    # loop over the wavenumber 
+                    for j in range(len(q)):
+                        # j = 1
+                        S2 = S1 - np.diag(np.multiply(d, q[j]**2))
+                        #wk,vk =  np.linalg.eig(S2)
+                        try:
+                            wk, vk = np.linalg.eig(S2)
+                        except:
+                            return True
+                        
+                        lam_real[j] = wk.real.max()
+                        lam_im[j] = wk.imag[np.argmax(wk.real)]
+                        vec_sel = vk[:, np.argmax(wk.real)]
+                        eigenvec.append(str(int(vec_sel[0] >0)) + ';' + str(int(vec_sel[1] >0)) + ';' + str(int(vec_sel[2] >0)))
+                    #plt.plot(q, lam_real)
+                    #plt.show()
+                    #plt.axis([0, max(q), -1, 1])
+                    #plt.axhline(y=0, color='r', linestyle='-'
+                    #print(max(lam_real))
+                    index_max = np.argmax(lam_real) 
+                    lam_real_max = lam_real[index_max]
+                    #lam_im_max = lam_im[index_max]
+                    #q_max = q[index_max]
                 
-                #plt.plot(q, lam_real)
-                #plt.show()
-                #plt.axis([0, max(q), -1, 1])
-                #plt.axhline(y=0, color='r', linestyle='-'
-                #print(max(lam_real))
-                index_max = np.argmax(lam_real) 
-                lam_real_max = lam_real[index_max]
-                #lam_im_max = lam_im[index_max]
-                #q_max = q[index_max]
-                
-                # save the result, k parameter, steady state, d parameters, q values, lambda_real, lambda imaginary
-                if lam_real_max >= 0:  
-                    arr = np.concatenate((k, ss, eigen0,  d, q, lam_real, lam_im))
-                    keep = keep.append(pd.DataFrame(arr.reshape(1,-1), columns=list(keep)), ignore_index=True)
-        
-                
-        if keep.shape[0] > 1:
-            keep.to_csv(outputDir + '/linear_stability_out_' + str(i) + '.csv', index = False) # Use Tab to seperate data
+                    # save the result, k parameter, steady state, d parameters, q values, lambda_real, lambda imaginary
+                    if lam_real_max >= 0:  
+                        arr = np.concatenate((k, ss, eigen0,  d, q, lam_real, lam_im, eigenvec))
+                        keep = keep.append(pd.DataFrame(arr.reshape(1,-1), columns=list(keep)), ignore_index=True)
+    
+    if keep.shape[0] > 1: # for one reaction kinetic parameter save one file
+        keep.to_csv(outputDir + '/linear_stability_out_' + str(i) + '.csv', index = False) # Use Tab to seperate data
                 
 def linear_stability_singleParam(i, k_grid_log, nb_params, Index_K_unsampled, n, f_ode, S, t_final, c_init, X, K, d_grid, q):
     # i = 50
@@ -298,6 +302,7 @@ def main(argv):
         elif opt in ("-i", "--ifile"):
             inputfile = arg
             
+    # inputfile = '3N2M_topology_enumerate/Model_21.csv'
     print('Input file is ', inputfile)
     outputDir = os.path.basename(inputfile)
     outputDir = './RD_out/' + outputDir.rsplit('.', 1)[0]
@@ -310,16 +315,16 @@ def main(argv):
         pass
     
     # total number for parameter sampling 
-    nb_sampling_parameters = 100 # reaction parameters
+    nb_sampling_parameters = 1000 # reaction parameters
     
-    nb_sampling_diffusion = 20 # diffusion rate
+    nb_sampling_diffusion = 50 # diffusion rate
     nb_sampling_init = 3 # nb of initial condtion sampled
     
-    q = 2*3.1416 / np.logspace(-2, 3.0, num=20) # wavenumber
+    q = 2*3.14159 / np.logspace(-2, 3.0, num=nb_sampling_diffusion) # wavenumber
     
     n = 3 # nb of node
     nb_params = 14
-    binary_diffusor = [1, 1, 0]
+    #binary_diffusor = [1, 1, 0]
     
     print('--  main function starts --')
     
