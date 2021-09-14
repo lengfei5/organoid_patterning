@@ -45,7 +45,7 @@ for(n in 1:nrow(xx))
 # 
 ########################################################
 ########################################################
-
+s = matrix(NA, nrow = 3, ncol = 3)
 s[1, 1] = 0; s[1, 2] = -1; s[1, 3] = 0;
 s[2, 1] = 1; s[2, 2] = 0; s[2, 3] = -1
 s[3, 1] = 1; s[3, 2] = 1; s[3, 3] = 1
@@ -67,11 +67,15 @@ plot(g1, edge.color = 'blue')
 # 
 # tidyr::expand(data.frame(ks), data.frame(gamma))
 
-model.list = list.files(path = "RD_modeling/3N2M_topology_enumerate", pattern = '*.csv', full.names = TRUE)
+resDir = paste0("../results/RD_topology_test/topology_screening_3N2M")
+if(!dir.exists(resDir)) dir.create(resDir)
 
+
+model.list = list.files(path = "RD_modeling/3N2M_topology_enumerate", pattern = '*.csv', full.names = TRUE)
 nb = 0
+
 for(n in 1:length(model.list)){
-  # n = 4
+  # n = 20
   Model = basename(model.list[n])
   Model = gsub('.csv', '', Model)
   
@@ -80,9 +84,11 @@ for(n in 1:length(model.list)){
   
   if(length(param.list) > 0){
     
-    nb.param = 0
-    ss = read.csv(model.list[n], header = TRUE, row.names = 1)
     
+    ss = read.csv(model.list[n], header = TRUE, row.names = 1)
+    nb.param = 0
+    index.param = c()
+    keep = c()
     for(i in 1:length(param.list))
     {
       # i = 15
@@ -90,23 +96,47 @@ for(n in 1:length(model.list)){
       res = res[which(res$noDiffusion0 <0 ), ]
       if(nrow(res) > 0) {
         nb.param = nb.param + 1
-        
-        k = res[, match(paste0('q', c(0:19)) , colnames(res))]
-        lam = res[, grep('lambda_re', colnames(res))]
-        
-        for(j in 1:nrow(k))
-        {
-          plot(as.numeric(k[j, ]), as.numeric(lam[j, ]), main = paste0('d = ', signif(res$d1[j], digits = 3)), 
-               log = 'x', type = 'l', col = 'blue', lwd = 2.0, xlab = 'wavenumber (k)', ylab = 'Re(lamba.max)')
-          abline(h = 0, lwd = 2.0, col = 'red')
-        }
-        
+        index.param = c(index.param, rep(nb.param, nrow(res)))
+        keep = rbind(keep, res)
+        cat(nb.param, 'th parameters \n')
       }
     }
+    
+    keep = data.frame(index.param = index.param, keep, stringsAsFactors = FALSE)
     
     if(nb.param >0) {
       nb = nb + 1
       cat(n, ' -- ', Model,  ': nb of param --', nb.param,  '-- nb : ', nb, '\n')
+      
+      # make summary for the model
+      pdfname = paste0(resDir, "/", Model, ".pdf")
+      pdf(pdfname, width = 12, height = 8)
+      par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
+      
+      for(j in unique(keep$index.param))
+      {
+        # j = 1
+        sels = which(keep$index.param == j)
+        k = keep[sels, match(paste0('q', c(0:19)) , colnames(keep))]
+        lambda_real = keep[sels, grep('lambda_re', colnames(keep))]
+        lambda_im = keep[sels, grep('lambda_im', colnames(keep))]
+        
+        plot(1, 1, type = 'n', xlim = range(k), ylim = range(lambda_real), log='x', xlab = 'wavenumber (k)', ylab = 'Re(lamba.max)',
+             main = Model)
+        abline(h = 0, lwd = 2.0, col = 'gray80')
+        for(ii in 1:nrow(k)){
+          points(as.numeric(k[ii, ]), as.numeric(lambda_real[ii, ]), 
+               type = 'l', col = ii, lwd = 2.0)
+          
+        }
+        
+        legend('topleft', legend = paste0('d = ', signif(keep$d1[sels], d = 2), col = 1:nrow(k)))
+        
+        
+      }
+      
+      dev.off() 
+      
     }  
   }
   
