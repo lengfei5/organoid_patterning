@@ -53,6 +53,22 @@ for(n in 1:nrow(xx))
 ########################################################
 ########################################################
 library("igraph")
+resDir = paste0("../results/RD_topology_test/topology_screening_3N2M")
+if(!dir.exists(resDir)) dir.create(resDir)
+
+# make graph from adjacency matrix
+make.plot.from.adjacency.matrix = function(s)
+{
+  g1 = graph_from_adjacency_matrix(s, mode = 'directed', weighted =TRUE)
+  ws = E(g1)$weight
+  cols = rep('darkblue', length(ws))
+  cols[which(ws<0)] = 'red'
+  layout = matrix(data = c(0, 4, 2, 0, 0, 2), ncol = 2)
+  plot(g1, layout = layout,  layout = layout.circle, vertex.size = 40.0, edge.curved=.3, edge.color=cols, edge.arrow.size=1.2,
+       edge.width = 2.0)
+  
+}
+
 
 s0 = matrix(NA, nrow = 3, ncol = 3)
 s0[1, 1] = 0; s0[1, 2] = -1; s0[1, 3] = 0;
@@ -61,69 +77,9 @@ s0[3, 1] = 1; s0[3, 2] = 1; s0[3, 3] = 1
 
 colnames(s0) = c('Nog', 'BMP', 'Foxa2')
 rownames(s0) = colnames(s0)
-
-# make graph from adjacency matrix
-g1 = graph_from_adjacency_matrix(s0, mode = 'directed', weighted =TRUE)
-edge.start <- ends(g1, es=E(g1), names=F)[,1]
-edge.col <- V(g1)$color[edge.start]
-plot(g1, edge.color=edge.col, edge.curved=.1)  
-plot(g1, edge.color = 'blue')
+# make.plot.from.adjacency.matrix(s0)
 
 
-
-L3 <- LETTERS[1:8]
-d <- data.frame(start = sample(L3, 16, replace = T), end = sample(L3, 16, replace = T),
-                weight = c(20,40,20,30,50,60,20,30,20,40,20,30,50,60,20,30))
-
-
-g <- graph.data.frame(d, directed = T)
-V(g)$name 
-E(g)$weight
-
-ideg <- degree(g, mode = "in", loops = F)
-
-col=rainbow(12) # For edge colors
-
-plot.igraph(g, 
-            vertex.label = V(g)$name, vertex.label.color = "gray20",
-            vertex.size = ideg*25 + 40, vertex.size2 = 30,
-            vertex.color = "gray90", vertex.frame.color = "gray20",
-            vertex.shape = "rectangle",
-            edge.arrow.size=0.5, edge.color=col, edge.width = E(g)$weight / 10,
-            edge.curved = T, 
-            layout = layout.reingold.tilford)
-
-gridLayout <- function(x)
-{
-  LmatX <- seq(-1,1,length=ncol(x))
-  LmatY <- seq(1,-1,length=nrow(x))
-  
-  loc <- t(sapply(1:max(x),function(y)which(x==y,arr.ind=T)))
-  layout <- cbind(LmatX[loc[,2]],LmatY[loc[,1]])
-  return(layout)
-}
-
-grid <- matrix(c(
-  0,0,1,0,0,
-  2,0,3,0,4),nrow=2,byrow=TRUE)
-
-library("igraph")
-
-g <- graph.adjacency(matrix(1,4,4))
-
-plot(g,layout=gridLayout(L))
-
-
-# library(emdbook)
-# library(tidyr)
-# nb_sampling_perParam = 3
-# ks = lseq(0.1, 100, length.out = 3)
-# gamma = lseq(0.01, 1, length.out = 3)
-# 
-# tidyr::expand(data.frame(ks), data.frame(gamma))
-
-resDir = paste0("../results/RD_topology_test/topology_screening_3N2M")
-if(!dir.exists(resDir)) dir.create(resDir)
 
 
 model.list = list.files(path = "RD_modeling/3N2M_topology_enumerate", pattern = '*.csv', full.names = TRUE)
@@ -141,6 +97,7 @@ for(n in 1:length(model.list)){
     
     
     ss = read.csv(model.list[n], header = TRUE, row.names = 1)
+    
     nb.param = 0
     index.param = c()
     keep = c()
@@ -167,6 +124,8 @@ for(n in 1:length(model.list)){
       pdfname = paste0(resDir, "/", Model, ".pdf")
       pdf(pdfname, width = 12, height = 8)
       par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
+      
+      make.plot.from.adjacency.matrix(ss)
       
       for(j in unique(keep$index.param))
       {
