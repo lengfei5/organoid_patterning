@@ -22,13 +22,12 @@
 ########################################################
 rm(list=ls())
 
-
 # specific input and output folders
-dataDir = '../images/210525_CellProfiler/'
-resDir = '../results/210525_CellProfiler'
+dataDir = '/Volumes/groups/tanaka/People/current/jiwang/projects/patterning_organoid/Images_data/Teresa_LDN_titration/batch.processed_d6_control/'
+resDir = '../results/CellProfiler_LDN.timeSeries'
 tabDir = paste0(resDir, '/tables')
 Rdata = paste0('../results/Rdata')
-analysis.verison = 'hNTdrugs3_0310_Analysis20210507_cellProfiler'
+
 
 if(!dir.exists(resDir)) dir.create(resDir)
 if(!dir.exists(tabDir)) dir.create(tabDir)
@@ -38,8 +37,12 @@ if(!dir.exists(Rdata)) dir.create(Rdata)
 save.table.each.condition = FALSE
 CellProfiler = TRUE
 
-metadataCorrection = TRUE
+Manally.extract.metadata = TRUE
+DAPI.channel = 'C1'
 
+metadataCorrection = FALSE
+
+analysis.verison = 'Teresa.LDN.timeSeries_20210917_d6.LDN'
 
 ##########################################
 # find associated fp for cyst at each condition
@@ -57,25 +60,31 @@ if(CellProfiler){
   # drop the absoute path of image sources ONLY if all imges were frorm the same folder
   image = image[, grep('URL_', colnames(image), invert = TRUE)]
   
-  # give each image an unique name
-  image$name = gsub('_isotropic_C4.tif', '', as.character(image$FileName_DNA))
+  # give each image an unique name using the DAPI channel
+  image$name = gsub(paste0('_isotropic_', DAPI.channel, '.tif'), '', as.character(image$FileName_DNA))
   
   Dummy.imageNumber = image$ImageNumber[which(image$name == 'DUMMY')]
   image = image[which(image$ImageNumber !=  Dummy.imageNumber), ]
   
-  # extract condition from image name
-  image$conds = sapply(image$name, function(x) {xx = unlist(strsplit(as.character(x), '_')); 
-  xx = xx[-c(1, length(xx)-1, length(xx))]; paste0(xx, collapse = '.')} )
-  
-  if(metadataCorrection){
-    design = readRDS(file = paste0(Rdata, '/perturbation_design_hNTdrugs3_0310.rds'))
-    image$condition = NA
+  # extract condition from image name and make design matrix
+  if(Manally.extract.metadata){
+    image$condition = sapply(image$name, function(x) {
+      xx = unlist(strsplit(as.character(x), '_')); 
+      xx = xx[c((length(xx)-2):length(xx))]; 
+      paste0(xx, collapse = '.')} )
+    image$condition = paste0(image$condition, '.d6')
+    image$condition = gsub('LDn', 'LDN', image$condition)
     
-    for(n in 1:nrow(image))
-    {
-      kk = grep(image$name[n], design$Original.Image.Name)
-      if(length(kk) != 1) cat('Error')
-      image$condition[n] = design$condition[kk] 
+    if(metadataCorrection){
+      design = readRDS(file = paste0(Rdata, '/perturbation_design_hNTdrugs3_0310.rds'))
+      image$condition = NA
+      
+      for(n in 1:nrow(image))
+      {
+        kk = grep(image$name[n], design$Original.Image.Name)
+        if(length(kk) != 1) cat('Error')
+        image$condition[n] = design$condition[kk] 
+      }
     }
   }
   
@@ -90,16 +99,22 @@ if(CellProfiler){
                  "Intensity_IntegratedIntensity_Olig2", "Intensity_MeanIntensity_Olig2"
                  )
   kk = match(colsToKeep, colnames(cyst))
+  if(any(is.na(kk))){
+    cat('columns missing: \n', paste0(colsToKeep[which(is.na(kk))], collapse = '\n'), '\n')
+    kk = kk[which(!is.na(kk))]
+    
+  }
   cyst = cyst[, kk]
   cyst = cyst[which(cyst$ImageNumber != Dummy.imageNumber), ]
   
   # foxA2 clusters
   fp = read.csv(file = paste0(dataDir, 'foxa2cluster.csv'))
   
-  if(length(unique(fp$Children_RelateObjects_Count)) != 1  | unique(fp$Children_RelateObjects_Count) != 1){
-    cat('Error : -- only foxA2 cluster with parents should be in the table \n')
+  if(length(which(fp$Children_RelateObjects_Count != 1)) > 0 ){
+    cat('Warning : -- some foxA2 clusters do not have parents in the table \n')
+    
+    fp = fp[which(fp$Children_RelateObjects_Count == 1), ]
   }
-  
   
   colsToKeep_cluster = c('ImageNumber', 'ObjectNumber', "Parent_organoid", 
                  "AreaShape_Volume",  "AreaShape_SurfaceArea", "AreaShape_Center_X", "AreaShape_Center_Y", 
@@ -108,8 +123,13 @@ if(CellProfiler){
                  "Distance_Centroid_organoid",  
                  'Intensity_MeanIntensity_FOXA2', 'Intensity_IntegratedIntensity_FOXA2'
   )
-  
   jj = match(colsToKeep_cluster, colnames(fp))
+  
+  if(any(is.na(jj))){
+    cat('columns missing: \n', paste0(colsToKeep_cluster[which(is.na(jj))], collapse = '\n'), '\n')
+    jj = jj[which(!is.na(jj))]
+  }
+ 
   fp = fp[,jj]
   
   fp = fp[which(fp$ImageNumber != Dummy.imageNumber), ]
@@ -178,6 +198,8 @@ if(CellProfiler){
   make_mergedTables_fromSegementation_Imaris()
   
 }
+
+
 ########################################################
 ########################################################
 # Section II: extract relevant parameters and compare across conditions
@@ -220,18 +242,7 @@ mm = match(unique(cond.id), cond.id)
 xx = res[mm, ]
 xx$volume.log10 = log10(xx$AreaShape_Volume_cyst)
 
-if(DoubleCheck.CP.surfaceArea.volume){
-  #plot(xx$AreaShape_Volume_cyst, xx$AreaShape_SurfaceArea_cyst)
-  #rr = c(0:1000)
-  #points(4/3*pi*rr^3, 4*pi*rr^2, type = 'l')
-  #points(rr^3, 6*rr^2, type = 'l')
-  
-  #plot(4*pi*(xx$AreaShape_EquivalentDiameter_cyst/2)^2, xx$AreaShape_SurfaceArea_cyst, cex = 0.6)
-  #abline(0, 1, col = 'red')
-  
-  #plot(4/3*pi*(xx$AreaShape_EquivalentDiameter_cyst/2)^3, xx$AreaShape_Volume_cyst);
-  #abline(0, 1, lwd =2.0, col = 'red')
-}
+if(DoubleCheck.CP.surfaceArea.volume){ doubleCheck.CP.surfaceArea.volume(xx);}
 
 p0 = as_tibble(xx) %>% 
   group_by(condition) %>% tally() %>%
@@ -251,7 +262,6 @@ ggplot(xx, aes(x = condition, y=sphericity_cyst, fill=condition)) +
   ggtitle('cyst volume') + theme(legend.position = "none") +
   theme(axis.text.x = element_text(angle = 90))
 
-
 p2 = ggplot(xx, aes(x = volume.log10)) +
   geom_histogram(binwidth = 0.1)
 
@@ -262,7 +272,7 @@ p23 = ggplot(xx, aes(x = volume.log10, y = sphericity_cyst, color = condition)) 
   geom_point(size = 1) +
   geom_hline(yintercept=0.85, colour = "red") + geom_vline(xintercept = 4, colour = "red")
 
-sels = which(xx$volume.log10 >=4 & xx$sphericity_cyst >=0.9)
+sels = which(xx$volume.log10 >=3.5 & xx$sphericity_cyst >=0.9)
 xx = xx[sels, ]
 
 p4 = as_tibble(xx) %>% 
@@ -283,8 +293,7 @@ ggplot(xx, aes(x = condition, y=sphericity_cyst, fill=condition)) +
   ggtitle('cyst volume') + theme(legend.position = "none") +
   theme(axis.text.x = element_text(angle = 90))
 
-
-pdfname = paste0(resDir, '/QC_cystFiltering_before_after.pdf')
+pdfname = paste0(resDir, '/QC_cystFiltering_before_after_', analysis.verison, '.pdf')
 pdf(pdfname,  width = 20, height = 16)
 
 grid.arrange(p0, p1, ncol = 1) 
@@ -319,7 +328,10 @@ ggplot(xx, aes(x = volume.log10, y = volume.ratio.log10)) +
   geom_vline(xintercept = 2, colour = "red") + 
   geom_vline(xintercept = 2.5, colour = "red")
 
-
+ggplot(xx, aes(x = condition, y=volume.ratio.log10, fill=condition)) + 
+  geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.1) + 
+  ggtitle('volume ratio fp/cyst') + theme(legend.position = "none") +
+  theme(axis.text.x = element_text(angle = 90, size = 10))
 
 p1 = ggplot(xx, aes(x = condition, y=AreaShape_Volume_fp, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
@@ -344,7 +356,8 @@ p5 = ggplot(xx, aes(x = sphericity_fp)) +
   geom_histogram(binwidth = 0.02)
 
 p6 = ggplot(xx, aes(x = Intensity_MeanIntensity_FOXA2_fp)) +
-  geom_histogram(binwidth = 0.001)
+  geom_histogram(binwidth = 0.001) +
+  geom_vline(xintercept = 0.01, colour = "red")
 
 p45 = ggplot(xx, aes(x = volume.log10, y = sphericity_fp)) +
   geom_point(size = 0.2) +
@@ -360,7 +373,9 @@ p56 = ggplot(xx, aes(x = volume.log10, y = Intensity_MeanIntensity_FOXA2_fp)) +
 
 #xx = xx[which(xx$volume.log10 >=2 & xx$volume.ratio>=10^-2.5), ]
 
-xx = xx[which(xx$volume.log10 > 2.5), ]
+xx = xx[which(xx$volume.log10 > 2.5 & xx$Intensity_MeanIntensity_FOXA2_fp >0.01 &
+                xx$Intensity_MeanIntensity_FOXA2_fp & 
+                xx$volume.ratio <= 1.0 ), ]
 
 p7 = ggplot(xx, aes(x = condition, y=volume.log10, fill=condition)) + 
   geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2, size = 0.5) + 
@@ -378,7 +393,7 @@ p9 = ggplot(xx, aes(x = condition, y=Intensity_MeanIntensity_FOXA2_fp, fill=cond
   theme(axis.text.x = element_text(angle = 90, size = 10))
 
 
-pdfname = paste0(resDir, '/QC_plots_fp_volumeFiltering_beforeAndAfter.pdf')
+pdfname = paste0(resDir, '/QC_plots_fp_volumeFiltering_beforeAndAfter', analysis.verison, '.pdf')
 pdf(pdfname,  width = 20, height = 20)
 
 grid.arrange(p0, p1, p3, ncol = 1) 
@@ -399,7 +414,7 @@ saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cyst.fp.Fi
 ######################################### 
 res = readRDS(file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cyst.fp.Filering_', analysis.verison, '.rds'))
 
-source('orgnoid_functions.R')
+source('Functions_3dImage.R')
 cat(length(unique(res$ID_cyst)), ' cysts and ', length(unique(res$ID_fp)) -1, 'fps\n')
 
 params = extract.turing.parameters.cellProfiler(res, pixel.scale = 3, cyst.overlapRatio.threshold = 0.01)

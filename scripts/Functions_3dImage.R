@@ -577,9 +577,13 @@ extract.turing.parameters.cellProfiler = function(res.cp, cyst.overlapRatio.thre
     # extract information of cyst
     params$volume[n] = as.numeric(res.cp$AreaShape_Volume_cyst[kk[1]])
     params$surface.area[n] = as.numeric(res.cp$AreaShape_SurfaceArea_cyst[kk[1]])
-    params$olig2[n] = as.numeric(res.cp$Intensity_MeanIntensity_Olig2_cyst[kk[1]]) * res.cp$Scaling_Olig2_image[kk[1]]
-    params$foxa2[n] = as.numeric(res.cp$Intensity_MeanIntensity_FOXA2_cyst[kk[1]]) * res.cp$Scaling_FOXA2_image[kk[1]]
     
+    if(length(which(colnames(res) == 'Intensity_MeanIntensity_Olig2_cyst')) == 1 &
+       length(which(colnames(res) == 'Scaling_Olig2_image')) == 1){
+      params$olig2[n] = as.numeric(res.cp$Intensity_MeanIntensity_Olig2_cyst[kk[1]]) * res.cp$Scaling_Olig2_image[kk[1]]
+    }
+    
+    params$foxa2[n] = as.numeric(res.cp$Intensity_MeanIntensity_FOXA2_cyst[kk[1]]) * res.cp$Scaling_FOXA2_image[kk[1]]
     params$radius.cyst[n] = as.numeric(res.cp$AreaShape_EquivalentDiameter_cyst[kk[1]])/2 # rough estimation with cyst volume
     
     kk.fp = kk[!is.na(res.cp$ID_fp[kk])]
@@ -904,7 +908,19 @@ test.CPversion.output.shape.metric = function()
 ##########################################
 # Filtering cyst and fp after concatenating the table 
 ##########################################
-
+doubleCheck.CP.surfaceArea.volume = function(xx)
+{
+  plot(xx$AreaShape_Volume_cyst, xx$AreaShape_SurfaceArea_cyst)
+  rr = c(0:1000)
+  points(4/3*pi*rr^3, 4*pi*rr^2, type = 'l')
+  points(rr^3, 6*rr^2, type = 'l')
+  
+  plot(4*pi*(xx$AreaShape_EquivalentDiameter_cyst/2)^2, xx$AreaShape_SurfaceArea_cyst, cex = 0.6)
+  abline(0, 1, col = 'red')
+  
+  plot(4/3*pi*(xx$AreaShape_EquivalentDiameter_cyst/2)^3, xx$AreaShape_Volume_cyst);
+  abline(0, 1, lwd =2.0, col = 'red')
+}
 
 
 
