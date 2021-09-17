@@ -10,7 +10,7 @@
 rm(list = ls())
 
 library(igraph)
-resDir = paste0("RD_modeling/3N2M_topology_enumerate/")
+resDir = '../results/RD_topology_screening/3N2M_topology_enumerate_v1/'
 if(!dir.exists(resDir)) dir.create(resDir)
 
 s0 = matrix(NA, nrow = 3, ncol = 3)
@@ -28,7 +28,7 @@ ii2assign = which(is.na(s0))
 xx = expand.grid(0:1, # noggin auto-activation 
                  -1:1, 
                  -1:1, 
-                 0:1, # Nog activate Foxa2
+                  0:1, # Nog activate Foxa2
                  -1:1)
 nb_model = 1
 
@@ -53,7 +53,12 @@ for(n in 1:nrow(xx))
 ########################################################
 ########################################################
 library("igraph")
-resDir = paste0("../results/RD_topology_test/topology_screening_3N2M")
+model.list = list.files(path = '../results/RD_topology_screening/3N2M_topology_enumerate_v1', 
+                        pattern = '*.csv', full.names = TRUE)
+
+screening.outDir = '../results/RD_topology_screening/RD_out_topology.108_params.50K/'
+
+resDir = paste0("../results/RD_topology_screening/topology_screening_3N2M")
 if(!dir.exists(resDir)) dir.create(resDir)
 
 # make graph from adjacency matrix
@@ -80,17 +85,13 @@ rownames(s0) = colnames(s0)
 # make.plot.from.adjacency.matrix(s0)
 
 
-
-
-model.list = list.files(path = "RD_modeling/3N2M_topology_enumerate", pattern = '*.csv', full.names = TRUE)
 nb = 0
-
 for(n in 1:length(model.list)){
   # n = 20
   Model = basename(model.list[n])
   Model = gsub('.csv', '', Model)
   
-  param.list = list.files(path = paste0('../results/RD_topology_test/RD_out_topology.108_params.50K/', Model), 
+  param.list = list.files(path = paste0(screening.outDir, Model), 
                           pattern = '*.csv', full.names = TRUE)
   
   if(length(param.list) > 0){
@@ -125,7 +126,8 @@ for(n in 1:length(model.list)){
       pdf(pdfname, width = 12, height = 8)
       par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
       
-      make.plot.from.adjacency.matrix(ss)
+      #s = as.matrix(ss)
+      make.plot.from.adjacency.matrix(as.matrix(ss))
       
       for(j in unique(keep$index.param))
       {
@@ -145,7 +147,6 @@ for(n in 1:length(model.list)){
         }
         
         legend('topleft', legend = paste0('d = ', signif(keep$d1[sels], d = 2), col = 1:nrow(k)))
-        
         
       }
       
