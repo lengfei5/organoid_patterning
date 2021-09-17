@@ -22,6 +22,7 @@
 ########################################################
 rm(list=ls())
 
+
 # specific input and output folders
 dataDir = '../images/210525_CellProfiler/'
 resDir = '../results/210525_CellProfiler'
@@ -38,6 +39,7 @@ save.table.each.condition = FALSE
 CellProfiler = TRUE
 
 metadataCorrection = TRUE
+
 
 ##########################################
 # find associated fp for cyst at each condition
