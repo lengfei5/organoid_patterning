@@ -194,11 +194,8 @@ if(CellProfiler){
   
   saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_', analysis.verison, '.rds'))
   
-}else{
-  make_mergedTables_fromSegementation_Imaris()
-  
 }
-
+#make_mergedTables_fromSegementation_Imaris()
 
 ########################################################
 ########################################################
@@ -418,6 +415,8 @@ source('Functions_3dImage.R')
 cat(length(unique(res$ID_cyst)), ' cysts and ', length(unique(res$ID_fp)) -1, 'fps\n')
 
 params = extract.turing.parameters.cellProfiler(res, pixel.scale = 3, cyst.overlapRatio.threshold = 0.01)
+
+saveRDS(params, file = paste0(Rdata, '/turing_parameters_extracted_', analysis.verison, '.rds'))
 
 ##########################################
 # visualize the turing-model relevant parameters
