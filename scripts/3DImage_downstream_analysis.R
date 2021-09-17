@@ -23,15 +23,12 @@
 rm(list=ls())
 
 # specific input and output folders
-dataDir = '/Volumes/groups/tanaka/People/current/jiwang/projects/patterning_organoid/Images_data/Teresa_LDN_titration/batch.processed_d6_control/'
 resDir = '../results/CellProfiler_LDN.timeSeries'
 tabDir = paste0(resDir, '/tables')
 Rdata = paste0('../results/Rdata')
 
-
 if(!dir.exists(resDir)) dir.create(resDir)
 if(!dir.exists(tabDir)) dir.create(tabDir)
-if(!dir.exists(dataDir)) dir.create(dataDir)
 if(!dir.exists(Rdata)) dir.create(Rdata)
 
 save.table.each.condition = FALSE
@@ -41,161 +38,108 @@ Manally.extract.metadata = TRUE
 DAPI.channel = 'C1'
 
 metadataCorrection = FALSE
+dataDir = '/Volumes/groups/tanaka/People/current/jiwang/projects/patterning_organoid/Images_data/Teresa_LDN_titration/batch.processed_d5/'
 
-analysis.verison = 'Teresa.LDN.timeSeries_20210917_d6.LDN'
+analysis.verison = 'Teresa.LDN.timeSeries_20210917_d5'
 
 ##########################################
-# find associated fp for cyst at each condition
+# find associated fp for cyst at each condition from the processing output of CellProfiler
 ##########################################
-if(CellProfiler){
-  #make_mergedTable_fromSegementation_cellProfiler()
+#make_mergedTables_fromSegementation_Imaris()
+#make_mergedTable_fromSegementation_cellProfiler()
+
+# clean image metadata
+image = read.csv(file = paste0(dataDir, 'image.csv'))
+image = image[, 
+              grep('ExecutionTime|MD5|Width|PathName|Metadata|ModuleError|ImageSet_ImageSet|Series_|ProcessingStatus|Channel_|Height|Frame', 
+                   colnames(image), invert = TRUE)]
+
+image = data.frame(image, stringsAsFactors = FALSE)
+# drop the absoute path of image sources ONLY if all imges were frorm the same folder
+image = image[, grep('URL_', colnames(image), invert = TRUE)]
+
+# give each image an unique name using the DAPI channel
+image$name = gsub(paste0('_isotropic_', DAPI.channel, '.tif'), '', as.character(image$FileName_DNA))
+
+Dummy.imageNumber = image$ImageNumber[which(image$name == 'DUMMY')]
+image = image[which(image$ImageNumber !=  Dummy.imageNumber), ]
+
+# extract condition from image name and make design matrix
+if(Manally.extract.metadata){
+  image$condition = sapply(image$name, function(x) {
+    xx = unlist(strsplit(as.character(x), '_')); 
+    xx = xx[c((length(xx)-2):length(xx))]; 
+    paste0(xx, collapse = '.')} )
   
-  # clean image metadata
-  image = read.csv(file = paste0(dataDir, 'image.csv'))
-  image = image[, 
-  grep('ExecutionTime|MD5|Width|PathName|Metadata|ModuleError|ImageSet_ImageSet|Series_|ProcessingStatus|Channel_|Height|Frame', 
-                       colnames(image), invert = TRUE)]
+  image$condition = gsub('.d5', '', image$condition)
+  image$condition = paste0(image$condition, '.d5')
+  image$condition = gsub('LDn', 'LDN', image$condition)
   
-  image = data.frame(image, stringsAsFactors = FALSE)
-  # drop the absoute path of image sources ONLY if all imges were frorm the same folder
-  image = image[, grep('URL_', colnames(image), invert = TRUE)]
-  
-  # give each image an unique name using the DAPI channel
-  image$name = gsub(paste0('_isotropic_', DAPI.channel, '.tif'), '', as.character(image$FileName_DNA))
-  
-  Dummy.imageNumber = image$ImageNumber[which(image$name == 'DUMMY')]
-  image = image[which(image$ImageNumber !=  Dummy.imageNumber), ]
-  
-  # extract condition from image name and make design matrix
-  if(Manally.extract.metadata){
-    image$condition = sapply(image$name, function(x) {
-      xx = unlist(strsplit(as.character(x), '_')); 
-      xx = xx[c((length(xx)-2):length(xx))]; 
-      paste0(xx, collapse = '.')} )
-    image$condition = paste0(image$condition, '.d6')
-    image$condition = gsub('LDn', 'LDN', image$condition)
+  if(metadataCorrection){
+    design = readRDS(file = paste0(Rdata, '/perturbation_design_hNTdrugs3_0310.rds'))
+    image$condition = NA
     
-    if(metadataCorrection){
-      design = readRDS(file = paste0(Rdata, '/perturbation_design_hNTdrugs3_0310.rds'))
-      image$condition = NA
-      
-      for(n in 1:nrow(image))
-      {
-        kk = grep(image$name[n], design$Original.Image.Name)
-        if(length(kk) != 1) cat('Error')
-        image$condition[n] = design$condition[kk] 
-      }
+    for(n in 1:nrow(image))
+    {
+      kk = grep(image$name[n], design$Original.Image.Name)
+      if(length(kk) != 1) cat('Error')
+      image$condition[n] = design$condition[kk] 
     }
   }
-  
-  # cyst
-  cyst = read.csv(file = paste0(dataDir, 'organoid.csv'))
-  colsToKeep = c('ImageNumber', 'ObjectNumber', 
-                 "AreaShape_Volume",  "AreaShape_SurfaceArea", 
-                 "AreaShape_Center_X", "AreaShape_Center_Y", "AreaShape_Center_Z", 
-                 "AreaShape_EquivalentDiameter", "AreaShape_MajorAxisLength", "AreaShape_MinorAxisLength",
-                 "Children_foxa2cluster_Count", 
-                 'Intensity_MeanIntensity_FOXA2', 'Intensity_IntegratedIntensity_FOXA2',
-                 "Intensity_IntegratedIntensity_Olig2", "Intensity_MeanIntensity_Olig2"
-                 )
-  kk = match(colsToKeep, colnames(cyst))
-  if(any(is.na(kk))){
-    cat('columns missing: \n', paste0(colsToKeep[which(is.na(kk))], collapse = '\n'), '\n')
-    kk = kk[which(!is.na(kk))]
-    
-  }
-  cyst = cyst[, kk]
-  cyst = cyst[which(cyst$ImageNumber != Dummy.imageNumber), ]
-  
-  # foxA2 clusters
-  fp = read.csv(file = paste0(dataDir, 'foxa2cluster.csv'))
-  
-  if(length(which(fp$Children_RelateObjects_Count != 1)) > 0 ){
-    cat('Warning : -- some foxA2 clusters do not have parents in the table \n')
-    
-    fp = fp[which(fp$Children_RelateObjects_Count == 1), ]
-  }
-  
-  colsToKeep_cluster = c('ImageNumber', 'ObjectNumber', "Parent_organoid", 
-                 "AreaShape_Volume",  "AreaShape_SurfaceArea", "AreaShape_Center_X", "AreaShape_Center_Y", 
-                 "AreaShape_Center_Z", 
-                 "AreaShape_EquivalentDiameter", "AreaShape_MajorAxisLength", "AreaShape_MinorAxisLength",
-                 "Distance_Centroid_organoid",  
-                 'Intensity_MeanIntensity_FOXA2', 'Intensity_IntegratedIntensity_FOXA2'
-  )
-  jj = match(colsToKeep_cluster, colnames(fp))
-  
-  if(any(is.na(jj))){
-    cat('columns missing: \n', paste0(colsToKeep_cluster[which(is.na(jj))], collapse = '\n'), '\n')
-    jj = jj[which(!is.na(jj))]
-  }
- 
-  fp = fp[,jj]
-  
-  fp = fp[which(fp$ImageNumber != Dummy.imageNumber), ]
-  
-  save(image, cyst, fp, file = paste0(Rdata, '/image_cyst_fp_', analysis.verison, '.Rdata'))
-  
-  ##########################################
-  # merge image information and cyst first
-  # and then merge cyst and fp
-  ##########################################
-  load(file = paste0(Rdata, '/image_cyst_fp_', analysis.verison, '.Rdata'))
-  
-  # change to data.frame
-  cyst = data.frame(cyst, stringsAsFactors = FALSE)
-  image = data.frame(image, stringsAsFactors = FALSE)
-  fp = data.frame(fp, stringsAsFactors = FALSE)
-  
-  # add suffix for each table in the colnames
-  colnames(image) = paste0(colnames(image), '_image')
-  colnames(cyst) = paste0(colnames(cyst), '_cyst')
-  colnames(fp) = paste0(colnames(fp), '_fp')
-  
-  # merge the image and cyst tables
-  kk = match(cyst$ImageNumber_cyst, image$ImageNumber_image)
-  cyst = data.frame(image[kk, ], cyst, stringsAsFactors = FALSE)
-  
-  # start to merge cyst and fp
-  cyst$ID = paste0(cyst$ImageNumber_image, '_', cyst$ObjectNumber_cyst)
-  fp$parentID = paste0(fp$ImageNumber_fp, '_', fp$Parent_organoid_fp)
-  
-  index_cyst = c()
-  index_fp = c()
-  for(n in 1:nrow(cyst))
-  {
-    cat(n, '\n')
-    kk = which(fp$parentID == cyst$ID[n])
-    if(length(kk) == 0){
-      index_cyst = c(index_cyst, n)
-      index_fp = c(index_fp, NA)
-    }else{
-      index_cyst = c(index_cyst, rep(n, length(kk)))
-      index_fp = c(index_fp, kk)
-    }
-  }
-  
-  res = data.frame(cyst[index_cyst, ], fp[index_fp, ], stringsAsFactors = FALSE) 
-  # # this is part of whole table in which there are only cysts with fp
-  # jj = match(fp$parentID, cyst$ID)
-  # res = data.frame(cyst[jj, ], fp, stringsAsFactors = FALSE) 
-  # 
-  # # this is the second part of whole table for cysts without fp
-  # kk = which(is.na(match(cyst$ID, fp$parentID)))
-  # xx = matrix(NA, nrow = length(kk), ncol = ncol(fp))
-  # colnames(xx) = colnames(fp)
-  # xx = data.frame(cyst[kk, ], xx, stringsAsFactors = FALSE)
-  # 
-  # # combine two parts to have whole table
-  # res = data.frame(rbind(res, xx))
-  # 
-  # # sort the table with image number and cyst number
-  # res = res[with(res, order(ImageNumber_cyst, ObjectNumber_cyst)),  ]
-  
-  saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_', analysis.verison, '.rds'))
+}
+
+# cyst
+cyst = read.csv(file = paste0(dataDir, 'organoid.csv'))
+colsToKeep = c('ImageNumber', 'ObjectNumber', 
+               "AreaShape_Volume",  "AreaShape_SurfaceArea", 
+               "AreaShape_Center_X", "AreaShape_Center_Y", "AreaShape_Center_Z", 
+               "AreaShape_EquivalentDiameter", "AreaShape_MajorAxisLength", "AreaShape_MinorAxisLength",
+               "Children_foxa2cluster_Count", 
+               'Intensity_MeanIntensity_FOXA2', 'Intensity_IntegratedIntensity_FOXA2',
+               "Intensity_IntegratedIntensity_Olig2", "Intensity_MeanIntensity_Olig2"
+)
+kk = match(colsToKeep, colnames(cyst))
+if(any(is.na(kk))){
+  cat('columns missing: \n', paste0(colsToKeep[which(is.na(kk))], collapse = '\n'), '\n')
+  kk = kk[which(!is.na(kk))]
   
 }
-#make_mergedTables_fromSegementation_Imaris()
+cyst = cyst[, kk]
+cyst = cyst[which(cyst$ImageNumber != Dummy.imageNumber), ]
+
+# foxA2 clusters
+fp = read.csv(file = paste0(dataDir, 'foxa2cluster.csv'))
+
+if(length(which(fp$Children_RelateObjects_Count != 1)) > 0 ){
+  cat('Warning : -- some foxA2 clusters do not have parents in the table \n')
+  
+  fp = fp[which(fp$Children_RelateObjects_Count == 1), ]
+}
+
+colsToKeep_cluster = c('ImageNumber', 'ObjectNumber', "Parent_organoid", 
+                       "AreaShape_Volume",  "AreaShape_SurfaceArea", "AreaShape_Center_X", "AreaShape_Center_Y", 
+                       "AreaShape_Center_Z", 
+                       "AreaShape_EquivalentDiameter", "AreaShape_MajorAxisLength", "AreaShape_MinorAxisLength",
+                       "Distance_Centroid_organoid",  
+                       'Intensity_MeanIntensity_FOXA2', 'Intensity_IntegratedIntensity_FOXA2'
+)
+jj = match(colsToKeep_cluster, colnames(fp))
+
+if(any(is.na(jj))){
+  cat('columns missing: \n', paste0(colsToKeep_cluster[which(is.na(jj))], collapse = '\n'), '\n')
+  jj = jj[which(!is.na(jj))]
+}
+
+fp = fp[,jj]
+
+fp = fp[which(fp$ImageNumber != Dummy.imageNumber), ]
+
+
+# merge image information and cyst first and then merge cyst and fp
+source('Functions_3dImage.R')
+res = merge_image.cyst.fp_fromCellProfiler(image, cyst, fp)
+
+saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_', analysis.verison, '.rds'))
 
 ########################################################
 ########################################################
@@ -291,6 +235,7 @@ ggplot(xx, aes(x = condition, y=sphericity_cyst, fill=condition)) +
   theme(axis.text.x = element_text(angle = 90))
 
 pdfname = paste0(resDir, '/QC_cystFiltering_before_after_', analysis.verison, '.pdf')
+while (!is.null(dev.list()))  dev.off()
 pdf(pdfname,  width = 20, height = 16)
 
 grid.arrange(p0, p1, ncol = 1) 
@@ -391,6 +336,7 @@ p9 = ggplot(xx, aes(x = condition, y=Intensity_MeanIntensity_FOXA2_fp, fill=cond
 
 
 pdfname = paste0(resDir, '/QC_plots_fp_volumeFiltering_beforeAndAfter', analysis.verison, '.pdf')
+while (!is.null(dev.list()))  dev.off()
 pdf(pdfname,  width = 20, height = 20)
 
 grid.arrange(p0, p1, p3, ncol = 1) 
@@ -405,7 +351,6 @@ res = res[which(is.na(res$ID_fp) | !is.na(match(res$ID_fp, xx$ID_fp))), ]
 
 saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cyst.fp.Filering_', analysis.verison, '.rds'))
 
-
 ##########################################
 # extract turing-relevant parameters
 ######################################### 
@@ -418,31 +363,55 @@ params = extract.turing.parameters.cellProfiler(res, pixel.scale = 3, cyst.overl
 
 saveRDS(params, file = paste0(Rdata, '/turing_parameters_extracted_', analysis.verison, '.rds'))
 
-##########################################
-# visualize the turing-model relevant parameters
-##########################################
+########################################################
+########################################################
+# Section : visualize the turing-model relevant parameters
+#  
+########################################################
+########################################################
+# merge results from multiple cellprofiler runs
+params = readRDS(file = paste0(Rdata, '/turing_parameters_extracted_Teresa.LDN.timeSeries_20210917_d6.control.rds'))
+rownames(params) = paste0('a', rownames(params))
+xx = readRDS(file = paste0(Rdata, '/turing_parameters_extracted_Teresa.LDN.timeSeries_20210917_d6.LDN.rds'))
+rownames(xx) = paste0('b', rownames(xx))
+
+params = rbind(params, xx)
+
+xx = readRDS(file = paste0(Rdata, '/turing_parameters_extracted_Teresa.LDN.timeSeries_20210917_d5.rds'))
+rownames(xx) = paste0('c', rownames(xx))
+params = rbind(params, xx)
+
+saveRDS(params, file = paste0(Rdata, '/turing_parameters_extracted_Teresa.control.LDN_d5.d6_merged.rds'))
+
+params = readRDS(file = paste0(Rdata, '/turing_parameters_extracted_Teresa.control.LDN_d5.d6_merged.rds'))
+params$condition = gsub('.d6.d6', '.d6', params$condition)
+
+
 #library(tidyquant)
 conds = unique(params$condition)
 
 # check controls first
 conds.sels = list(
-  which(params$condition == "RA_LDNSB"|
-              params$condition == 'noRA_LDNSB'| 
-              params$condition == 'RA_LDNonly'| # controls 
-          params$condition == 'RA_noLDNnoSB'),
+  # which(params$condition == "RA_LDNSB"|
+  #             params$condition == 'noRA_LDNSB'| 
+  #             params$condition == 'RA_LDNonly'| # controls 
+  #         params$condition == 'RA_noLDNnoSB'),
   
-  which(params$condition == "RA_LDNSB"| # control
-          params$condition == 'FGF_LDNSB'| # FGF single perburbation
-          params$condition == 'PD_LDNSB'|
-          params$condition == 'BMP4_SBonlyb'| # BMP single perturbation
-          params$condition == 'RA_SBonly'|
-          params$condition == 'FGF_SBonlyb'| # BMP FGF perturbation
-          params$condition == 'PD_SBonly'
-          )
+  # which(params$condition == "RA_LDNSB"| # control
+  #         params$condition == 'FGF_LDNSB'| # FGF single perburbation
+  #         params$condition == 'PD_LDNSB'|
+  #         params$condition == 'BMP4_SBonlyb'| # BMP single perturbation
+  #         params$condition == 'RA_SBonly'|
+  #         params$condition == 'FGF_SBonlyb'| # BMP FGF perturbation
+  #         params$condition == 'PD_SBonly'
+  #         )
+  grep('LDN', params$condition, invert = TRUE), 
+  grep('d6', params$condition)
+  
 )
 
 
-pdfname = paste0(resDir, '/Organoid_perturbation_Control.BMP.FGF_CP_v3.pdf')
+pdfname = paste0(resDir, '/NTorganoid_mouse_Teresa.d5.d6.contro.LDN.titration.pdf')
 pdf(pdfname,  width = 20, height = 12)
 
 for(n in 1:length(conds.sels))
@@ -456,26 +425,32 @@ for(n in 1:length(conds.sels))
     group_by(condition, nb.fp) %>% tally() %>%
     ggplot(aes(x = condition, y = n, fill = nb.fp)) +
     geom_bar(stat = "identity") +
-    theme_classic() + ggtitle('nb of cysts and fp nb distribution') 
+    theme_classic() + ggtitle('nb of cysts and fp nb distribution') +
+    theme(axis.text.x = element_text(angle = 90, size = 10))
   
   p1 = ggplot(params[sels, ], aes(x = condition, y=volume, fill=condition)) + 
-    geom_violin() + ggtitle('cyst volume') 
+    geom_violin() + ggtitle('cyst volume') +
+    theme(axis.text.x = element_text(angle = 90, size = 10))
     
   p2 = ggplot(params[sels, ], aes(x = condition, y=overlap.ratio, fill=condition)) + 
     geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2) + 
-    ggtitle('cyst fraction overlapped by fp')
+    ggtitle('cyst fraction overlapped by fp') +
+    theme(axis.text.x = element_text(angle = 90, size = 10))
   
   p3 = ggplot(params[sels, ], aes(x=condition, y=radius.fp, fill=condition)) + 
-    geom_violin() + ggtitle('foxa2 radius')
+    geom_violin() + ggtitle('foxa2 radius') +
+    theme(axis.text.x = element_text(angle = 90, size = 10))
   
   p4 = ggplot(params[sels, ], aes(x = condition, y=foxa2.fp, fill=condition)) + 
-    geom_violin() + ggtitle('FoxA2 mean intensity')
+    geom_violin() + ggtitle('FoxA2 mean intensity') +
+    theme(axis.text.x = element_text(angle = 90, size = 10))
   
   p5 = ggplot(params[sels, ], aes(fill=condition, y=olig2 , x = condition)) + 
-    geom_violin() + ggtitle('Olig2 mean intensity')
+    geom_violin() + ggtitle('Olig2 mean intensity') +
+    theme(axis.text.x = element_text(angle = 90, size = 10))
   
   p6 = ggplot(params[sels, ], aes(x=nb.fp, y=volume, color=condition, fill = condition)) +
-    geom_violin() + ggtitle('size dependency of fp nb')
+    geom_violin() + ggtitle('size dependency of fp nb') 
   
   p7 = ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>1)], ], aes(x=volume, y=dist.fp, color=condition)) +
     geom_point(size = 2.5) + ggtitle('distance between fps (wavelength)') 
@@ -484,7 +459,6 @@ for(n in 1:length(conds.sels))
          aes(x=condition, y=dist.fp, color=condition, fill = condition)) +
     geom_violin() + ggtitle('distance between fps (wavelength)') 
   
-    
   grid.arrange(p0, p1, p2, p5,  nrow = 2, ncol = 2)
   grid.arrange(p7, p8, p4, p3,  nrow = 2, ncol = 2)
   grid.arrange(p6, p7,  nrow = 2, ncol = 1)
@@ -492,44 +466,3 @@ for(n in 1:length(conds.sels))
 }
 
 dev.off()
-
-
-pdfname = paste0(resDir, '/Organoid_perturbation_summary_allConditions_v3.pdf')
-pdf(pdfname,  width = 24, height = 8)
-
-sels = c(1:nrow(params))
-nb.fp = as.numeric(as.character(params$nb.fp[sels]))
-sels = sels[which(nb.fp>=0 & nb.fp<10)]
-
-p0 = as_tibble(params[sels, ]) %>% 
-  group_by(condition, nb.fp) %>% tally() %>%
-  ggplot(aes(x = condition, y = n, fill = nb.fp)) +
-  geom_bar(stat = "identity") +
-  theme_classic() + ggtitle('nb of cysts and fp nb distribution')
-
-p1 = ggplot(params[sels, ], aes(x = condition, y=volume, fill=condition)) + 
-  geom_violin() + ggtitle('cyst volume') + theme(legend.position = "none") 
-
-p2 = ggplot(params[sels, ], aes(x = condition, y=overlap.ratio, fill=condition)) + 
-  geom_violin(width=2) + ggtitle('cyst fraction overlapped by fp') + theme(legend.position = "none") +
-  coord_cartesian(ylim = c(0, 0.1))
-
-p3 = ggplot(params[sels, ], aes(x=condition, y=radius.fp, fill=condition)) + 
-  geom_violin() + ggtitle('foxa2 radius') + coord_cartesian(ylim = c(0, 2*10^5)) + theme(legend.position = "none")
-
-p4 = ggplot(params[sels, ], aes(x = condition, y=foxa2.fp, fill=condition)) + 
-  geom_violin() + ggtitle('FoxA2 mean intensity') + theme(legend.position = "none")
-
-p5 = ggplot(params[sels, ], aes(fill=condition, y=olig2 , x = condition)) + 
-  geom_violin() + ggtitle('Olig2 mean intensity') + theme(legend.position = "none")
-
-plot(p0)
-plot(p1)
-plot(p2)
-plot(p3)
-plot(p4)
-plot(p5)
-
-dev.off()
-
-

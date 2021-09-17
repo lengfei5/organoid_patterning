@@ -14,10 +14,46 @@
 # 
 ########################################################
 ########################################################
-make_mergedTable_fromSegementation_cellProfiler = function()
+merge_image.cyst.fp_fromCellProfiler = function(image, cyst, fp)
 {
-   
+  # change to data.frame
+  cyst = data.frame(cyst, stringsAsFactors = FALSE)
+  image = data.frame(image, stringsAsFactors = FALSE)
+  fp = data.frame(fp, stringsAsFactors = FALSE)
+  
+  # add suffix for each table in the colnames
+  colnames(image) = paste0(colnames(image), '_image')
+  colnames(cyst) = paste0(colnames(cyst), '_cyst')
+  colnames(fp) = paste0(colnames(fp), '_fp')
+  
+  # merge the image and cyst tables
+  kk = match(cyst$ImageNumber_cyst, image$ImageNumber_image)
+  cyst = data.frame(image[kk, ], cyst, stringsAsFactors = FALSE)
+  
+  # start to merge cyst and fp
+  cyst$ID = paste0(cyst$ImageNumber_image, '_', cyst$ObjectNumber_cyst)
+  fp$parentID = paste0(fp$ImageNumber_fp, '_', fp$Parent_organoid_fp)
+  
+  index_cyst = c()
+  index_fp = c()
+  for(n in 1:nrow(cyst))
+  {
+    if(n %%100 == 0) cat(n, '\n')
+    kk = which(fp$parentID == cyst$ID[n])
+    if(length(kk) == 0){
+      index_cyst = c(index_cyst, n)
+      index_fp = c(index_fp, NA)
+    }else{
+      index_cyst = c(index_cyst, rep(n, length(kk)))
+      index_fp = c(index_fp, kk)
+    }
+  }
+  
+  res = data.frame(cyst[index_cyst, ], fp[index_fp, ], stringsAsFactors = FALSE) 
+  
+  return(res)
 }
+
 ##########################################
 # functions 
 ##########################################
