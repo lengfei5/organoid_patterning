@@ -52,28 +52,54 @@ for(n in 1:nrow(xx))
 # 
 ########################################################
 ########################################################
+rm(list = ls())
 library("igraph")
-model.list = list.files(path = '../results/RD_topology_screening/3N2M_topology_enumerate_v1', 
-                        pattern = '*.csv', full.names = TRUE)
+RDoutDir = '../results/RD_topology_screening/topology_screening_3N2M_v2/'
+screening.outDir = paste0(RDoutDir, 'RD_out_3N2M_50k_v3/')
+modelDir = paste0(RDoutDir, '3N2M_topology_enumerate')
 
-screening.outDir = '../results/RD_topology_screening/RD_out_topology.108_params.50K/'
-
-resDir = paste0("../results/RD_topology_screening/topology_screening_3N2M")
-if(!dir.exists(resDir)) dir.create(resDir)
 
 # make graph from adjacency matrix
-make.plot.from.adjacency.matrix = function(s)
+make.plot.from.adjacency.matrix = function(s, main = '')
 {
   g1 = graph_from_adjacency_matrix(s, mode = 'directed', weighted =TRUE)
   ws = E(g1)$weight
   cols = rep('darkblue', length(ws))
   cols[which(ws<0)] = 'red'
   layout = matrix(data = c(0, 4, 2, 0, 0, 2), ncol = 2)
-  plot(g1, layout = layout,  layout = layout.circle, vertex.size = 40.0, edge.curved=.3, edge.color=cols, edge.arrow.size=1.2,
-       edge.width = 2.0)
+  plot(g1, layout = layout,  layout = layout.circle, vertex.size = 60.0, edge.curved=.3, edge.color=cols, edge.arrow.size=2.0,
+       edge.width = 4.0, vertex.label.cex = 1.8, vertex.label.font = 2, main = main)
   
 }
 
+filter.reaction.parameters.for.RD.patterning = function(res, filter.phase = FALSE, filter.oscillation = FALSE)
+{
+  
+  lambda_real = res[ , grep('lambda_re', colnames(res))]
+  lambda_im = res[ , grep('lambda_im', colnames(res))]
+  k = res[, match(paste0('q', c(0:(ncol(lambda_real)-1))) , colnames(res))]
+  phases =  res[ , grep('eigenvec_posSign', colnames(res))]
+  
+  index_keep = c()
+  for(jj in 1:nrow(res))
+  {
+    # remove the turing filtering by checking if the Re(lambda) is negative for wavenumber max
+    # BMP diffusion is >=0.1, comparable or larger than Noggin
+    if(!filter.phase & !filter.oscillation){
+      if(lambda_real[jj, which(k[jj, ] == max(k[jj, ]))] < 0  &  res$d1[jj] >= 0.5) index_keep = c(index_keep, jj)
+    }
+    if(filter.phase){
+      pp = phases[jj, which(lambda_real[jj, ]>0)]
+      if(lambda_real[jj, which(k[jj, ] == max(k[jj, ]))] < 0  &  res$d1[jj] >= 0.5 & (all(pp == '1;0;1') | all(pp == '0;1;0'))) {
+        index_keep = c(index_keep, jj)
+      }
+    }
+    
+  }
+  
+  return(res[index_keep, ])
+  
+}
 
 s0 = matrix(NA, nrow = 3, ncol = 3)
 s0[1, 1] = 0; s0[1, 2] = -1; s0[1, 3] = 0;
@@ -81,13 +107,20 @@ s0[2, 1] = 1; s0[2, 2] = 0; s0[2, 3] = -1
 s0[3, 1] = 1; s0[3, 2] = 1; s0[3, 3] = 1
 
 colnames(s0) = c('Nog', 'BMP', 'Foxa2')
-rownames(s0) = colnames(s0)
+rownames(s0) = colnames(s0) 
 # make.plot.from.adjacency.matrix(s0)
 
-
+model.list = list.files(path = modelDir, pattern = '*.csv', full.names = TRUE)
 nb = 0
+
+#selection.criterion = 'D.larger.1_lambda.neg.max.q_phase'
+resDir = paste0(RDoutDir, 'topology_summary_selection_D.larger.1_lambda.neg.max.q_phase')
+modelSaveDir = paste0(RDoutDir, 'topology_summary_selection_D.larger.1_lambda.neg.max.q_phase/Models_selected')
+if(!dir.exists(resDir)) dir.create(resDir)
+if(!dir.exists(modelSaveDir)) dir.create(modelSaveDir)
+
 for(n in 1:length(model.list)){
-  # n = 20
+  # n = 2
   Model = basename(model.list[n])
   Model = gsub('.csv', '', Model)
   
@@ -96,7 +129,6 @@ for(n in 1:length(model.list)){
   
   if(length(param.list) > 0){
     
-    
     ss = read.csv(model.list[n], header = TRUE, row.names = 1)
     
     nb.param = 0
@@ -104,22 +136,35 @@ for(n in 1:length(model.list)){
     keep = c()
     for(i in 1:length(param.list))
     {
-      # i = 15
+      # i = 1
       res = read.csv(file = param.list[i], header = TRUE)
+      
+      ##########################################
+      # 1st filter the parameters for which Re(lambda) > 0 when q = 0
+      ##########################################
       res = res[which(res$noDiffusion0 <0 ), ]
+      res = filter.reaction.parameters.for.RD.patterning(res, filter.phase = TRUE)
+      
       if(nrow(res) > 0) {
         nb.param = nb.param + 1
         index.param = c(index.param, rep(nb.param, nrow(res)))
         keep = rbind(keep, res)
-        cat(nb.param, 'th parameters \n')
       }
     }
+    
+    # cat(Model, '---', nb.param, 'sets of reaction parameters\n')
     
     keep = data.frame(index.param = index.param, keep, stringsAsFactors = FALSE)
     
     if(nb.param >0) {
       nb = nb + 1
-      cat(n, ' -- ', Model,  ': nb of param --', nb.param,  '-- nb : ', nb, '\n')
+      cat('Model index: ',  n, ': ', Model,  ' -- nb of reaction params:',  nb.param, '\n')
+      
+      pdfname = paste0(modelSaveDir, "/", Model, ".pdf")
+      pdf(pdfname, width = 8, height = 6)
+      par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
+      make.plot.from.adjacency.matrix(as.matrix(ss), main = paste0(Model, ' , Q = ', nb.param))
+      dev.off()
       
       # make summary for the model
       pdfname = paste0(resDir, "/", Model, ".pdf")
@@ -127,15 +172,16 @@ for(n in 1:length(model.list)){
       par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
       
       #s = as.matrix(ss)
-      make.plot.from.adjacency.matrix(as.matrix(ss))
+      make.plot.from.adjacency.matrix(as.matrix(ss), main = paste0(Model, ' , Q = ', nb.param))
       
       for(j in unique(keep$index.param))
       {
         # j = 1
         sels = which(keep$index.param == j)
-        k = keep[sels, match(paste0('q', c(0:19)) , colnames(keep))]
+        
         lambda_real = keep[sels, grep('lambda_re', colnames(keep))]
         lambda_im = keep[sels, grep('lambda_im', colnames(keep))]
+        k = keep[sels, match(paste0('q', c(0:(ncol(lambda_real)-1))) , colnames(keep))]
         
         plot(1, 1, type = 'n', xlim = range(k), ylim = range(lambda_real), log='x', xlab = 'wavenumber (k)', ylab = 'Re(lamba.max)',
              main = Model)
@@ -145,8 +191,7 @@ for(n in 1:length(model.list)){
                type = 'l', col = ii, lwd = 2.0)
           
         }
-        
-        legend('topleft', legend = paste0('d = ', signif(keep$d1[sels], d = 2), col = 1:nrow(k)))
+        legend('topleft', legend = paste0('d = ', signif(keep$d1[sels], d = 2), col = 1:nrow(k)), cex = 0.7)
         
       }
       
