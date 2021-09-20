@@ -412,7 +412,7 @@ conds.sels = list(
 
 
 pdfname = paste0(resDir, '/NTorganoid_mouse_Teresa.d5.d6.contro.LDN.titration.pdf')
-pdf(pdfname,  width = 20, height = 12)
+pdf(pdfname,  width = 24, height = 14)
 
 for(n in 1:length(conds.sels))
 {
@@ -437,9 +437,9 @@ for(n in 1:length(conds.sels))
     ggtitle('cyst fraction overlapped by fp') +
     theme(axis.text.x = element_text(angle = 90, size = 10))
   
-  p3 = ggplot(params[sels, ], aes(x=condition, y=radius.fp, fill=condition)) + 
-    geom_violin() + ggtitle('foxa2 radius') +
-    theme(axis.text.x = element_text(angle = 90, size = 10))
+  p3 = ggplot(params[sels, ], aes(x=condition, y=volume.fp, fill=condition)) + 
+    geom_violin() + ggtitle('foxa2 volume') +
+    theme(axis.text.x = element_text(angle = 90, size = 10)) 
   
   p4 = ggplot(params[sels, ], aes(x = condition, y=foxa2.fp, fill=condition)) + 
     geom_violin() + ggtitle('FoxA2 mean intensity') +
@@ -449,19 +449,25 @@ for(n in 1:length(conds.sels))
     geom_violin() + ggtitle('Olig2 mean intensity') +
     theme(axis.text.x = element_text(angle = 90, size = 10))
   
-  p6 = ggplot(params[sels, ], aes(x=nb.fp, y=volume, color=condition, fill = condition)) +
-    geom_violin() + ggtitle('size dependency of fp nb') 
   
-  p7 = ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>1)], ], aes(x=volume, y=dist.fp, color=condition)) +
+  p6 = ggplot(params[sels, ], aes(x=nb.fp, y=volume, color=condition, fill = condition)) +
+    geom_violin() + ggtitle('size dependency of fp nb (cyst volume)') 
+  
+  p61 = ggplot(params[sels, ], aes(x=nb.fp, y=radius.cyst, color=condition, fill = condition)) +
+    geom_violin() + ggtitle('size dependency of fp nb (cyst radius)') 
+  
+  p7 = ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>1)], ], 
+              aes(x=volume, y=dist.fp, color=condition)) +
     geom_point(size = 2.5) + ggtitle('distance between fps (wavelength)') 
    
   p8 = ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>1)], ], 
          aes(x=condition, y=dist.fp, color=condition, fill = condition)) +
-    geom_violin() + ggtitle('distance between fps (wavelength)') 
+    geom_violin() + ggtitle('distance between fps (wavelength)') +
+    theme(axis.text.x = element_text(angle = 90, size = 10))
   
   grid.arrange(p0, p1, p2, p5,  nrow = 2, ncol = 2)
   grid.arrange(p7, p8, p4, p3,  nrow = 2, ncol = 2)
-  grid.arrange(p6, p7,  nrow = 2, ncol = 1)
+  grid.arrange(p6, p61,  nrow = 2, ncol = 1)
   
 }
 
