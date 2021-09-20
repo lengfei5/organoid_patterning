@@ -383,9 +383,10 @@ params = rbind(params, xx)
 
 saveRDS(params, file = paste0(Rdata, '/turing_parameters_extracted_Teresa.control.LDN_d5.d6_merged.rds'))
 
+
+# read the merged table
 params = readRDS(file = paste0(Rdata, '/turing_parameters_extracted_Teresa.control.LDN_d5.d6_merged.rds'))
 params$condition = gsub('.d6.d6', '.d6', params$condition)
-
 
 #library(tidyquant)
 conds = unique(params$condition)
@@ -406,13 +407,42 @@ conds.sels = list(
   #         params$condition == 'PD_SBonly'
   #         )
   grep('LDN', params$condition, invert = TRUE), 
-  grep('d6', params$condition)
+  setdiff(grep('d6', params$condition), 
+          grep('N2B27', params$condition))
+            
   
 )
 
+saveTalbe = FALSE
+
+if(saveTalbe){
+  nb.fp = as.numeric(as.character(params$nb.fp))
+  sels = which(nb.fp>=0 & nb.fp<=10)
+  xx = as.data.frame(as_tibble(params[sels, ]) %>% 
+    group_by(condition, nb.fp) %>% tally())
+  yy = matrix(0, ncol=6,  nrow = length(unique(xx$condition)))
+  rownames(yy) = unique(xx$condition)
+  colnames(yy) = paste0('foxa2Cluster.nb.', c(0:(ncol(yy)-1)))
+  
+  for(n in 1:nrow(yy))
+  {
+    for(kk in 0:5)
+    {
+      ii = which(xx$condition == rownames(yy)[n] & xx$nb.fp == kk)
+      if(length(ii) == 1) yy[n, kk] = xx$n[ii]
+    }
+  }
+  yy = data.frame(yy)
+  yy$total.nb.cyst = apply(as.matrix(yy), 1, sum)
+  
+  yy = yy[which(yy$total.nb.cyst > 5), ]
+  
+  write.csv(yy, file = paste0(resDir, '/distribution_foxaCluster.nb.per.cyst_acrossConditions.csv'))
+  
+}
 
 pdfname = paste0(resDir, '/NTorganoid_mouse_Teresa.d5.d6.contro.LDN.titration.pdf')
-pdf(pdfname,  width = 24, height = 14)
+pdf(pdfname,  width = 20, height = 16)
 
 for(n in 1:length(conds.sels))
 {
@@ -421,34 +451,45 @@ for(n in 1:length(conds.sels))
   nb.fp = as.numeric(as.character(params$nb.fp[sels]))
   sels = sels[which(nb.fp>=0 & nb.fp<=10)]
   
+  if(n == 1){
+    level_order = levels(factor(params$condition[sels]))
+  }
+  if(n == 2){
+    level_order = c("F4.normRA.d6", "R1.normRA.d6", "R1.advRA.d6",  "R1.advRA.LDN10nM.d6", 
+                    "R1.advRA.LDN50nM.d6", "R1.advRA.LDN100nM.d6", "R1.advRA.LDN200nM.d6", 
+                    "R1.advRA.LDN300nM.d6", "R1.advRA.LDN400nM.d6", "R1.advRA.LDN500nM.d6", 
+                    "R1.advRA.LDN750nM.d6", "R1.advRA.LDN1000nM.d6")
+  }
+  
   p0 = as_tibble(params[sels, ]) %>% 
     group_by(condition, nb.fp) %>% tally() %>%
-    ggplot(aes(x = condition, y = n, fill = nb.fp)) +
+    ggplot(aes(x = factor(condition, levels = level_order), y = n, fill = nb.fp)) +
     geom_bar(stat = "identity") +
     theme_classic() + ggtitle('nb of cysts and fp nb distribution') +
-    theme(axis.text.x = element_text(angle = 90, size = 10))
+    theme(axis.text.x = element_text(angle = 90, size = 12))
   
-  p1 = ggplot(params[sels, ], aes(x = condition, y=volume, fill=condition)) + 
-    geom_violin() + ggtitle('cyst volume') +
-    theme(axis.text.x = element_text(angle = 90, size = 10))
+  p1 = ggplot(params[sels, ], aes(x = factor(condition, levels = level_order), y=volume, fill=condition)) + 
+    geom_violin(width = 2.0) + ggtitle('cyst volume') +
+    theme(axis.text.x = element_text(angle = 90, size = 12))
     
-  p2 = ggplot(params[sels, ], aes(x = condition, y=overlap.ratio, fill=condition)) + 
-    geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.2) + 
+  p2 = ggplot(params[sels, ], aes(x = factor(condition, levels =level_order), y=overlap.ratio, fill=condition)) + 
+    geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.1) +  ylim(0, 0.75) + 
     ggtitle('cyst fraction overlapped by fp') +
-    theme(axis.text.x = element_text(angle = 90, size = 10))
+    theme(axis.text.x = element_text(angle = 90, size = 12))
   
-  p3 = ggplot(params[sels, ], aes(x=condition, y=volume.fp, fill=condition)) + 
-    geom_violin() + ggtitle('foxa2 volume') +
-    theme(axis.text.x = element_text(angle = 90, size = 10)) 
+  p3 = ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>=1)], ], aes(x=factor(condition, levels = level_order), y=volume.fp, fill=condition)) + 
+    geom_violin(width = 1.5) + ggtitle('foxa2 volume') +
+    theme(axis.text.x = element_text(angle = 90, size = 12)) 
   
-  p4 = ggplot(params[sels, ], aes(x = condition, y=foxa2.fp, fill=condition)) + 
-    geom_violin() + ggtitle('FoxA2 mean intensity') +
-    theme(axis.text.x = element_text(angle = 90, size = 10))
+  p4 = ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>=1)], ], aes(x = factor(condition, levels = level_order), y=foxa2.fp, fill=condition)) + 
+    geom_violin(width = 1.5) + ggtitle('FoxA2 mean intensity') + ylim(0, 20000) + 
+    theme(axis.text.x = element_text(angle = 90, size = 12))
   
   p5 = ggplot(params[sels, ], aes(fill=condition, y=olig2 , x = condition)) + 
     geom_violin() + ggtitle('Olig2 mean intensity') +
-    theme(axis.text.x = element_text(angle = 90, size = 10))
+    theme(axis.text.x = element_text(angle = 90, size = 12))
   
+  #factor(Var1, levels = c('pooled', 'negative',  'positive'))))
   
   p6 = ggplot(params[sels, ], aes(x=nb.fp, y=volume, color=condition, fill = condition)) +
     geom_violin() + ggtitle('size dependency of fp nb (cyst volume)') 
@@ -461,12 +502,18 @@ for(n in 1:length(conds.sels))
     geom_point(size = 2.5) + ggtitle('distance between fps (wavelength)') 
    
   p8 = ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>1)], ], 
-         aes(x=condition, y=dist.fp, color=condition, fill = condition)) +
-    geom_violin() + ggtitle('distance between fps (wavelength)') +
-    theme(axis.text.x = element_text(angle = 90, size = 10))
+         aes(x=factor(condition, levels = level_order), y=dist.fp, color=condition, fill = condition)) +
+    geom_violin() + geom_jitter(width = 0.1, color = 'black', size = 1.0) +
+    ggtitle('distance between fps (wavelength)') +
+    theme(axis.text.x = element_text(angle = 90, size = 12))
   
-  grid.arrange(p0, p1, p2, p5,  nrow = 2, ncol = 2)
-  grid.arrange(p7, p8, p4, p3,  nrow = 2, ncol = 2)
+  p9 = ggplot(params[which(params$condition == 'R1.normRA.d6'|params$condition == 'R1.advRA.d6' ), ], aes(x=nb.fp, y=volume, color=condition, fill = condition)) +
+    geom_boxplot() + ggtitle('size dependency of fp nb (cyst volume)') 
+  
+  grid.arrange(p0, p1,  nrow = 2, ncol = 1)
+  grid.arrange(p2, p5,  nrow = 2, ncol = 1)
+  grid.arrange(p7, p8,  nrow = 2, ncol = 1)
+  grid.arrange(p4, p3,  nrow = 2, ncol = 1)
   grid.arrange(p6, p61,  nrow = 2, ncol = 1)
   
 }
