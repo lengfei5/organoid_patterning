@@ -515,6 +515,7 @@ for(n in 1:length(conds.sels))
   grid.arrange(p7, p8,  nrow = 2, ncol = 1)
   grid.arrange(p4, p3,  nrow = 2, ncol = 1)
   grid.arrange(p6, p61,  nrow = 2, ncol = 1)
+  grid.arrange(p9, nrow = 1, ncol = 1)
   
 }
 

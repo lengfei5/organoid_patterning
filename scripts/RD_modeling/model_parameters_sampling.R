@@ -54,10 +54,10 @@ for(n in 1:nrow(xx))
 ########################################################
 rm(list = ls())
 library("igraph")
-RDoutDir = '../results/RD_topology_screening/topology_screening_3N2M_v2/'
-screening.outDir = paste0(RDoutDir, 'RD_out_3N2M_50k_v3/')
-modelDir = paste0(RDoutDir, '3N2M_topology_enumerate')
 
+RDoutDir = '../results/RD_topology_screening/topology_screening_3N2M_v3/'
+screening.outDir = paste0(RDoutDir, 'RD_out_3N2M_100k_v3/')
+modelDir = paste0(RDoutDir, '3N2M_topology_enumerate')
 
 # make graph from adjacency matrix
 make.plot.from.adjacency.matrix = function(s, main = '')
@@ -114,7 +114,8 @@ model.list = list.files(path = modelDir, pattern = '*.csv', full.names = TRUE)
 nb = 0
 
 #selection.criterion = 'D.larger.1_lambda.neg.max.q_phase'
-resDir = paste0(RDoutDir, 'topology_summary_selection_D.larger.1_lambda.neg.max.q_phase')
+resDir = paste0(RDoutDir, 'topology_summary')
+
 modelSaveDir = paste0(RDoutDir, 'topology_summary_selection_D.larger.1_lambda.neg.max.q_phase/Models_selected')
 if(!dir.exists(resDir)) dir.create(resDir)
 if(!dir.exists(modelSaveDir)) dir.create(modelSaveDir)
@@ -143,7 +144,7 @@ for(n in 1:length(model.list)){
       # 1st filter the parameters for which Re(lambda) > 0 when q = 0
       ##########################################
       res = res[which(res$noDiffusion0 <0 ), ]
-      res = filter.reaction.parameters.for.RD.patterning(res, filter.phase = TRUE)
+      #res = filter.reaction.parameters.for.RD.patterning(res, filter.phase = TRUE)
       
       if(nrow(res) > 0) {
         nb.param = nb.param + 1
@@ -199,7 +200,6 @@ for(n in 1:length(model.list)){
       
     }  
   }
-  
 }
 
 
