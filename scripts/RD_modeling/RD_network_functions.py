@@ -255,7 +255,7 @@ def state_plotter(times, states, fig_num):
 
     return fig, ax
 
-def check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final):
+def check_BurnIn_steadyState(sol, f_ode, k, S, n, x0, t_final):
     from scipy.integrate import odeint
     err_tole = 0.00001
     ss = np.zeros(n)
@@ -273,7 +273,7 @@ def check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final):
         nb_try = nb_try + 1
         t_final = t_final*2
         t = np.linspace(0, t_final, 200)
-        sol = odeint(f_ode, x0, t,args=(k,))
+        sol = odeint(f_ode, x0, t,args=(k,S))
         ss = np.zeros(n)
         ss_fluc = np.zeros(n)
         nb_passThreshold = 0
@@ -285,7 +285,7 @@ def check_BurnIn_steadyState(sol, f_ode, k, n, x0, t_final):
     
     return  ss
 
-def Multi_steadyStates(ss0, c_init, f_ode, k, n):
+def Multi_steadyStates(ss0, c_init, f_ode, k, S, n):
     import itertools
     from scipy.integrate import odeint
     
@@ -299,8 +299,8 @@ def Multi_steadyStates(ss0, c_init, f_ode, k, n):
     for val in c_init:
         x0 = np.asarray(val)
         #print(x0)
-        sol2 = odeint(f_ode, x0, t,args=(k,))
-        ss2 = check_BurnIn_steadyState(sol2, f_ode, k, n, x0, t_final)
+        sol2 = odeint(f_ode, x0, t,args=(k,S))
+        ss2 = check_BurnIn_steadyState(sol2, f_ode, k, S, n, x0, t_final)
         
         dists = np.ones(len(ss_saved))
         for j in range(len(ss_saved)):
