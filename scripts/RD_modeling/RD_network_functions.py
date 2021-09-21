@@ -22,7 +22,7 @@ def dc_dt(
     x,
     derivs_0,
     derivs_L,
-    periodic_boundary,
+    periodic_bc,
     diff_coeff_fun,
     diff_coeff_params,
     rxn_fun,
@@ -49,7 +49,7 @@ def dc_dt(
     derivs_L : ndarray, shape (n_species)
         derivs_0[i] is the value of the diffusive flux,
         D dc_i/dx, at x = L, the rightmost boundary of the domain of x.
-    periodic_boundary : true or false, if false, derivs_0 and derivs_L are used;
+    periodic_bc : true or false, if false, derivs_0 and derivs_L are used;
         if true, periodic boundary were used.
     diff_coeff_fun : function
         Function of the form diff_coeff_fun(c_tuple, t, x, *diff_coeff_params).
@@ -78,6 +78,7 @@ def dc_dt(
         The time derivatives of the concentrations of the chemical
         species at the grid points interleaved in a NumPy array.
     """
+    # c = c0
     # Tuple of concentrations
     c_tuple = tuple([c[i::n_species] for i in range(n_species)])
 
@@ -89,7 +90,7 @@ def dc_dt(
 
     # Return array
     conc_deriv = np.empty_like(c)
-
+    
     # Convenient array for storing concentrations
     da_dt = np.empty(len(c_tuple[0]))
 
@@ -101,20 +102,35 @@ def dc_dt(
         # View of concentrations and diffusion coeff. for convenience
         a = np.copy(c_tuple[i])
         D = np.copy(D_tuple[i])
+        
+        if periodic_bc:
+            #Time derivative at left boundary
+            da_dt[0] = D[0] / h2 * 2 * (a[1] - a[0] - h * derivs_0[i])
 
-        # Time derivative at left boundary
-        da_dt[0] = D[0] / h2 * 2 * (a[1] - a[0] - h * derivs_0[i])
+            # First derivatives of D and a
+            dD_dx = (D[2:] - D[:-2]) / (2 * h)
+            da_dx = (a[2:] - a[:-2]) / (2 * h)
+            
+            # Time derivative for middle grid points 
+            da_dt[1:-1] = D[1:-1] * np.diff(a, 2) / h2 + dD_dx * da_dx
 
-        # First derivatives of D and a
-        dD_dx = (D[2:] - D[:-2]) / (2 * h)
-        da_dx = (a[2:] - a[:-2]) / (2 * h)
+            # Time derivative at right boundary
+            da_dt[-1] = D[-1] / h2 * 2 * (a[-2] - a[-1] + h * derivs_L[i])
+    
+        else:
+            # Time derivative at left boundary
+            da_dt[0] = D[0] / h2 * 2 * (a[1] - a[0] - h * derivs_0[i])
 
-        # Time derivative for middle grid points
-        da_dt[1:-1] = D[1:-1] * np.diff(a, 2) / h2 + dD_dx * da_dx
+            # First derivatives of D and a
+            dD_dx = (D[2:] - D[:-2]) / (2 * h)
+            da_dx = (a[2:] - a[:-2]) / (2 * h)
+            
+            # Time derivative for middle grid points
+            da_dt[1:-1] = D[1:-1] * np.diff(a, 2) / h2 + dD_dx * da_dx
 
-        # Time derivative at right boundary
-        da_dt[-1] = D[-1] / h2 * 2 * (a[-2] - a[-1] + h * derivs_L[i])
-
+            # Time derivative at right boundary
+            da_dt[-1] = D[-1] / h2 * 2 * (a[-2] - a[-1] + h * derivs_L[i])
+    
         # Store in output array with reaction terms
         conc_deriv[i::n_species] = da_dt + rxn_tuple[i]
 
@@ -127,7 +143,7 @@ def rd_solve(
     L=1,
     derivs_0=0,
     derivs_L=0,
-    periodic_boundary = False,
+    periodic_bc = False,
     diff_coeff_fun=None,
     diff_coeff_params=(),
     rxn_fun=None,
@@ -150,7 +166,7 @@ def rd_solve(
     derivs_L : ndarray, shape (n_species)
         derivs_L[i] is the value of dc_i/dx at x = L, the rightmost
         boundary of the domain of x.
-    periodic_boundary : true or false, if false, derivs_0 and derivs_L are used;
+    periodic_bc : true or false, if false, derivs_0 and derivs_L are used;
         if true, periodic boundary were used
     diff_coeff_fun : function
         Function of the form diff_coeff_fun(c_tuple, x, t, *diff_coeff_params).
@@ -187,6 +203,15 @@ def rd_solve(
        solution does not change much over time and it may be difficult
        for the solver to maintain tight tolerances.
     """
+    # test the furnction
+    # c_0_tuple = (a_0, s_0);  
+    # derivs_0=0; derivs_L=0;
+    # periodic_bc = False;
+    # diff_coeff_fun=constant_diff_coeffs
+    # diff_coeff_params=(diff_coeffs, )
+    # rxn_fun=asdm_rxn
+    # rxn_params=rxn_params
+    
     # Number of grid points
     n_gridpoints = len(c_0_tuple[0])
 
@@ -210,7 +235,7 @@ def rd_solve(
         x,
         derivs_0,
         derivs_L,
-        periodic_boundary,
+        periodic_bc,
         diff_coeff_fun,
         diff_coeff_params,
         rxn_fun,
@@ -219,7 +244,7 @@ def rd_solve(
         h,
     )
 
-    # Set up initial condition
+    # Set up initial condition: first n_species elements for x0; second n_species elements for x1
     c0 = np.empty(n_species * n_gridpoints)
     for i in range(n_species):
         c0[i::n_species] = c_0_tuple[i]
