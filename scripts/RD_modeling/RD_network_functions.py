@@ -105,17 +105,21 @@ def dc_dt(
         
         if periodic_bc:
             #Time derivative at left boundary
-            da_dt[0] = D[0] / h2 * 2 * (a[1] - a[0] - h * derivs_0[i])
-
+            #da_dt[0] = D[0] / h2 * 2 * (a[1] - a[0] - h * derivs_0[i]) 
+            da_dt[0] = D[0] * (a[1] + a[-1] - 2*a[0])/ h2 + (D[1] - D[-1])/(2*h) * (a[1] - a[-1])/(2*h)
+            
             # First derivatives of D and a
             dD_dx = (D[2:] - D[:-2]) / (2 * h)
             da_dx = (a[2:] - a[:-2]) / (2 * h)
             
             # Time derivative for middle grid points 
+            # mathematical formular : dc/dt + div(J) = 0 and J = -Ddc/dx
+            # so the dc/dt = Ddc2/dx2 + dD/dx*dc/dx
             da_dt[1:-1] = D[1:-1] * np.diff(a, 2) / h2 + dD_dx * da_dx
-
+            
             # Time derivative at right boundary
-            da_dt[-1] = D[-1] / h2 * 2 * (a[-2] - a[-1] + h * derivs_L[i])
+            #da_dt[-1] = D[-1] / h2 * 2 * (a[-2] - a[-1] + h * derivs_L[i])
+            da_dt[-1] = D[-1] * (a[0] + a[-2] - 2*a[-1])/ h2 + (D[0] - D[-2])/(2*h) * (a[0] - a[-2])/(2*h)
     
         else:
             # Time derivative at left boundary
