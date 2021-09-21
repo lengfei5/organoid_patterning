@@ -22,6 +22,7 @@ def dc_dt(
     x,
     derivs_0,
     derivs_L,
+    periodic_boundary,
     diff_coeff_fun,
     diff_coeff_params,
     rxn_fun,
@@ -48,6 +49,8 @@ def dc_dt(
     derivs_L : ndarray, shape (n_species)
         derivs_0[i] is the value of the diffusive flux,
         D dc_i/dx, at x = L, the rightmost boundary of the domain of x.
+    periodic_boundary : true or false, if false, derivs_0 and derivs_L are used;
+        if true, periodic boundary were used.
     diff_coeff_fun : function
         Function of the form diff_coeff_fun(c_tuple, t, x, *diff_coeff_params).
         Returns an tuple where entry i is a NumPy array containing
@@ -109,7 +112,7 @@ def dc_dt(
         # Time derivative for middle grid points
         da_dt[1:-1] = D[1:-1] * np.diff(a, 2) / h2 + dD_dx * da_dx
 
-        # Time derivative at left boundary
+        # Time derivative at right boundary
         da_dt[-1] = D[-1] / h2 * 2 * (a[-2] - a[-1] + h * derivs_L[i])
 
         # Store in output array with reaction terms
@@ -124,6 +127,7 @@ def rd_solve(
     L=1,
     derivs_0=0,
     derivs_L=0,
+    periodic_boundary = False,
     diff_coeff_fun=None,
     diff_coeff_params=(),
     rxn_fun=None,
@@ -146,6 +150,8 @@ def rd_solve(
     derivs_L : ndarray, shape (n_species)
         derivs_L[i] is the value of dc_i/dx at x = L, the rightmost
         boundary of the domain of x.
+    periodic_boundary : true or false, if false, derivs_0 and derivs_L are used;
+        if true, periodic boundary were used
     diff_coeff_fun : function
         Function of the form diff_coeff_fun(c_tuple, x, t, *diff_coeff_params).
         Returns an tuple where entry i is a NumPy array containing
@@ -204,6 +210,7 @@ def rd_solve(
         x,
         derivs_0,
         derivs_L,
+        periodic_boundary,
         diff_coeff_fun,
         diff_coeff_params,
         rxn_fun,
