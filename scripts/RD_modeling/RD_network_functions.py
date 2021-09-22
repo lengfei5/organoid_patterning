@@ -81,13 +81,25 @@ def dc_dt(
     # c = c0
     # Tuple of concentrations
     c_tuple = tuple([c[i::n_species] for i in range(n_species)])
-
+    
+    if periodic_bc:
+        for i in range(n_species):
+            c_tuple[i][-1] = c_tuple[i][0] 
+    
     # Compute diffusion coefficients
     D_tuple = diff_coeff_fun(c_tuple, t, x, *diff_coeff_params)
-
+    
     # Compute reaction terms
     rxn_tuple = rxn_fun(c_tuple, t, *rxn_params)
-
+    
+    # if rxn_tuple[0][0] != rxn_tuple[0][-1] or rxn_tuple[1][0] != rxn_tuple[1][-1]:
+    #         print('periodic BC error')
+    #         print(str(c_tuple[0][0]) + ' - ', str(c_tuple[0][-1]))
+    #         print(str(c_tuple[1][0]) + ' - ', str(c_tuple[1][-1]))
+    #         print(str(rxn_tuple[0][0]) + ' - ', str(rxn_tuple[0][-1]))
+    #         print(str(rxn_tuple[1][0]) + ' - ', str(rxn_tuple[1][-1]))
+    #         return 
+            
     # Return array
     conc_deriv = np.empty_like(c)
     
@@ -122,7 +134,7 @@ def dc_dt(
             #da_dt[-1] = D[-1] / h2 * 2 * (a[-2] - a[-1] + h * derivs_L[i])
             #da_dt[-1] = D[-1] * (a[0] + a[-2] - 2*a[-1]) / h2 + (D[0] - D[-2])/(2*h) * (a[0] - a[-2])/(2*h)
             da_dt[-1] = da_dt[0]
-    
+            
         else:
             # Time derivative at left boundary
             da_dt[0] = D[0] / h2 * 2 * (a[1] - a[0] - h * derivs_0[i])
@@ -139,7 +151,13 @@ def dc_dt(
     
         # Store in output array with reaction terms
         conc_deriv[i::n_species] = da_dt + rxn_tuple[i]
-
+        #test = da_dt + rxn_tuple[i]
+        # if rxn_tuple[0][0] != rxn_tuple[0][-1] or rxn_tuple[1][0] != rxn_tuple[1][-1]:
+        #     print('periodic BC error')
+        #     print(str(da_dt[0]) + ' - ', str(da_dt[-1]))
+        #     print(str(rxn_tuple[0][0]) + ' - ', str(rxn_tuple[0][-1]))
+        #     print(str(rxn_tuple[1][0]) + ' - ', str(rxn_tuple[1][-1]))
+            
     return conc_deriv
 
 
@@ -156,6 +174,7 @@ def rd_solve(
     rxn_params=(),
     rtol=1.49012e-8,
     atol=1.49012e-8,
+    mxstep = 2000
 ):
     """
     Parameters
@@ -251,14 +270,15 @@ def rd_solve(
         n_species,
         h,
     )
-
+    
     # Set up initial condition: first n_species elements for x0; second n_species elements for x1
     c0 = np.empty(n_species * n_gridpoints)
     for i in range(n_species):
         c0[i::n_species] = c_0_tuple[i]
-
+        
     # Solve using odeint, taking advantage of banded structure
-    c = scipy.integrate.odeint(
+    if periodic_bc:
+        c = scipy.integrate.odeint(
         dc_dt,
         c0,
         t,
@@ -267,9 +287,22 @@ def rd_solve(
         mu=n_species,
         rtol=rtol,
         atol=atol,
-        #full_output = True
-    )
-    
+        mxstep = mxstep
+        )
+    else:
+        c = scipy.integrate.odeint(
+        dc_dt,
+        c0,
+        t,
+        args=params,
+        ml=n_species,
+        mu=n_species,
+        rtol=rtol,
+        atol=atol,
+        
+        )
+        
+        
     return tuple([c[:, i::n_species] for i in range(n_species)])
 
 
