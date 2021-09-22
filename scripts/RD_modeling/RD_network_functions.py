@@ -106,7 +106,8 @@ def dc_dt(
         if periodic_bc:
             #Time derivative at left boundary
             #da_dt[0] = D[0] / h2 * 2 * (a[1] - a[0] - h * derivs_0[i]) 
-            da_dt[0] = D[0] * (a[1] + a[-1] - 2*a[0])/ h2 + (D[1] - D[-1])/(2*h) * (a[1] - a[-1])/(2*h)
+            #da_dt[0] = D[0] * (a[1] + a[-1] - 2*a[0]) / h2 + (D[1] - D[-1])/(2*h) * (a[1] - a[-1])/(2*h)
+            da_dt[0] = D[0] * (a[1] + a[-2] - 2*a[0]) / h2 + (D[1] - D[-2])/(2*h) * (a[1] - a[-2])/(2*h)
             
             # First derivatives of D and a
             dD_dx = (D[2:] - D[:-2]) / (2 * h)
@@ -119,7 +120,8 @@ def dc_dt(
             
             # Time derivative at right boundary
             #da_dt[-1] = D[-1] / h2 * 2 * (a[-2] - a[-1] + h * derivs_L[i])
-            da_dt[-1] = D[-1] * (a[0] + a[-2] - 2*a[-1])/ h2 + (D[0] - D[-2])/(2*h) * (a[0] - a[-2])/(2*h)
+            #da_dt[-1] = D[-1] * (a[0] + a[-2] - 2*a[-1]) / h2 + (D[0] - D[-2])/(2*h) * (a[0] - a[-2])/(2*h)
+            da_dt[-1] = da_dt[0]
     
         else:
             # Time derivative at left boundary
@@ -210,11 +212,13 @@ def rd_solve(
     # test the furnction
     # c_0_tuple = (a_0, s_0);  
     # derivs_0=0; derivs_L=0;
-    # periodic_bc = False;
+    # periodic_bc = True
     # diff_coeff_fun=constant_diff_coeffs
     # diff_coeff_params=(diff_coeffs, )
     # rxn_fun=asdm_rxn
     # rxn_params=rxn_params
+    # rtol=1.49012e-8
+    # atol=1.49012e-8
     
     # Number of grid points
     n_gridpoints = len(c_0_tuple[0])
@@ -263,8 +267,9 @@ def rd_solve(
         mu=n_species,
         rtol=rtol,
         atol=atol,
+        #full_output = True
     )
-
+    
     return tuple([c[:, i::n_species] for i in range(n_species)])
 
 
