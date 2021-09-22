@@ -288,35 +288,35 @@ def linear_stability_singleParam(i, k_grid_log, nb_params, Index_K_unsampled, n,
     linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q, i)
 
 #%% numerical solution
+# constant diffusion coeffients
+def constant_diff_coeffs(c_tuple, t, x, diff_coeffs):
+    n = len(c_tuple[0])
+    return tuple([diff_coeffs[i] * np.ones(n) for i in range(len(c_tuple))])
+
+# deinfe the reaction equations
+def asdm_rxn(as_tuple, t, mu):
+    """
+    Reaction expression for activator-substrate depletion model.
+        
+    Returns the rate of production of activator and substrate, respectively.
+        
+    r_a = a**2 * s - a
+    r_s = mu * (1 - a**2 * s)
+    """
+    # Unpack concentrations
+    a, s = as_tuple
+        
+    # Compute and return reaction rates
+    a2s = a ** 2 * s
+    return (a2s - a, mu * (1.0 - a2s))
+    
+
 def RD_numericalSolver():
     
     print('RD numerical solution 1D and 2D')
     
     ## here we start the example from http://be150.caltech.edu/2020/content/lessons/20_turing.html
     from RD_network_functions import *
-
-    # constant diffusion coeffients
-    def constant_diff_coeffs(c_tuple, t, x, diff_coeffs):
-        n = len(c_tuple[0])
-        return tuple([diff_coeffs[i] * np.ones(n) for i in range(len(c_tuple))])
-    
-
-    # deinfe the reaction equations
-    def asdm_rxn(as_tuple, t, mu):
-        """
-        Reaction expression for activator-substrate depletion model.
-        
-        Returns the rate of production of activator and substrate, respectively.
-        
-        r_a = a**2 * s - a
-        r_s = mu * (1 - a**2 * s)
-        """
-        # Unpack concentrations
-        a, s = as_tuple
-        
-        # Compute and return reaction rates
-        a2s = a ** 2 * s
-        return (a2s - a, mu * (1.0 - a2s))
     
     # Set up intial condition (using 500 grid points)
     a_0 = np.ones(500)
@@ -344,8 +344,8 @@ def RD_numericalSolver():
     # if periodic_bc:
     #     a_0[-1] = a_0[0]
     #     s_0[-1] = s_0[0]
-        
-    # Solve
+    
+    # Solve numeerically the RD with no-flux boundary condition
     conc = rd_solve((a_0, s_0),
         t,
         L=L,
@@ -367,8 +367,6 @@ def RD_numericalSolver():
     
     #print(len(x));
     #print(len(conc[0]))
-    
-    
     
     
 #%% main function
