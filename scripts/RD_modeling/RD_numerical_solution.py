@@ -310,6 +310,35 @@ def asdm_rxn(as_tuple, t, mu):
     a2s = a ** 2 * s
     return (a2s - a, mu * (1.0 - a2s))
     
+def fode_3N2M_rxn(as_tuple, t, k):
+    #dRdt = np.empty(n)
+    
+    a, s, f = as_tuple
+    #x[0], x[1], x[2] = as_tuple
+    ## the test example from Zheng et al, 2016, Fig.S1A
+    #dx0dt = 55.14*x[2]**2/(18.48**2 + x[2]**2) + 0.1 - 1.341*x[0]
+    #dx1dt = 29.28*x[2]**2/(15.90**2 + x[2]**2) + 0.1 - 0.3508*x[1]
+    #dx2dt = 16.17*x[0]**2/(x[0]**2 + 0.6421**2)*1.316**2/(1.316**2 + x[1]**2) + 0.1 - 1.203*x[2]
+    
+    dx0dt = 55.14*f**2/(18.48**2 + f**2) + 0.1 - 1.341*a
+    dx1dt = 29.28*f**2/(15.90**2 + f**2) + 0.1 - 0.3508*s
+    dx2dt = 16.17*a**2/(a**2 + 0.6421**2)*1.316**2/(1.316**2 + s**2) + 0.1 - 1.203*f
+    
+    ## the test example from Zheng et al, 2016, Fig.S1B (something not right in the formula)
+    #dx0dt = 50.86*x[0]**2/(x[0]**2 + 0.02315**2)*17.64**2/(17.64**2 + x[1]**2) + 0.1 - 0.09367*x[0]
+    #dx0dt = 50.86*(x[0]**2/(x[0]**2 + 0.02315**2) * x[1]**2/(17.64**2 + x[1]**2)) + 0.1 - 0.09367*x[0]
+    #dx1dt = 17.43*x[0]**2/(x[0]**2 + 5.230**2)*1.038**2/(1.038**2 + x[2]**2) + 0.1 - 2.699*x[1]
+    #dx1dt = 17.43*(5.230**2/(x[0]**2 + 5.230**2) * 1.038**2/(1.038**2 + x[2]**2)) + 0.1 - 2.699*x[1]
+    #dx2dt = 69.57*x[2]**2/(x[2]**2 + 1.000**2)*0.02100**2/(0.02100**2 + x[1]**2) + 0.1 - 0.1503*x[2]
+    
+    #dx0dt = k[0]*(1.0/(1.0 + pow(k[9]/x[0], 2))*1.0/(1.0 + pow(x[1]/k[10], 2))) + k[3] - k[6]*x[0]
+    #dx1dt = k[1]*(1.0/(1.0 + pow(k[11]/x[0], 2)) + 1.0/(1.0 + pow(k[12]/x[2], 2))) + k[4] - k[7]*x[1]
+    #dx2dt = k[2]*(1.0/(1.0 + pow(k[13]/x[0], 2))*1.0/(1.0 + pow(x[1]/k[14], 2))) + k[5] - k[8]*x[2]
+    
+    #dRdt = [dx0dt, dx1dt, dx2dt]
+    
+    return (dx0dt, dx1dt, dx2dt)
+
 
 def RD_numericalSolver():
     
@@ -321,23 +350,32 @@ def RD_numericalSolver():
     # Set up intial condition (using 500 grid points)
     a_0 = np.ones(500)
     s_0 = np.ones(500)
+    f_0 = np.ones(500)
     #a_0
     # Make a small perturbation to a_0 by adding noise
-    a_0 += 0.01 * np.random.rand(len(a_0))
+    a_0 += 0.1 * np.random.rand(len(a_0))
+    s_0 += 0.1 * np.random.rand(len(s_0))
+    #f_0 += 0.1 * np.random.rand(len(f_0))
     
     # Time points
     t = np.linspace(0.0, 1000.0, 100)
     # Physical length of system
-    L = 20.0
+    L = 20
     
     # x-coordinates for plotting
     x = np.linspace(0, L, len(a_0))
     
     # Diffusion coefficients
-    diff_coeffs = (0.05, 1.0)
-    
+    #diff_coeffs = (0.05, 1.0, 0)
+    diff_coeffs = (0.07018, 1, 0.01057)
     # Reaction parameter (must be a tuple of params, even though only 1 for ASDM)
-    rxn_params = (1.5,)
+    k = np.ones(15)
+    k[0], k[1], k[2] = 10, 10, 20 
+    k[3], k[4], k[5] = 5, 5, 10
+    #k[6], k[7], k[8] = math.log(2)/10, math.log(2)/5, math.log(2)/10
+    k[6], k[7], k[8] = 0.1, 1, 0.1
+    k[9], k[10], k[11], k[12], k[13], k[14] = 30, 50, 50, 70, 40, 80
+    rxn_params = (k,)
     
     # Boundary condtion
     # periodic_bc = False
@@ -346,7 +384,7 @@ def RD_numericalSolver():
     #     s_0[-1] = s_0[0]
     
     # Solve numeerically the RD with no-flux boundary condition
-    conc = rd_solve((a_0, s_0),
+    conc = rd_solve((a_0, s_0, f_0),
         t,
         L=L,
         derivs_0=0,
@@ -354,16 +392,17 @@ def RD_numericalSolver():
         periodic_bc = False,
         diff_coeff_fun=constant_diff_coeffs,
         diff_coeff_params=(diff_coeffs,),
-        rxn_fun=asdm_rxn,
+        rxn_fun=fode_3N2M_rxn,
         rxn_params=rxn_params,
-        #mxstep=5000
+        mxstep=5000
     )
     
-    t_point = 1000000
-    i = np.searchsorted(t, t_point)
-    i = 98
+    #t_point = 1000000
+    #i = np.searchsorted(t, t_point)
+    i = len(t) - 1
     plt.plot(x, conc[0][i, :])
-    plt.plot(x, conc[1][i, :], color="tomato")
+    plt.plot(x, conc[1][i, :], color="orange")
+    plt.plot(x, conc[2][i, :], color="green")
     
     #print(len(x));
     #print(len(conc[0]))
