@@ -25,6 +25,7 @@ Output of function for each of given parameters (reaction, diffusion):
 import numpy as np
 import pandas as pd
 import os
+
 #import numba
 import scipy.integrate
 from scipy.integrate import odeint
