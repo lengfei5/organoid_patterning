@@ -82,10 +82,6 @@ def dc_dt(
     # Tuple of concentrations
     c_tuple = tuple([c[i::n_species] for i in range(n_species)])
     
-    if periodic_bc:
-        for i in range(n_species):
-            c_tuple[i][-1] = c_tuple[i][0] 
-    
     # Compute diffusion coefficients
     D_tuple = diff_coeff_fun(c_tuple, t, x, *diff_coeff_params)
     
@@ -150,7 +146,13 @@ def dc_dt(
             da_dt[-1] = D[-1] / h2 * 2 * (a[-2] - a[-1] + h * derivs_L[i])
     
         # Store in output array with reaction terms
-        conc_deriv[i::n_species] = da_dt + rxn_tuple[i]
+        dcdt = da_dt + rxn_tuple[i] 
+        if periodic_bc:
+            dcdt[-1] = dcdt[0]
+        #c_tuple[i][-1] = c_tuple[i][0] 
+    
+        #conc_deriv[i::n_species] = da_dt + rxn_tuple[i]
+        conc_deriv[i::n_species] = dcdt
         #test = da_dt + rxn_tuple[i]
         # if rxn_tuple[0][0] != rxn_tuple[0][-1] or rxn_tuple[1][0] != rxn_tuple[1][-1]:
         #     print('periodic BC error')
