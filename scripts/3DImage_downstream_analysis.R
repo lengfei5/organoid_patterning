@@ -446,7 +446,7 @@ pdf(pdfname,  width = 20, height = 16)
 
 for(n in 1:length(conds.sels))
 {
-  # n = 1
+  # n = 2
   sels = conds.sels[[n]]
   nb.fp = as.numeric(as.character(params$nb.fp[sels]))
   sels = sels[which(nb.fp>=0 & nb.fp<=10)]
@@ -503,7 +503,9 @@ for(n in 1:length(conds.sels))
    
   p8 = ggplot(params[sels[which(as.numeric(as.character(params$nb.fp[sels]))>1)], ], 
          aes(x=factor(condition, levels = level_order), y=dist.fp, color=condition, fill = condition)) +
-    geom_violin() + geom_jitter(width = 0.1, color = 'black', size = 1.0) +
+    #geom_violin() + 
+    geom_boxplot() +
+    #geom_jitter(width = 0.1, color = 'black', size = 1.0) +
     ggtitle('distance between fps (wavelength)') +
     theme(axis.text.x = element_text(angle = 90, size = 12))
   
