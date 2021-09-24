@@ -57,7 +57,7 @@ def check_BurnIn_steadyState(sol, f_ode, k, S, n, x0, t_final):
     
     ss_fluc = np.zeros(n)
     nb_passThreshold = 0
-
+    
     for i in range(n):
         ss[i] = np.mean(sol[150:199, i])
         ss_fluc[i] = np.abs(np.mean(sol[150:199, i]) - np.mean(sol[100:149, i]))
@@ -401,22 +401,27 @@ def main(argv):
     
     inputfile = ''
     try:
-        opts, args = getopt.getopt(argv,"hi:",["ifile="])
+        opts, args = getopt.getopt(argv,"hm:p:",["model=", "param="])
     except getopt.GetoptError:
-        print('python RDnetwork_main.py.py -i <inputfile> ')
+        print('python RDnetwork_main.py.py -m <modelfile> -p <paramfile> ')
         sys.exit(2)
       
     for opt, arg in opts:
         if opt == '-h':
             print('python RDnetwork_main.py -i <inputfile> ')
             sys.exit()
-        elif opt in ("-i", "--ifile"):
-            inputfile = arg
-            
-    # inputfile = '3N2M_topology_enumerate/Model_21.csv'
-    print('Input file is ', inputfile)
-    outputDir = os.path.basename(inputfile)
-    outputDir = './RD_out/' + outputDir.rsplit('.', 1)[0]
+        elif opt in ("-m", "--modelfile"):
+            modelfile = arg
+        elif opt in ('-p', '--paramfile'):
+            paramfile = arg
+        
+    #inputfile = '3N2M_topology_enumerate/Model_21.csv'
+    
+    paramfile = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_3N2M_v2/topology_summary_selection_D.larger.1_lambda.neg.max.q_phase/table_params/params_saved_Model_16.csv'
+    print('param file is ', paramfile)
+    
+    outputDir = os.path.basename()
+    outputDir = './RD_numSolution_perturbation/' + outputDir.rsplit('.', 1)[0]
     print('Output directory is ', outputDir)
     
     try:

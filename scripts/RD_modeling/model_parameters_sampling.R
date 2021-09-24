@@ -55,8 +55,8 @@ for(n in 1:nrow(xx))
 rm(list = ls())
 library("igraph")
 
-RDoutDir = '../results/RD_topology_screening/topology_screening_3N2M_v3/'
-screening.outDir = paste0(RDoutDir, 'RD_out_3N2M_100k_v3/')
+RDoutDir = '../results/RD_topology_screening/topology_screening_3N2M_v2/'
+screening.outDir = paste0(RDoutDir, 'RD_out_3N2M_50k_v3/')
 modelDir = paste0(RDoutDir, '3N2M_topology_enumerate')
 
 # make graph from adjacency matrix
@@ -114,14 +114,16 @@ model.list = list.files(path = modelDir, pattern = '*.csv', full.names = TRUE)
 nb = 0
 
 #selection.criterion = 'D.larger.1_lambda.neg.max.q_phase'
-resDir = paste0(RDoutDir, 'topology_summary')
+resDir = paste0(RDoutDir, 'topology_summary_selection_D.larger.1_lambda.neg.max.q_phase')
+modelSaveDir = paste0(resDir, '/Models_selected')
+paramSaveDir = paste0(resDir, '/table_params')
 
-modelSaveDir = paste0(RDoutDir, 'topology_summary_selection_D.larger.1_lambda.neg.max.q_phase/Models_selected')
 if(!dir.exists(resDir)) dir.create(resDir)
 if(!dir.exists(modelSaveDir)) dir.create(modelSaveDir)
+if(!dir.exists(paramSaveDir)) dir.create(paramSaveDir)
 
 for(n in 1:length(model.list)){
-  # n = 2
+  # n = 17
   Model = basename(model.list[n])
   Model = gsub('.csv', '', Model)
   
@@ -144,7 +146,7 @@ for(n in 1:length(model.list)){
       # 1st filter the parameters for which Re(lambda) > 0 when q = 0
       ##########################################
       res = res[which(res$noDiffusion0 <0 ), ]
-      #res = filter.reaction.parameters.for.RD.patterning(res, filter.phase = TRUE)
+      res = filter.reaction.parameters.for.RD.patterning(res, filter.phase = TRUE)
       
       if(nrow(res) > 0) {
         nb.param = nb.param + 1
@@ -164,7 +166,7 @@ for(n in 1:length(model.list)){
       pdfname = paste0(modelSaveDir, "/", Model, ".pdf")
       pdf(pdfname, width = 8, height = 6)
       par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
-      make.plot.from.adjacency.matrix(as.matrix(ss), main = paste0(Model, ' , Q = ', nb.param))
+      make.plot.from.adjacency.matrix(as.matrix(ss), main = paste0(Model, ' , Q = ', nb.param, ', D_min = ', signif(min(keep$d1), d=2)))
       dev.off()
       
       # make summary for the model
@@ -173,7 +175,7 @@ for(n in 1:length(model.list)){
       par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
       
       #s = as.matrix(ss)
-      make.plot.from.adjacency.matrix(as.matrix(ss), main = paste0(Model, ' , Q = ', nb.param))
+      make.plot.from.adjacency.matrix(as.matrix(ss), main = paste0(Model, ' , Q = ', nb.param, ', D_min = ', signif(min(keep$d1), d=2)))
       
       for(j in unique(keep$index.param))
       {
@@ -192,14 +194,15 @@ for(n in 1:length(model.list)){
                type = 'l', col = ii, lwd = 2.0)
           
         }
-        legend('topleft', legend = paste0('d = ', signif(keep$d1[sels], d = 2), col = 1:nrow(k)), cex = 0.7)
+        legend('topleft', legend = paste0('d = ', signif(keep$d1[sels], d = 2)), col = 1:nrow(k), cex = 0.7)
         
       }
       
-      dev.off() 
+      dev.off()
+      
+      write.csv(keep, file = paste0(paramSaveDir, '/params_saved_', Model, '.csv'), row.names = FALSE, quote = FALSE)
+      write.csv(ss, file = paste0(paramSaveDir, '/', Model, '.csv'), row.names = TRUE, quote = FALSE)
       
     }  
   }
 }
-
-
