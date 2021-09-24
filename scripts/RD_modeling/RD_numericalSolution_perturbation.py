@@ -48,6 +48,7 @@ from skopt.space import Space
 from skopt.sampler import Lhs
 
 import sys, getopt
+from RD_network_functions import *
 
 #%% utility functions
 def check_BurnIn_steadyState(sol, f_ode, k, S, n, x0, t_final):
@@ -334,7 +335,7 @@ def RD_numericalSolver():
     print('RD numerical solution 1D and 2D')
     
     ## here we start the example from http://be150.caltech.edu/2020/content/lessons/20_turing.html
-    from RD_network_functions import *
+    
     
     # Set up intial condition (using 500 grid points)
     a_0 = np.ones(500)
@@ -399,26 +400,31 @@ def RD_numericalSolver():
 #%% main function
 def main(argv):
     
-    inputfile = ''
+    modelfile = ''
+    paramfile = ''
     try:
         opts, args = getopt.getopt(argv,"hm:p:",["model=", "param="])
     except getopt.GetoptError:
-        print('python RDnetwork_main.py.py -m <modelfile> -p <paramfile> ')
+        print('python RD_numericalSolution_perturbation.py -m <modelfile> -p <paramfile>')
         sys.exit(2)
       
     for opt, arg in opts:
         if opt == '-h':
-            print('python RDnetwork_main.py -i <inputfile> ')
+            print('python RD_numericalSolution_perturbation.py -m <modelfile> -p <paramfile>')
             sys.exit()
         elif opt in ("-m", "--modelfile"):
             modelfile = arg
         elif opt in ('-p', '--paramfile'):
             paramfile = arg
-        
-    #inputfile = '3N2M_topology_enumerate/Model_21.csv'
     
-    paramfile = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_3N2M_v2/topology_summary_selection_D.larger.1_lambda.neg.max.q_phase/table_params/params_saved_Model_16.csv'
-    print('param file is ', paramfile)
+    
+    #inputfile = '3N2M_topology_enumerate/Model_21.csv'
+    #modelfile = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_3N2M_v2/topology_summary_selection_D.larger.1_lambda.neg.max.q_phase/table_params/Model_16.csv'
+    #paramfile = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_3N2M_v2/topology_summary_selection_D.larger.1_lambda.neg.max.q_phase/table_params/params_saved_Model_16.csv'
+    print('model file is -- ', modelfile)
+    print('param file is -- ', paramfile)
+    
+    sys.exit()
     
     outputDir = os.path.basename()
     outputDir = './RD_numSolution_perturbation/' + outputDir.rsplit('.', 1)[0]
