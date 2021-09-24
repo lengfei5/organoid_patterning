@@ -367,7 +367,7 @@ def RD_numericalSolver(c0_tuple = (),
                        ):
     # Diffusion coefficients
     # diff_coeffs = D; periodic_bc = False; rxn_fun = fode_3N2M_rxn;L = 200
-   
+   # 
     print('RD numerical solution and perturbation responses in 1D ')
     ## here we start the example from http://be150.caltech.edu/2020/content/lessons/20_turing.html
     a_0, s_0, f_0 = c0_tuple
@@ -391,12 +391,12 @@ def RD_numericalSolver(c0_tuple = (),
         f_0[-1] = f_0[0]
     
     # Solve numeerically the RD with no-flux boundary condition
+    #import biocircuits
     conc = rd_solve((a_0, s_0, f_0),
         t,
         L=L,
         derivs_0=0,
         derivs_L=0,
-        periodic_bc = periodic_bc,
         diff_coeff_fun=constant_diff_coeffs,
         diff_coeff_params=(diff_coeffs,),
         rxn_fun=rxn_fun,
@@ -511,7 +511,7 @@ def main(argv):
         f_0 = np.ones(nb_grids)*steadyState[2]
         
         # Make a small perturbation to a_0 by adding noise
-        a_0 += 0.01 * np.random.rand(len(a_0))*steadyState[0] 
+        a_0 += 0.001 * np.random.rand(len(a_0))*steadyState[0] 
         #s_0 += 0.01 * np.random.rand(len(s_0))*steadyState[1]
         #f_0 += 0.01 * np.random.rand(len(f_0))*steadyState[2]
         
