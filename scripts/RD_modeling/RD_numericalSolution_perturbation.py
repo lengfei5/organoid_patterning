@@ -311,64 +311,80 @@ def asdm_rxn(as_tuple, t, mu):
     # Compute and return reaction rates
     a2s = a ** 2 * s
     return (a2s - a, mu * (1.0 - a2s))
-    
-def fode_3N2M_rxn(as_tuple, t, k):
+
+def fode_3N2M_rxn_example(as_tuple, t, k):
     #dRdt = np.empty(n)
     
     a, s, f = as_tuple
     #x[0], x[1], x[2] = as_tuple
-    ## the test example from Zheng et al, 2016, Fig.S1A
-    #dx0dt = 55.14*x[2]**2/(18.48**2 + x[2]**2) + 0.1 - 1.341*x[0]
-    #dx1dt = 29.28*x[2]**2/(15.90**2 + x[2]**2) + 0.1 - 0.3508*x[1]
-    #dx2dt = 16.17*x[0]**2/(x[0]**2 + 0.6421**2)*1.316**2/(1.316**2 + x[1]**2) + 0.1 - 1.203*x[2]
     
+    ## the test example from Zheng et al, 2016, Fig.S1A    
     dx0dt = 55.14*f**2/(18.48**2 + f**2) + 0.1 - 1.341*a
     dx1dt = 29.28*f**2/(15.90**2 + f**2) + 0.1 - 0.3508*s
     dx2dt = 16.17*a**2/(a**2 + 0.6421**2)*1.316**2/(1.316**2 + s**2) + 0.1 - 1.203*f
     
+    return (dx0dt, dx1dt, dx2dt)
+
+
+def fode_3N2M_rxn(as_tuple, t, k, S):
+    #dRdt = np.empty(n)
+    
+    a, s, f = as_tuple
+    #x[0], x[1], x[2] = as_tuple
+    
+    ## the test example from Zheng et al, 2016, Fig.S1A    
+    #dx0dt = 55.14*f**2/(18.48**2 + f**2) + 0.1 - 1.341*a
+    #dx1dt = 29.28*f**2/(15.90**2 + f**2) + 0.1 - 0.3508*s
+    #dx2dt = 16.17*a**2/(a**2 + 0.6421**2)*1.316**2/(1.316**2 + s**2) + 0.1 - 1.203*f
+    
+    ## NT organoid phase III pattern selection:  Noggin, BMP, FoxA2
+    #dx0dt = k[0]  -     x[0] + k[5]*(1.0/(1.0+(1.0/x[0])**(2.0*S.iloc[0,0])) * 1.0/(1.0 + (k[8]/x[1])**(2.0*S.iloc[1, 0])) * 1.0/(1.0 + (k[9]/x[2])**(2.0*S.iloc[2, 0]))) # Noggin
+    #dx1dt = k[1] - k[3]*x[1] + k[6]*(1.0/(1.0+(k[10]/x[0])**(2.0*S.iloc[0,1])) * 1.0/(1.0 + (1.0/x[1])**(2.0*S.iloc[1, 1])) * 1.0/(1.0 + (k[11]/x[2])**(2.0*S.iloc[2, 1]))) # BMP
+    #dx2dt = k[2] - k[4]*x[2] + k[7]*(1.0/(1.0+(k[12]/x[0])**(2.0*S.iloc[0,2])) * 1.0/(1.0 + (k[13]/x[1])**(2.0*S.iloc[1, 2])) * 1.0/(1.0 + (1.0/x[2])**(2.0*S.iloc[2, 2]))) # Foxa2
+    
+    ## NT organoid phase III pattern selection:  Noggin, BMP, FoxA2
+    #dx0dt = k[0]  -     a + k[5]*(1.0/(1.0+(1.0/a)**(2.0*S.iloc[0,0])) * 1.0/(1.0 + (k[8]/s)**(2.0*S.iloc[1, 0])) * 1.0/(1.0 + (k[9]/f)**(2.0*S.iloc[2, 0]))) # Noggin
+    #dx1dt = k[1] - k[3]*s + k[6]*(1.0/(1.0+(k[10]/a)**(2.0*S.iloc[0,1])) * 1.0/(1.0 + (1.0/s)**(2.0*S.iloc[1, 1])) * 1.0/(1.0 + (k[11]/f)**(2.0*S.iloc[2, 1]))) # BMP
+    #dx2dt = k[2] - k[4]*f + k[7]*(1.0/(1.0+(k[12]/a)**(2.0*S.iloc[0,2])) * 1.0/(1.0 + (k[13]/s)**(2.0*S.iloc[1, 2])) * 1.0/(1.0 + (1.0/f)**(2.0*S.iloc[2, 2]))) # Foxa2
+        
+    ## NT organoid phase III pattern selection:  Noggin, BMP, FoxA2
+    dx0dt = k[0]  -     a + k[5]*(1.0/(1.0+(1.0/a)**(2.0*S.iloc[0,0])) * 1.0/(1.0 + (k[8]/s)**(2.0*S.iloc[1, 0])) * 1.0/(1.0 + (k[9]/f)**(2.0*S.iloc[2, 0]))) # Noggin
+    dx1dt = k[1] - k[3]*s + k[6]*(1.0/(1.0+(k[10]/a)**(2.0*S.iloc[0,1])) * 1.0/(1.0 + (1.0/s)**(2.0*S.iloc[1, 1])) * 1.0/(1.0 + (k[11]/f)**(2.0*S.iloc[2, 1]))) # BMP
+    dx2dt = k[2] - k[4]*f + k[7]*(1.0/(1.0+(k[12]/a)**(2.0*S.iloc[0,2])) * 1.0/(1.0 + (k[13]/s)**(2.0*S.iloc[1, 2])) * 1.0/(1.0 + (1.0/f)**(2.0*S.iloc[2, 2]))) # Foxa2
         
     return (dx0dt, dx1dt, dx2dt)
 
 
-def RD_numericalSolver():
-    
-    print('RD numerical solution 1D and 2D')
-    
+def RD_numericalSolver(c0_tuple = (), 
+                       L = 20, 
+                       nb_grids = 500, 
+                       t = np.linspace(0.0, 1000.0, 100), 
+                       diff_coeffs = (), 
+                       periodic_bc = False,
+                       rxn_fun = None,
+                       rxn_params=(), 
+                       mxstep=5000,
+                       ):
+    # Diffusion coefficients
+    # diff_coeffs = D; periodic_bc = False; rxn_fun = fode_3N2M_rxn;L = 200
+   
+    print('RD numerical solution and perturbation responses in 1D ')
     ## here we start the example from http://be150.caltech.edu/2020/content/lessons/20_turing.html
-    
-    
-    # Set up intial condition (using 500 grid points)
-    a_0 = np.ones(500)
-    s_0 = np.ones(500)
-    f_0 = np.ones(500)
-    #a_0
-    # Make a small perturbation to a_0 by adding noise
-    a_0 += 0.1 * np.random.rand(len(a_0))
-    s_0 += 0.1 * np.random.rand(len(s_0))
-    #f_0 += 0.1 * np.random.rand(len(f_0))
-    
-    # Time points
-    t = np.linspace(0.0, 1000.0, 100)
-    # Physical length of system
-    L = 20
+    a_0, s_0, f_0 = c0_tuple
     
     # x-coordinates for plotting
     x = np.linspace(0, L, len(a_0))
     
-    # Diffusion coefficients
-    #diff_coeffs = (0.05, 1.0, 0)
-    diff_coeffs = (0.07018, 1, 0.01057)
     # Reaction parameter (must be a tuple of params, even though only 1 for ASDM)
-    k = np.ones(15)
-    k[0], k[1], k[2] = 10, 10, 20 
-    k[3], k[4], k[5] = 5, 5, 10
-    #k[6], k[7], k[8] = math.log(2)/10, math.log(2)/5, math.log(2)/10
-    k[6], k[7], k[8] = 0.1, 1, 0.1
-    k[9], k[10], k[11], k[12], k[13], k[14] = 30, 50, 50, 70, 40, 80
-    rxn_params = (k,)
-    
+    # k = np.ones(15)
+    # k[0], k[1], k[2] = 10, 10, 20 
+    # k[3], k[4], k[5] = 5, 5, 10
+    # #k[6], k[7], k[8] = math.log(2)/10, math.log(2)/5, math.log(2)/10
+    # k[6], k[7], k[8] = 0.1, 1, 0.1
+    # k[9], k[10], k[11], k[12], k[13], k[14] = 30, 50, 50, 70, 40, 80
+    # rxn_params = (k,)
+    #diff_coeffs[2] = 0.01
     # periodic boundary condtion
-    periodic_bc = False
     if periodic_bc:
         a_0[-1] = a_0[0]
         s_0[-1] = s_0[0]
@@ -383,19 +399,20 @@ def RD_numericalSolver():
         periodic_bc = periodic_bc,
         diff_coeff_fun=constant_diff_coeffs,
         diff_coeff_params=(diff_coeffs,),
-        rxn_fun=fode_3N2M_rxn,
+        rxn_fun=rxn_fun,
         rxn_params=rxn_params,
-        mxstep=5000
+        mxstep=mxstep
     )
     
     #t_point = 1000000
     #i = np.searchsorted(t, t_point)
     i = len(t) - 1
-    plt.plot(x, conc[0][i, :])
-    plt.plot(x, conc[1][i, :], color="orange")
-    plt.plot(x, conc[2][i, :], color="green")
+    plt.plot(x, (conc[2][i, :]-np.mean(conc[2][i, :]))/np.std(conc[2][i, :]) + 2.0 , color="green")
+    plt.plot(x, (conc[0][i, :]-np.mean(conc[0][i, :]))/np.std(conc[0][i, :]))
+    plt.plot(x, (conc[1][i, :]-np.mean(conc[1][i, :]))/np.std(conc[1][i, :]) - 1.0, color="red")
+   
     
-        
+    print('done')     
     
 #%% main function
 def main(argv):
@@ -417,17 +434,16 @@ def main(argv):
         elif opt in ('-p', '--paramfile'):
             paramfile = arg
     
-    
-    #inputfile = '3N2M_topology_enumerate/Model_21.csv'
-    #modelfile = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_3N2M_v2/topology_summary_selection_D.larger.1_lambda.neg.max.q_phase/table_params/Model_16.csv'
-    #paramfile = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_3N2M_v2/topology_summary_selection_D.larger.1_lambda.neg.max.q_phase/table_params/params_saved_Model_16.csv'
+    # test example
+    modelfile = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_3N2M_v2/topology_summary_selection_D.larger.1_lambda.neg.max.q_phase/table_params/Model_16.csv'
+    paramfile = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_3N2M_v2/topology_summary_selection_D.larger.1_lambda.neg.max.q_phase/table_params/params_saved_Model_16.csv'
     print('model file is -- ', modelfile)
     print('param file is -- ', paramfile)
     
-    sys.exit()
+    #sys.exit()
     
-    outputDir = os.path.basename()
-    outputDir = './RD_numSolution_perturbation/' + outputDir.rsplit('.', 1)[0]
+    outputDir = os.path.dirname(paramfile)
+    outputDir = outputDir + '/RD_numSolution_perturbation/'
     print('Output directory is ', outputDir)
     
     try:
@@ -436,133 +452,141 @@ def main(argv):
         # directory already exists
         pass
     
-    # total number for parameter sampling 
-    nb_sampling_parameters = 1000 # reaction parameters
+    # read the network topology
+    S = pd.read_csv(modelfile, index_col=0) 
     
-    nb_sampling_diffusion = 50 # diffusion rate
-    nb_sampling_init = 3 # nb of initial condtion sampled
+    if S.shape[0] != 3 or S.shape[1] != 3:
+        print("Required 3x3 matrix for network topology !")
+        os._exit(1)
     
-    q = 2*3.14159 / np.logspace(-2, 3.0, num=nb_sampling_diffusion) # wavenumber
+    # read the saved parameters 
+    params = pd.read_csv(paramfile)
     
     n = 3 # nb of node
     nb_params = 14
-    #binary_diffusor = [1, 1, 0]
+    
+     # Time points
+    t = np.linspace(0.0, 5000.0, 100)
+    # Physical length of system
+   
+    # total number for parameter sampling 
+    #nb_sampling_parameters = 1000 # reaction parameters
+    #nb_sampling_init = 3 # nb of initial condtion sampled
+    #nb_sampling_diffusion = 50 # diffusion rate
+    #q = 2*3.14159 / np.logspace(-2, 3.0, num=nb_sampling_diffusion) # wavenumber
     
     print('--  main function starts --')
     
     import time
     start_time = time.process_time()
     
-    # read the network topology
-    S = pd.read_csv(inputfile, index_col=0) 
+    #%% loop over saved k parameter vector and saved diffusion: numerical solution and perturbation response
+    #for i in range(len(k_grid)):
+    for i in range(params.shape[0]):
+        
+        # i = 2
+        print(i)
+        par = np.asarray(params.iloc[i])
+        
+        ks = par[1:15]
+        D = tuple(par[20:23])
+        if D[0] != 1 and D[2] != 0: 
+            print(" non smpled parameters assignment not correct  !")
+            os._exit(1)
+        
+        rxn_params=(ks, S)
+        steadyState = par[15:18]
+        q = par[23:73]
+        lamda_rel = par[73:123]
+        lamda_im = par[124:173]
+        index_max = np.argmax(lamda_rel) 
+        L = 2.0*3.14159/q[index_max] * 10
+        
+        print('imaginary part  of lamda : '+ str(lamda_im[index_max]))
+        print(steadyState)
+        nb_grids = 1000
+        # Set up intial condition (using 500 grid points)
+        a_0 = np.ones(nb_grids)*steadyState[0]
+        s_0 = np.ones(nb_grids)*steadyState[1]
+        f_0 = np.ones(nb_grids)*steadyState[2]
+        
+        # Make a small perturbation to a_0 by adding noise
+        a_0 += 0.01 * np.random.rand(len(a_0))*steadyState[0] 
+        #s_0 += 0.01 * np.random.rand(len(s_0))*steadyState[1]
+        #f_0 += 0.01 * np.random.rand(len(f_0))*steadyState[2]
+        
+        RD_numericalSolver(c0_tuple = (a_0, s_0, f_0), L = L, nb_grids = nb_grids, t = t, diff_coeffs = D,
+                           periodic_bc = False, 
+                           rxn_fun=fode_3N2M_rxn,
+                           rxn_params=rxn_params, 
+                           mxstep=10000)
+        
+    print(time.process_time() - start_time, "seconds for for loop")
     
-    if S.shape[0] != 3 or S.shape[1] != 3:
-        print("Required 3x3 matrix for network topology !")
-        os._exit(1)
+        #linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q, i, outputDir)
+        #Parallel(n_jobs=2)(delayed(linear_stability_singleParam)(i, k_grid_log, nb_params, Index_K_unsampled, n, f_ode, S, t_final, c_init, X, K, d_grid, q) for i in range(len(k_grid_log)))
+    
+    
     
     # define symbolic variables for Jacobian matrix 
-    X = sym.symbols(('x0:' + str(n)))
-    K = sym.symbols(('k0:' + str(nb_params)))
+    #X = sym.symbols(('x0:' + str(n)))
+    #K = sym.symbols(('k0:' + str(nb_params)))
     
     ## keep a record of unsampled parameters
     #K_total = [None] * nb_params
     #for index_par in range(nb_params):
     #    K_total[index_par] = 'k' + str(index_par)
         
-    Index_K_unsampled = []
-    k_length = 8 # nb of reaction parameters: 3* number of nodes (3*3) + number of interactions (6)
-    for index_j in range(3): 
-        for index_i in range(3):
-            #print(S.iloc[index_j, index_i])
-            if index_i != index_j:
-                if np.abs(S.iloc[index_j, index_i]) > 0: 
-                    k_length = k_length + 1
-                else:
-                    if index_i == 0 and index_j == 1:
-                        Index_K_unsampled.append(8)
-                    elif index_i ==0 and index_j == 2:
-                        Index_K_unsampled.append(9)
-                    elif index_i == 1 and index_j == 0:
-                        Index_K_unsampled.append(10)
-                    elif index_i == 1 and index_j == 2:
-                        Index_K_unsampled.append(11)
-                    elif index_i == 2 and index_j == 0:
-                        Index_K_unsampled.append(12)
-                    elif index_i == 2 and index_j == 1:
-                        Index_K_unsampled.append(13)
-    if len(Index_K_unsampled) + k_length != nb_params:
-        print(" nb of sampled parameters not correct  !")
-        os._exit(1)
+    # Index_K_unsampled = []
+    # k_length = 8 # nb of reaction parameters: 3* number of nodes (3*3) + number of interactions (6)
+    # for index_j in range(3): 
+    #     for index_i in range(3):
+    #         #print(S.iloc[index_j, index_i])
+    #         if index_i != index_j:
+    #             if np.abs(S.iloc[index_j, index_i]) > 0: 
+    #                 k_length = k_length + 1
+    #             else:
+    #                 if index_i == 0 and index_j == 1:
+    #                     Index_K_unsampled.append(8)
+    #                 elif index_i ==0 and index_j == 2:
+    #                     Index_K_unsampled.append(9)
+    #                 elif index_i == 1 and index_j == 0:
+    #                     Index_K_unsampled.append(10)
+    #                 elif index_i == 1 and index_j == 2:
+    #                     Index_K_unsampled.append(11)
+    #                 elif index_i == 2 and index_j == 0:
+    #                     Index_K_unsampled.append(12)
+    #                 elif index_i == 2 and index_j == 1:
+    #                     Index_K_unsampled.append(13)
+    # if len(Index_K_unsampled) + k_length != nb_params:
+    #     print(" nb of sampled parameters not correct  !")
+    #     os._exit(1)
                             
     #%% sampling the parameters, which node is difusor and diffusion coeffs
     
     ## lhs sampling for parameter
-    np.random.seed(123)
+    # np.random.seed(123)
     
-    list_dimensions = [(-2, 2)]*k_length
-    space = Space(list_dimensions)
+    # list_dimensions = [(-2, 2)]*k_length
+    # space = Space(list_dimensions)
     
-    lhs = Lhs(criterion="maximin", iterations=1000)
-    k_grid_log = lhs.generate(space.dimensions, nb_sampling_parameters)
+    # lhs = Lhs(criterion="maximin", iterations=1000)
+    # k_grid_log = lhs.generate(space.dimensions, nb_sampling_parameters)
     
-    # diffusion rate sampling
-    d_range = np.logspace(-3, 3.0, num = nb_sampling_diffusion)
-    d_grid = list(itertools.product(np.ones(1),  d_range, np.zeros(1)))
+    # # diffusion rate sampling
+    # d_range = np.logspace(-3, 3.0, num = nb_sampling_diffusion)
+    # d_grid = list(itertools.product(np.ones(1),  d_range, np.zeros(1)))
     
-    # initial conditions: each node has 3 initial values
-    x_init = np.logspace(-1, 4, nb_sampling_init)
-    c_init = itertools.combinations_with_replacement(x_init, n)
+    # # initial conditions: each node has 3 initial values
+    # x_init = np.logspace(-1, 4, nb_sampling_init)
+    # c_init = itertools.combinations_with_replacement(x_init, n)
     
-    # time 
-    t_final = 1000
+    # # time 
+    # t_final = 1000
     
-    print(time.process_time() - start_time, "seconds to set up parameters ")
+    # print(time.process_time() - start_time, "seconds to set up parameters ")
     
-    #%% big loop over each k parameter vector and save the result for each sampled d combination
-    start_time = time.process_time()
     
-    # try to parallize the for loop
-    #from joblib import Parallel, delayed
-    #import multiprocessing
-    # #pool_obj = multiprocessing.Pool()
-    # pool = multiprocessing.Pool()
-    # args = ((foo, bar, foobar, baz) 
-    #     for foo in range(3) 
-    #     for bar in range(5) 
-    #     for baz in range(4) 
-    #     for foobar in range(10))
-    # pool.starmap(calculation, args)
-    # pool.close()
-    # pool.join()
-    # pool_obj.map(sumall, range(0, len(k_grid_log)))
-    
-    #for i in range(len(k_grid)):
-    for i in range(len(k_grid_log)):
-        
-        if i % 100 == 0 and i > 0:
-            print(i)
-        ks = np.asarray(k_grid_log[i])
-        ks = np.power(10.0, ks) # transform to linear scale
-        
-        k = np.ones(nb_params)
-        
-        if len(ks) < len(k) :
-            index_ks = 0
-            for index_k in range(nb_params):
-                if index_k not in Index_K_unsampled:
-                    k[index_k] = ks[index_ks]
-                    index_ks = index_ks + 1
-    
-            # test if the parameter assignment correct             
-            for index_kns in Index_K_unsampled:
-                if k[index_kns] > 1.0 or k[index_kns] < 1.0:
-                    print(" non smpled parameters assignment not correct  !")
-                    os._exit(1)
-        
-        linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q, i, outputDir)
-        #Parallel(n_jobs=2)(delayed(linear_stability_singleParam)(i, k_grid_log, nb_params, Index_K_unsampled, n, f_ode, S, t_final, c_init, X, K, d_grid, q) for i in range(len(k_grid_log)))
-    
-    print(time.process_time() - start_time, "seconds for for loop")
     
     
 if __name__ == "__main__":
