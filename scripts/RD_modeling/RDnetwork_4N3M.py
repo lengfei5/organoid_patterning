@@ -50,7 +50,6 @@ import sys, getopt
 
 #%% utility functions
 def check_BurnIn_steadyState(sol, f_ode, k, S, n, x0, t_final):
-    from scipy.integrate import odeint
     err_tole = 0.00001
     ss = np.zeros(n)
     
@@ -67,7 +66,7 @@ def check_BurnIn_steadyState(sol, f_ode, k, S, n, x0, t_final):
         nb_try = nb_try + 1
         t_final = t_final*2
         t = np.linspace(0, t_final, 200)
-        sol = odeint(f_ode, x0, t,args=(k,S))
+        sol = odeint(f_ode, x0, t,args=(k,S), mxstep= 5000)
         ss = np.zeros(n)
         ss_fluc = np.zeros(n)
         nb_passThreshold = 0
@@ -80,8 +79,7 @@ def check_BurnIn_steadyState(sol, f_ode, k, S, n, x0, t_final):
     return  ss
 
 def Multi_steadyStates(ss0, c_init, f_ode, k, S, n):
-    import itertools
-    from scipy.integrate import odeint
+    
     
     ss_saved = [ss0]
     
@@ -111,11 +109,15 @@ def f_ode_simple(x, t, k): # simplified version of ode for specific S matrix
     #dRdt = np.empty(n)
     
     ## NT organoid phase III pattern selection:  Noggin, BMP, FoxA2
-    dx0dt = k[0]  -     x[0] + k[5]*(1.0/2.0 * 1.0/(1.0 + (k[8]/x[1])**(2.0)) * 1.0/(1.0 + (k[9]/x[2])**(2.0))) # Noggin
-    dx1dt = k[1] - k[3]*x[1] + k[6]*(1.0/(1.0+(k[10]/x[0])**(-2.0)) * 1.0/(2.0) * 1.0/(1.0 + (k[11]/x[2])**(2.0))) # BMP
-    dx2dt = k[2] - k[4]*x[2] + k[7]*(1.0/2.0 * 1.0/(1.0 + (k[13]/x[1])**(-2.0)) * 1.0/(1.0 + (1.0/x[2])**(2.0))) # Foxa2
+    #dx0dt = k[0]  -     x[0] + k[5]*(1.0/2.0 * 1.0/(1.0 + (k[8]/x[1])**(2.0)) * 1.0/(1.0 + (k[9]/x[2])**(2.0))) # Noggin
+    #dx1dt = k[1] - k[3]*x[1] + k[6]*(1.0/(1.0+(k[10]/x[0])**(-2.0)) * 1.0/(2.0) * 1.0/(1.0 + (k[11]/x[2])**(2.0))) # BMP
+    #dx2dt = k[2] - k[4]*x[2] + k[7]*(1.0/2.0 * 1.0/(1.0 + (k[13]/x[1])**(-2.0)) * 1.0/(1.0 + (1.0/x[2])**(2.0))) # Foxa2
+    dx0dt = 0.1 -      x[0] + k[3]*(1.0 *                                     1.0/(1.0 + (k[7]/ x[1])**(2.0)) * 1.0 *                                         1.0/(1.0 + (k[8] /x[3])**(2.0))) # Noggin
+    dx1dt = 0.1 - k[0]*x[1] + k[4]*(1.0/(1.0+(1.0/x[0])**(-2.0)) * 1.0/(1.0 + 1.0) * 1.0/(1.0 + 1.0) * 1.0/(1.0 + (k[10]/x[3])**(2.0))) # BMP
+    dx2dt = 0.1 - k[1]*x[2] + k[5]*(1.0 *                                     1.0/(1.0 + 1.0) * 1.0 *                                         1.0/(1.0 + (k[12]/x[3])**(2.0))) # Shh
+    dx3dt = 0.1 - k[2]*x[3] + k[6]*(1.0 *                                     1.0/(1.0 + (k[13]/x[1])**(-2.0)) * 1.0/(1.0 + (1.0 /x[2])**(2.0)) * 1.0/(1.0 + (1.0  /x[3])**(2.0))) # Foxa2
     
-    dRdt = [dx0dt, dx1dt, dx2dt]
+    dRdt = [dx0dt, dx1dt, dx2dt, dx3dt]
     
     return dRdt
 
@@ -124,11 +126,10 @@ def f_ode(x, t, k, S):
     #dRdt = np.empty(n)
     
     ## NT organoid phase III pattern selection:  Noggin, BMP, Shh, FoxA2
-    dx0dt = 0.1 -      x[0] + k[3]*(1.0/(1.0+(1.0/x[0])**(2.0*S.iloc[0,0])) * 1.0/(1.0 + (k[8]/x[1])**(2.0*S.iloc[1, 0])) * 1.0/(1.0 + (k[9]/x[2])**(2.0*S.iloc[2, 0]))) # Noggin
-    dx1dt = 0.1 - k[0]*x[1] + k[4]*(1.0/(1.0+(k[10]/x[0])**(2.0*S.iloc[0,1])) * 1.0/(1.0 + (1.0/x[1])**(2.0*S.iloc[1, 1])) * 1.0/(1.0 + (k[11]/x[2])**(2.0*S.iloc[2, 1]))) # BMP
-    dx2dt = 0.1 - k[1]*x[2] + k[5]*(1.0/(1.0+(k[12]/x[0])**(2.0*S.iloc[0,2])) * 1.0/(1.0 + (k[13]/x[1])**(2.0*S.iloc[1, 2])) * 1.0/(1.0 + (1.0/x[2])**(2.0*S.iloc[2, 2]))) # Foxa2
-    dx3dt = 0.1 - k[2]*x[2] + k[6]*(1.0/(1.0+(k[12]/x[0])**(2.0*S.iloc[0,2])) * 1.0/(1.0 + (k[13]/x[1])**(2.0*S.iloc[1, 2])) * 1.0/(1.0 + (1.0/x[2])**(2.0*S.iloc[2, 2]))) # Foxa2
-    
+    dx0dt = 0.1 -      x[0] + k[3]*(1.0 *                                     1.0/(1.0 + (k[7]/ x[1])**(2.0*S.iloc[1, 0])) * 1.0 *                                         1.0/(1.0 + (k[8] /x[3])**(2.0*S.iloc[3, 0]))) # Noggin
+    dx1dt = 0.1 - k[0]*x[1] + k[4]*(1.0/(1.0+(1.0/x[0])**(2.0*S.iloc[0,1])) * 1.0/(1.0 + (1.0 / x[1])**(2.0*S.iloc[1, 1])) * 1.0/(1.0 + (k[9]/x[2])**(2.0*S.iloc[2, 1])) * 1.0/(1.0 + (k[10]/x[3])**(2.0*S.iloc[3, 1]))) # BMP
+    dx2dt = 0.1 - k[1]*x[2] + k[5]*(1.0 *                                     1.0/(1.0 + (k[11]/x[1])**(2.0*S.iloc[1, 2])) * 1.0 *                                         1.0/(1.0 + (k[12]/x[3])**(2.0*S.iloc[3, 2]))) # Shh
+    dx3dt = 0.1 - k[2]*x[3] + k[6]*(1.0 *                                     1.0/(1.0 + (k[13]/x[1])**(2.0*S.iloc[1, 3])) * 1.0/(1.0 + (1.0 /x[2])**(2.0*S.iloc[2, 3])) * 1.0/(1.0 + (1.0  /x[3])**(2.0*S.iloc[3, 3]))) # Foxa2
     
     dRdt = [dx0dt, dx1dt, dx2dt, dx3dt]
     
@@ -157,11 +158,10 @@ def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q
     x0 = np.random.random(1) * np.ones(n)
     #x0 = [2.3, 0.4, 1.3]
     
-    #f_ode_xk = f_ode(x, None, k, S)
     t = np.linspace(0, t_final, 200)
-    sol = odeint(f_ode, x0, t, args=(k,S))
-    #sol_test = odeint(f_ode_xk, x0, t, args=(k,))
-    # check the integration solution with plot
+    sol = odeint(f_ode, x0, t, args=(k,S), mxstep = 5000)
+    # #sol_test = odeint(f_ode_xk, x0, t, args=(k,))
+    # # check the integration solution with plot
     # fig,ax = plt.subplots()
     # ax.plot(t,sol[:,0],label='x1')
     # ax.plot(t,sol[:,1],label='x2')
@@ -170,7 +170,8 @@ def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q
     # ax.legend()
     # ax.set_xlabel('t')
     # ax.set_ylabel('x')
-    # # sol[199, ]
+    # sol[199, ]
+    # sol_test = odeint(f_ode_simple, x0, t, args=(k,))
     
     # double check if steady state is reache by considering the first 100 time points as BurnIn
     ss0 = check_BurnIn_steadyState(sol, f_ode, k, S, n, x0, t_final)
@@ -216,7 +217,8 @@ def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q
             if eigen0[0] < 0.0: # if stabe without diffusion; otherwise don't continue the test
                 
                 for val in d_grid: # loop diffusion matrix for each steady state
-                
+                    
+                    # val = d_grid[0]
                     d = np.asarray(val)
                     #d = [0.0, d[0], d[1]]
                     
@@ -236,7 +238,7 @@ def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q
                         lam_real[j] = wk.real.max()
                         lam_im[j] = wk.imag[np.argmax(wk.real)]
                         vec_sel = vk[:, np.argmax(wk.real)]
-                        eigenvec.append(str(int(vec_sel[0] >0)) + ';' + str(int(vec_sel[1] >0)) + ';' + str(int(vec_sel[2] >0)))
+                        eigenvec.append(str(int(vec_sel[0] >0)) + ';' + str(int(vec_sel[1] >0)) + ';' + str(int(vec_sel[2] >0)) + ';' + str(int(vec_sel[3] >0)) )
                     #plt.plot(q, lam_real)
                     #plt.show()
                     #plt.axis([0, max(q), -1, 1])
@@ -246,7 +248,7 @@ def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q
                     lam_real_max = lam_real[index_max]
                     #lam_im_max = lam_im[index_max]
                     #q_max = q[index_max]
-                
+                    
                     # save the result, k parameter, steady state, d parameters, q values, lambda_real, lambda imaginary
                     if lam_real_max >= 0:  
                         arr = np.concatenate((k, ss, eigen0,  d, q, lam_real, lam_im, eigenvec))
@@ -314,9 +316,9 @@ def main(argv):
     #binary_diffusor = [1, 1, 1, 0]
     
     # total number for parameter sampling 
-    nb_sampling_parameters = 100 # reaction parameters
+    nb_sampling_parameters = 1000 # reaction parameters
     
-    nb_sampling_diffusion = 50 # diffusion rate
+    nb_sampling_diffusion = 20 # diffusion rate
     nb_sampling_init = 3 # nb of initial condtion sampled
     
     q = 2*3.14159 / np.logspace(-2, 3.0, num=nb_sampling_diffusion) # wavenumber
@@ -411,11 +413,20 @@ def main(argv):
     k_grid_log = lhs.generate(space.dimensions, nb_sampling_parameters)
     
     # diffusion rate sampling
-    d_range = np.logspace(-3, 3.0, num = nb_sampling_diffusion)
-    d_grid = list(itertools.product(np.ones(1),  d_range, np.zeros(1)))
+    d_range = np.logspace(-2, 3.0, num = nb_sampling_diffusion)
+    d_grid = list(itertools.product(np.ones(1),  d_range, d_range, np.zeros(1)))
+    
+    index_d_keep = []
+    for kk in range(len(d_grid)):
+        # constrain of diffusion, shh is not 10 time faster than bmp; and bmp is at least 0.2 of noggin
+        if d_grid[kk][2] / d_grid[kk][1] <= 10 and d_grid[kk][1] > 0.2: 
+            index_d_keep.append(kk)
+    
+    d_grid = [ d_grid[index] for index in index_d_keep ]
+    
     
     # initial conditions: each node has 3 initial values
-    x_init = np.logspace(-1, 4, nb_sampling_init)
+    x_init = np.logspace(-1, 3, nb_sampling_init)
     c_init = itertools.combinations_with_replacement(x_init, n)
     
     # time 
