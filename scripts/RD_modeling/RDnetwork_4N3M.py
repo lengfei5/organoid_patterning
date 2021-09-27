@@ -123,12 +123,14 @@ def f_ode_simple(x, t, k): # simplified version of ode for specific S matrix
 def f_ode(x, t, k, S):
     #dRdt = np.empty(n)
     
-    ## NT organoid phase III pattern selection:  Noggin, BMP, FoxA2
-    dx0dt = k[0]  -     x[0] + k[5]*(1.0/(1.0+(1.0/x[0])**(2.0*S.iloc[0,0])) * 1.0/(1.0 + (k[8]/x[1])**(2.0*S.iloc[1, 0])) * 1.0/(1.0 + (k[9]/x[2])**(2.0*S.iloc[2, 0]))) # Noggin
-    dx1dt = k[1] - k[3]*x[1] + k[6]*(1.0/(1.0+(k[10]/x[0])**(2.0*S.iloc[0,1])) * 1.0/(1.0 + (1.0/x[1])**(2.0*S.iloc[1, 1])) * 1.0/(1.0 + (k[11]/x[2])**(2.0*S.iloc[2, 1]))) # BMP
-    dx2dt = k[2] - k[4]*x[2] + k[7]*(1.0/(1.0+(k[12]/x[0])**(2.0*S.iloc[0,2])) * 1.0/(1.0 + (k[13]/x[1])**(2.0*S.iloc[1, 2])) * 1.0/(1.0 + (1.0/x[2])**(2.0*S.iloc[2, 2]))) # Foxa2
+    ## NT organoid phase III pattern selection:  Noggin, BMP, Shh, FoxA2
+    dx0dt = 0.1 -      x[0] + k[3]*(1.0/(1.0+(1.0/x[0])**(2.0*S.iloc[0,0])) * 1.0/(1.0 + (k[8]/x[1])**(2.0*S.iloc[1, 0])) * 1.0/(1.0 + (k[9]/x[2])**(2.0*S.iloc[2, 0]))) # Noggin
+    dx1dt = 0.1 - k[0]*x[1] + k[4]*(1.0/(1.0+(k[10]/x[0])**(2.0*S.iloc[0,1])) * 1.0/(1.0 + (1.0/x[1])**(2.0*S.iloc[1, 1])) * 1.0/(1.0 + (k[11]/x[2])**(2.0*S.iloc[2, 1]))) # BMP
+    dx2dt = 0.1 - k[1]*x[2] + k[5]*(1.0/(1.0+(k[12]/x[0])**(2.0*S.iloc[0,2])) * 1.0/(1.0 + (k[13]/x[1])**(2.0*S.iloc[1, 2])) * 1.0/(1.0 + (1.0/x[2])**(2.0*S.iloc[2, 2]))) # Foxa2
+    dx3dt = 0.1 - k[2]*x[2] + k[6]*(1.0/(1.0+(k[12]/x[0])**(2.0*S.iloc[0,2])) * 1.0/(1.0 + (k[13]/x[1])**(2.0*S.iloc[1, 2])) * 1.0/(1.0 + (1.0/x[2])**(2.0*S.iloc[2, 2]))) # Foxa2
     
-    dRdt = [dx0dt, dx1dt, dx2dt]
+    
+    dRdt = [dx0dt, dx1dt, dx2dt, dx3dt]
     
     return dRdt
 
@@ -150,14 +152,6 @@ def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q
     names = [element for tupl in names for element in tupl]
     keep = pd.DataFrame(columns=names)
     
-    # start with some test
-    #k = np.asarray(k_grid[i])
-    #k0 = k_grid[i]
-    #k[0], k[1], k[2] = 0.1, 0.1, 0.1
-    #k[3], k[4], k[5] = 0.3, 0.5, 0.4
-    #k[6], k[7], k[8] = math.log(2)/10, math.log(2)/5, math.log(2)/10
-    #k[6], k[7], k[8] = 30, 50, 20
-    #k[9], k[10], k[11], k[12], k[13], k[14], k[15], k[16] = 14, 3, 0.2, 5, 10, 1, 2, 5
     
     # %% find the steady state by integration (initial guess)
     x0 = np.random.random(1) * np.ones(n)
@@ -314,18 +308,21 @@ def main(argv):
         # directory already exists
         pass
     
+    #%% global parameters 
+    n = 4 # nb of node
+    nb_params = 14
+    #binary_diffusor = [1, 1, 1, 0]
+    
     # total number for parameter sampling 
-    nb_sampling_parameters = 1000 # reaction parameters
+    nb_sampling_parameters = 100 # reaction parameters
     
     nb_sampling_diffusion = 50 # diffusion rate
     nb_sampling_init = 3 # nb of initial condtion sampled
     
     q = 2*3.14159 / np.logspace(-2, 3.0, num=nb_sampling_diffusion) # wavenumber
     
-    n = 3 # nb of node
-    nb_params = 14
-    #binary_diffusor = [1, 1, 0]
-    
+   
+    #%%
     print('--  main function starts --')
     
     import time
@@ -334,7 +331,7 @@ def main(argv):
     # read the network topology
     S = pd.read_csv(inputfile, index_col=0) 
     
-    if S.shape[0] != 3 or S.shape[1] != 3:
+    if S.shape[0] != n or S.shape[1] != n:
         print("Required 3x3 matrix for network topology !")
         os._exit(1)
     
@@ -346,34 +343,64 @@ def main(argv):
     #K_total = [None] * nb_params
     #for index_par in range(nb_params):
     #    K_total[index_par] = 'k' + str(index_par)
-        
+    
+    #%% determine nb of actual parameters to sample depending on the matrix S    
     Index_K_unsampled = []
-    k_length = 8 # nb of reaction parameters: 3* number of nodes (3*3) + number of interactions (6)
-    for index_j in range(3): 
-        for index_i in range(3):
-            #print(S.iloc[index_j, index_i])
-            if index_i != index_j:
-                if np.abs(S.iloc[index_j, index_i]) > 0: 
-                    k_length = k_length + 1
-                else:
-                    if index_i == 0 and index_j == 1:
-                        Index_K_unsampled.append(8)
-                    elif index_i ==0 and index_j == 2:
-                        Index_K_unsampled.append(9)
-                    elif index_i == 1 and index_j == 0:
-                        Index_K_unsampled.append(10)
-                    elif index_i == 1 and index_j == 2:
-                        Index_K_unsampled.append(11)
-                    elif index_i == 2 and index_j == 0:
-                        Index_K_unsampled.append(12)
-                    elif index_i == 2 and index_j == 1:
-                        Index_K_unsampled.append(13)
+    k_length = nb_params # nb of reaction parameters: 3* number of nodes (3*3) + number of interactions (6)
+    
+    if np.abs(S.iloc[1, 0]) < 10**-6:
+        k_length = k_length - 1
+        Index_K_unsampled.append(7)
+    
+    if np.abs(S.iloc[3, 0]) < 10**-6:
+        k_length = k_length - 1
+        Index_K_unsampled.append(8)
+        
+    if np.abs(S.iloc[2, 1]) < 10**-6:
+        k_length = k_length - 1
+        Index_K_unsampled.append(9)
+    
+    if np.abs(S.iloc[3, 1]) < 10**-6:
+        k_length = k_length - 1
+        Index_K_unsampled.append(10)
+    
+    if np.abs(S.iloc[1, 2]) < 10**-6:
+        k_length = k_length - 1
+        Index_K_unsampled.append(11)
+        
+    if np.abs(S.iloc[3, 2]) < 10**-6:
+        k_length = k_length - 1
+        Index_K_unsampled.append(12)
+    
+    if np.abs(S.iloc[1, 3]) < 10**-6:
+        k_length = k_length - 1
+        Index_K_unsampled.append(13)
+        
+    # for index_j in range(n): 
+    #     for index_i in range(n):
+    #         #print(S.iloc[index_j, index_i])
+    #         if index_i != index_j:
+    #             if np.abs(S.iloc[index_j, index_i]) > 0: 
+    #                 k_length = k_length + 1
+    #             else:
+    #                 if index_i == 0 and index_j == 1:
+    #                     Index_K_unsampled.append(8)
+    #                 elif index_i ==0 and index_j == 2:
+    #                     Index_K_unsampled.append(9)
+    #                 elif index_i == 1 and index_j == 0:
+    #                     Index_K_unsampled.append(10)
+    #                 elif index_i == 1 and index_j == 2:
+    #                     Index_K_unsampled.append(11)
+    #                 elif index_i == 2 and index_j == 0:
+    #                     Index_K_unsampled.append(12)
+    #                 elif index_i == 2 and index_j == 1:
+    #                     Index_K_unsampled.append(13)
+                        
     if len(Index_K_unsampled) + k_length != nb_params:
         print(" nb of sampled parameters not correct  !")
         os._exit(1)
                             
     #%% sampling the parameters, which node is difusor and diffusion coeffs
-    
     ## lhs sampling for parameter
     np.random.seed(123)
     
@@ -417,6 +444,7 @@ def main(argv):
     #for i in range(len(k_grid)):
     for i in range(len(k_grid_log)):
         
+        # i = 0
         if i % 100 == 0 and i > 0:
             print(i)
         ks = np.asarray(k_grid_log[i])
