@@ -10,36 +10,86 @@
 rm(list = ls())
 
 library(igraph)
-resDir = '../results/RD_topology_screening/3N2M_topology_enumerate_v1/'
-if(!dir.exists(resDir)) dir.create(resDir)
 
-s0 = matrix(NA, nrow = 3, ncol = 3)
-colnames(s0) = c('Nog', 'BMP', 'Foxa2')
-rownames(s0) = colnames(s0)
-
-s0[2, 1] = 1 # BMP activate Nog from TM3 data
-s0[3, 1] = 1 # Foxa2 cells expressing Nog
-s0[1, 2] = -1; # Nog inhibite BMP
-s0[3, 3] = 1 # Foxa2 self activation
+network = '4N3M'
 
 
-ii2assign = which(is.na(s0))
+if(network == '3N2M'){
+  resDir = '../results/RD_topology_screening/3N2M_topology_enumerate_v1/'
+  if(!dir.exists(resDir)) dir.create(resDir)
+  
+  s0 = matrix(NA, nrow = 3, ncol = 3)
+  colnames(s0) = c('Nog', 'BMP', 'Foxa2')
+  rownames(s0) = colnames(s0)
+  
+  s0[2, 1] = 1 # BMP activate Nog from TM3 data
+  s0[3, 1] = 1 # Foxa2 cells expressing Nog
+  s0[1, 2] = -1; # Nog inhibite BMP
+  s0[3, 3] = 1 # Foxa2 self activation
+  
+  
+  ii2assign = which(is.na(s0))
+  
+  xx = expand.grid(0:1, # noggin auto-activation 
+                   -1:1, 
+                   -1:1, 
+                   0:1, # Nog activate Foxa2
+                   -1:1)
+  
+}
 
-xx = expand.grid(0:1, # noggin auto-activation 
-                 -1:1, 
-                 -1:1, 
-                  0:1, # Nog activate Foxa2
-                 -1:1)
-nb_model = 1
+if(network == '4N3M')
+{
+  resDir = 'RD_modeling/4N3M_topology_enumerate/'
+  if(!dir.exists(resDir)) dir.create(resDir)
+  
+  s0 = matrix(NA, nrow = 4, ncol = 4)
+  colnames(s0) = c('Nog', 'BMP', 'Shh', 'Foxa2')
+  rownames(s0) = colnames(s0)
+  s0[1, 1] = 0 # no Noggin autoactivation
+  s0[1, 2] = -1; # Nog inhibite BMP
+  s0[1, 3] = 0; # no interaction between Shh and Noggin
+  s0[1, 4] = 0; # no positive feedback from noggin to foxa2
+  
+  s0[2, 1] = 1 # BMP activate Nog from TM3 data
+  s0[2, 4] = -1 # bmp inhibites foxa2
+  
+  s0[3, 1] = 0 # no interaction between Shh and Noggin
+  s0[3, 3] = 0 # no autoregulation of Shh
+  s0[3, 4] = 1 # shh activate foxa2
+  
+  s0[4, 1] = 1 # Foxa2 activate noggin
+  s0[4, 3] = 1# foxa2 activate shh
+  
+  
+  ii2assign = which(is.na(s0))
+  
+  xx = expand.grid(-1:1, # bmp autoregulation
+                   -1:1, # shh to bmp
+                   0:1, # Foxa2 expresses or not bmp
+                   -1:1, # bmp regultes shh
+                   0:1)  # foxa2 auto-activation
+  
+}
 
+
+#nb_model = 1
 for(n in 1:nrow(xx))
 {
-  # n = 21
+  # n = 1
   cat(n, '\n')
   s = s0
   s[ii2assign] = unlist(xx[n, ])
   
   write.csv(s, file = paste0(resDir, 'Model_', n, '.csv'), row.names = TRUE, quote = FALSE)
+  
+  pdfname = paste0(resDir, 'Model_', n,  ".pdf")
+  pdf(pdfname, width = 8, height = 6)
+  par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
+  
+  make.plot.from.adjacency.matrix(as.matrix(s), main = paste0('Model_', n), network = network)
+  
+  dev.off()
   
   #g1 = graph_from_adjacency_matrix(s, mode = 'directed')
   #plot(g1)
@@ -48,7 +98,7 @@ for(n in 1:nrow(xx))
 
 ########################################################
 ########################################################
-# Section : summary of models 
+# Section : summary of network screening
 # 
 ########################################################
 ########################################################
@@ -60,13 +110,18 @@ screening.outDir = paste0(RDoutDir, 'RD_out_3N2M_50k_v3/')
 modelDir = paste0(RDoutDir, '3N2M_topology_enumerate')
 
 # make graph from adjacency matrix
-make.plot.from.adjacency.matrix = function(s, main = '')
+make.plot.from.adjacency.matrix = function(s, main = '', network = '3N2M')
 {
   g1 = graph_from_adjacency_matrix(s, mode = 'directed', weighted =TRUE)
   ws = E(g1)$weight
   cols = rep('darkblue', length(ws))
   cols[which(ws<0)] = 'red'
-  layout = matrix(data = c(0, 4, 2, 0, 0, 2), ncol = 2)
+  if(network == '3N2M') {
+    layout = matrix(data = c(0, 4, 2, 0, 0, 2), ncol = 2)
+  }else{
+    layout = matrix(data = c(0, 4, 4, 0, 0, 0, 2, 2), ncol = 2)
+  }
+  
   plot(g1, layout = layout,  layout = layout.circle, vertex.size = 60.0, edge.curved=.3, edge.color=cols, edge.arrow.size=2.0,
        edge.width = 4.0, vertex.label.cex = 1.8, vertex.label.font = 2, main = main)
   

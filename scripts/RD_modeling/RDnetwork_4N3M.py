@@ -302,10 +302,10 @@ def main(argv):
         elif opt in ("-i", "--ifile"):
             inputfile = arg
             
-    # inputfile = '3N2M_topology_enumerate/Model_21.csv'
+    # inputfile = '4N3M_topology_enumerate/Model_86.csv'
     print('Input file is ', inputfile)
     outputDir = os.path.basename(inputfile)
-    outputDir = './RD_out/' + outputDir.rsplit('.', 1)[0]
+    outputDir = './RD_out_4N3M/' + outputDir.rsplit('.', 1)[0]
     print('Output directory is ', outputDir)
     
     try:
