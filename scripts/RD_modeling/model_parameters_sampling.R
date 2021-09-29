@@ -105,9 +105,9 @@ for(n in 1:nrow(xx))
 rm(list = ls())
 library("igraph")
 
-RDoutDir = '../results/RD_topology_screening/topology_screening_3N2M_v2/'
-screening.outDir = paste0(RDoutDir, 'RD_out_3N2M_50k_v3/')
-modelDir = paste0(RDoutDir, '3N2M_topology_enumerate')
+RDoutDir = '../results/RD_topology_screening/topology_screening_4N3M_v1/'
+screening.outDir = paste0(RDoutDir, 'RD_out_4N3M/')
+modelDir = paste0(RDoutDir, '4N3M_topology_enumerate')
 
 # make graph from adjacency matrix
 make.plot.from.adjacency.matrix = function(s, main = '', network = '3N2M')
@@ -127,9 +127,8 @@ make.plot.from.adjacency.matrix = function(s, main = '', network = '3N2M')
   
 }
 
-filter.reaction.parameters.for.RD.patterning = function(res, filter.phase = FALSE, filter.oscillation = FALSE)
+filter.reaction.parameters.for.RD.patterning = function(res, filter.phase = FALSE, filter.oscillation = FALSE, network = '3N2M')
 {
-  
   lambda_real = res[ , grep('lambda_re', colnames(res))]
   lambda_im = res[ , grep('lambda_im', colnames(res))]
   k = res[, match(paste0('q', c(0:(ncol(lambda_real)-1))) , colnames(res))]
@@ -145,9 +144,18 @@ filter.reaction.parameters.for.RD.patterning = function(res, filter.phase = FALS
     }
     if(filter.phase){
       pp = phases[jj, which(lambda_real[jj, ]>0)]
-      if(lambda_real[jj, which(k[jj, ] == max(k[jj, ]))] < 0  &  res$d1[jj] >= 0.5 & (all(pp == '1;0;1') | all(pp == '0;1;0'))) {
-        index_keep = c(index_keep, jj)
+      
+      if(network == '3N2M'){
+        if(lambda_real[jj, which(k[jj, ] == max(k[jj, ]))] < 0  &  res$d1[jj] >= 0.5 & (all(pp == '1;0;1') | all(pp == '0;1;0'))) {
+          index_keep = c(index_keep, jj)
+        }
       }
+      if(network == '4N3M') {
+        if(lambda_real[jj, which(k[jj, ] == max(k[jj, ]))] < 0  &  res$d1[jj] >= 0.5 & (all(pp == '1;0;1;1'| pp == '0;1;0;0'))) {
+          index_keep = c(index_keep, jj)
+        }
+      }
+      
     }
     
   }
@@ -166,6 +174,8 @@ rownames(s0) = colnames(s0)
 # make.plot.from.adjacency.matrix(s0)
 
 model.list = list.files(path = modelDir, pattern = '*.csv', full.names = TRUE)
+network = '4N3M'
+
 nb = 0
 
 #selection.criterion = 'D.larger.1_lambda.neg.max.q_phase'
@@ -178,7 +188,7 @@ if(!dir.exists(modelSaveDir)) dir.create(modelSaveDir)
 if(!dir.exists(paramSaveDir)) dir.create(paramSaveDir)
 
 for(n in 1:length(model.list)){
-  # n = 17
+  # n = 94
   Model = basename(model.list[n])
   Model = gsub('.csv', '', Model)
   
@@ -194,14 +204,14 @@ for(n in 1:length(model.list)){
     keep = c()
     for(i in 1:length(param.list))
     {
-      # i = 1
+      # i = 3
       res = read.csv(file = param.list[i], header = TRUE)
       
       ##########################################
       # 1st filter the parameters for which Re(lambda) > 0 when q = 0
       ##########################################
       res = res[which(res$noDiffusion0 <0 ), ]
-      res = filter.reaction.parameters.for.RD.patterning(res, filter.phase = TRUE)
+      res = filter.reaction.parameters.for.RD.patterning(res, filter.phase = TRUE, network = network)
       
       if(nrow(res) > 0) {
         nb.param = nb.param + 1
@@ -221,7 +231,19 @@ for(n in 1:length(model.list)){
       pdfname = paste0(modelSaveDir, "/", Model, ".pdf")
       pdf(pdfname, width = 8, height = 6)
       par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
-      make.plot.from.adjacency.matrix(as.matrix(ss), main = paste0(Model, ' , Q = ', nb.param, ', D_min = ', signif(min(keep$d1), d=2)))
+      
+      if(network == '3N2M'){
+        make.plot.from.adjacency.matrix(as.matrix(ss), 
+                                        main = paste0(Model, ' , Q = ', nb.param, ', D_min = ', signif(min(keep$d1), d=2)),
+                                        network = network)
+      }
+      if(network == '4N3M'){
+        make.plot.from.adjacency.matrix(as.matrix(ss), 
+                                        main = paste0(Model, ' , Q = ', nb.param, ', D_bmp.shh.min = ', signif(min(keep$d1), d=2), 
+                                                      signif(min(keep$d2), d=2)),
+                                        network = network)
+      }
+      
       dev.off()
       
       # make summary for the model
@@ -230,7 +252,18 @@ for(n in 1:length(model.list)){
       par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
       
       #s = as.matrix(ss)
-      make.plot.from.adjacency.matrix(as.matrix(ss), main = paste0(Model, ' , Q = ', nb.param, ', D_min = ', signif(min(keep$d1), d=2)))
+      
+      if(network == '3N2M'){
+        make.plot.from.adjacency.matrix(as.matrix(ss), 
+                                        main = paste0(Model, ' , Q = ', nb.param, ', D_min = ', signif(min(keep$d1), d=2)),
+                                        network = network)
+      }
+      if(network == '4N3M'){
+        make.plot.from.adjacency.matrix(as.matrix(ss), 
+                                        main = paste0(Model, ' , Q = ', nb.param, ', D_bmp.shh.min = ', signif(min(keep$d1), d=2), 
+                                                      signif(min(keep$d2), d=2)),
+                                        network = network)
+      }
       
       for(j in unique(keep$index.param))
       {
@@ -249,7 +282,14 @@ for(n in 1:length(model.list)){
                type = 'l', col = ii, lwd = 2.0)
           
         }
-        legend('topleft', legend = paste0('d = ', signif(keep$d1[sels], d = 2)), col = 1:nrow(k), cex = 0.7)
+        if(network == '3N2M'){
+          legend('topleft', legend = paste0('d = ', signif(keep$d1[sels], d = 2)), 
+                 col = 1:nrow(k), cex = 0.7)
+        }
+        if(network == '4N3M'){
+          legend('topleft', legend = paste0('d = ', signif(keep$d1[sels], d = 2), ';', signif(keep$d2[sels], d = 2)), 
+                 col = 1:nrow(k), cex = 0.7)
+        }
         
       }
       
