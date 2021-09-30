@@ -46,7 +46,8 @@ if(network == '4N3M')
   s0 = matrix(NA, nrow = 4, ncol = 4)
   colnames(s0) = c('Nog', 'BMP', 'Shh', 'Foxa2')
   rownames(s0) = colnames(s0)
-  s0[1, 1] = 0 # no Noggin autoactivation
+  
+  #s0[1, 1] = 0 # no Noggin autoactivation
   s0[1, 2] = -1; # Nog inhibite BMP
   s0[1, 3] = 0; # no interaction between Shh and Noggin
   s0[1, 4] = 0; # no positive feedback from noggin to foxa2
@@ -55,7 +56,7 @@ if(network == '4N3M')
   s0[2, 4] = -1 # bmp inhibites foxa2
   
   s0[3, 1] = 0 # no interaction between Shh and Noggin
-  s0[3, 3] = 0 # no autoregulation of Shh
+  #s0[3, 3] = 0 # no autoregulation of Shh
   s0[3, 4] = 1 # shh activate foxa2
   
   s0[4, 1] = 1 # Foxa2 activate noggin
@@ -64,10 +65,12 @@ if(network == '4N3M')
   
   ii2assign = which(is.na(s0))
   
-  xx = expand.grid(-1:1, # bmp autoregulation
+  xx = expand.grid(0:1, # nog auto-activation
+                  -1:1, # bmp autoregulation
                    -1:1, # shh to bmp
-                   0:1, # Foxa2 expresses or not bmp
+                   0:1, # Foxa2 expresses bmp or not
                    -1:1, # bmp regultes shh
+                   0:1, # shh auto-activation
                    0:1)  # foxa2 auto-activation
   
 }
@@ -140,22 +143,33 @@ filter.reaction.parameters.for.RD.patterning = function(res, filter.phase = FALS
     # remove the turing filtering by checking if the Re(lambda) is negative for wavenumber max
     # BMP diffusion is >=0.1, comparable or larger than Noggin
     if(!filter.phase & !filter.oscillation){
-      if(lambda_real[jj, which(k[jj, ] == max(k[jj, ]))] < 0  &  res$d1[jj] >= 0.5) index_keep = c(index_keep, jj)
+      if(lambda_real[jj, which(k[jj, ] == max(k[jj, ]))] < 0  &  res$d1[jj] >= 0.2) index_keep = c(index_keep, jj)
     }
     if(filter.phase){
-      pp = phases[jj, which(lambda_real[jj, ]>0)]
       
-      if(network == '3N2M'){
-        if(lambda_real[jj, which(k[jj, ] == max(k[jj, ]))] < 0  &  res$d1[jj] >= 0.5 & (all(pp == '1;0;1') | all(pp == '0;1;0'))) {
-          index_keep = c(index_keep, jj)
+      kk_pos = which(lambda_real[jj, ] > 0)
+      kk_max = which(lambda_real[jj, ] == max(lambda_real[jj,]))[1]
+      lambda_max = lambda_real[jj, kk_max]
+      lambda_border = lambda_real[jj, 1]
+      # filtering criterion:
+      # lambda_max > 0
+      # lambda_max in not on the border or in the middle of wavenumber
+      # lambda at the border is either negative or the max - border value > 0.01
+      if(lambda_max > 0 & (kk_max > 1 & kk_max < ncol(k)) & (lambda_border <=0 | (lambda_max - lambda_border) > 0.01)){
+        pp = phases[jj, kk_pos]
+        
+        if(network == '3N2M'){
+          if(res$d1[jj] >= 0.2 & (all(pp == '1;0;1') | all(pp == '0;1;0'))) {
+            index_keep = c(index_keep, jj)
+          }
+        }
+        
+        if(network == '4N3M') {
+          if( res$d1[jj] >= 0.2 & (any(pp == '1;0;1;1'| pp == '0;1;0;0'))) {
+            index_keep = c(index_keep, jj)
+          }
         }
       }
-      if(network == '4N3M') {
-        if(lambda_real[jj, which(k[jj, ] == max(k[jj, ]))] < 0  &  res$d1[jj] >= 0.5 & (all(pp == '1;0;1;1'| pp == '0;1;0;0'))) {
-          index_keep = c(index_keep, jj)
-        }
-      }
-      
     }
     
   }
@@ -188,7 +202,7 @@ if(!dir.exists(modelSaveDir)) dir.create(modelSaveDir)
 if(!dir.exists(paramSaveDir)) dir.create(paramSaveDir)
 
 for(n in 1:length(model.list)){
-  # n = 94
+  # n = grep('Model_98', model.list)
   Model = basename(model.list[n])
   Model = gsub('.csv', '', Model)
   
@@ -204,7 +218,7 @@ for(n in 1:length(model.list)){
     keep = c()
     for(i in 1:length(param.list))
     {
-      # i = 3
+      # i = 1
       res = read.csv(file = param.list[i], header = TRUE)
       
       ##########################################
@@ -240,7 +254,7 @@ for(n in 1:length(model.list)){
       if(network == '4N3M'){
         make.plot.from.adjacency.matrix(as.matrix(ss), 
                                         main = paste0(Model, ' , Q = ', nb.param, ', D_bmp.shh.min = ', signif(min(keep$d1), d=2), 
-                                                      signif(min(keep$d2), d=2)),
+                                                     ';', signif(min(keep$d2), d=2)),
                                         network = network)
       }
       
@@ -261,7 +275,7 @@ for(n in 1:length(model.list)){
       if(network == '4N3M'){
         make.plot.from.adjacency.matrix(as.matrix(ss), 
                                         main = paste0(Model, ' , Q = ', nb.param, ', D_bmp.shh.min = ', signif(min(keep$d1), d=2), 
-                                                      signif(min(keep$d2), d=2)),
+                                                      '; ', signif(min(keep$d2), d=2)),
                                         network = network)
       }
       
