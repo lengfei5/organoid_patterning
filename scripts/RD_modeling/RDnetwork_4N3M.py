@@ -142,7 +142,7 @@ def f_ode(x, t, k, S):
     dx0dt = 0.1 -      x[0] + k[3]*(1.0/(1.0 + (1.0 /x[0])**(2.0*S.iloc[0,0])) * 1.0/(1.0 + ( k[7]/x[1])**(2.0*S.iloc[1, 0])) *  1.0/(1.0 +           1.0                   ) * 1.0/(1.0 + (k[8] /x[3])**(2.0*S.iloc[3, 0]))) # Noggin
     dx1dt = 0.1 - k[0]*x[1] + k[4]*(1.0/(1.0 + (k[9]/x[0])**(2.0*S.iloc[0,1])) * 1.0/(1.0 + ( 1.0/ x[1])**(2.0*S.iloc[1, 1])) *  1.0/(1.0 + (k[10]/x[2])**(2.0*S.iloc[2, 1])) * 1.0/(1.0 + (k[11]/x[3])**(2.0*S.iloc[3, 1]))) # BMP
     dx2dt = 0.1 - k[1]*x[2] + k[5]*(1.0/(1.0 +                    1.0        ) * 1.0/(1.0 + (k[12]/x[1])**(2.0*S.iloc[1, 2])) *  1.0/(1.0 + (1.0 / x[2])**(2.0*S.iloc[2, 2])) * 1.0/(1.0 + (k[13]/x[3])**(2.0*S.iloc[3, 2]))) # Shh
-    dx3dt = 0.1 - k[2]*x[3] + k[6]*(1.0/(1.0 +                    1.0        )  *1.0/(1.0 + (k[14]/x[1])**(2.0*S.iloc[1, 3])) *  1.0/(1.0 + (k[15]/x[2])**(2.0*S.iloc[2, 3])) * 1.0/(1.0 + ( 1.0 /x[3])**(2.0*S.iloc[3, 3]))) # Foxa2
+    dx3dt = 0.1 - k[2]*x[3] + k[6]*(1.0/(1.0 +                    1.0        ) * 1.0/(1.0 + (k[14]/x[1])**(2.0*S.iloc[1, 3])) *  1.0/(1.0 + (k[15]/x[2])**(2.0*S.iloc[2, 3])) * 1.0/(1.0 + ( 1.0 /x[3])**(2.0*S.iloc[3, 3]))) # Foxa2
     
     dRdt = [dx0dt, dx1dt, dx2dt, dx3dt]
     
@@ -166,7 +166,9 @@ def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q
     names = [element for tupl in names for element in tupl]
     keep = pd.DataFrame(columns=names)
     
-    
+    #%% test k example
+    #k = np.ones(16)
+    #k[0] = 100; k[1] = 0.1; k[3] = 0.01 *2; k[4] = 100; k[5] = 1*4; k[6] = 10*2; k[7] = 10; k[13] = 0.1; k[14] = 0.01;
     # %% find the steady state by integration (initial guess)
     x0 = np.random.random(1) * np.ones(n)
     #x0 = [2.3, 0.4, 1.3]
@@ -231,7 +233,7 @@ def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q
                 
                 for val in d_grid: # loop diffusion matrix for each steady state
                     
-                    # val = d_grid[0]
+                    # val = d_grid[1]
                     d = np.asarray(val)
                     #d = [0.0, d[0], d[1]]
                     
@@ -240,7 +242,7 @@ def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q
                     eigenvec = []
                     # loop over the wavenumber 
                     for j in range(len(q)):
-                        # j = 1
+                        # j = 2
                         S2 = S1 - np.diag(np.multiply(d, q[j]**2))
                         #wk,vk =  np.linalg.eig(S2)
                         try:
@@ -252,15 +254,16 @@ def linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q
                         lam_im[j] = wk.imag[np.argmax(wk.real)]
                         vec_sel = vk[:, np.argmax(wk.real)]
                         eigenvec.append(str(int(vec_sel[0] >0)) + ';' + str(int(vec_sel[1] >0)) + ';' + str(int(vec_sel[2] >0)) + ';' + str(int(vec_sel[3] >0)) )
-                    #plt.plot(q, lam_real)
-                    #plt.show()
-                    #plt.axis([0, max(q), -1, 1])
-                    #plt.axhline(y=0, color='r', linestyle='-'
+                            
                     #print(max(lam_real))
                     index_max = np.argmax(lam_real) 
                     lam_real_max = lam_real[index_max]
                     #lam_im_max = lam_im[index_max]
                     #q_max = q[index_max]
+                    # plt.plot(q, lam_real)
+                    # plt.show()
+                    # plt.axis([0, max(q), -1, 1])
+                    # plt.axhline(y=0, color='r', linestyle='-')
                     
                     # save the result, k parameter, steady state, d parameters, q values, lambda_real, lambda imaginary
                     if lam_real_max >= 0:  
@@ -330,13 +333,13 @@ def main(argv):
     
     # total number for parameter sampling 
     nb_sampling_parameters = 100 # reaction parameters
-    
-    nb_sampling_diffusion = 20 # diffusion rate
+    nb_sampling_diffusion = 16 # diffusion rate
+    nb_sampling_wavenumber = 30
     nb_sampling_init = 3 # nb of initial condtion sampled
     
-    q = 2*3.14159 / np.logspace(-2, 3.0, num=nb_sampling_diffusion) # wavenumber
+    q = 2*3.14159 / np.logspace(-2, 3.0, num=nb_sampling_wavenumber) # wavenumber
     
-   
+    
     #%%
     print('--  main function starts --')
     
@@ -370,26 +373,38 @@ def main(argv):
     if np.abs(S.iloc[3, 0]) < 10**-6:
         k_length = k_length - 1
         Index_K_unsampled.append(8)
-        
-    if np.abs(S.iloc[2, 1]) < 10**-6:
+    
+    
+    if np.abs(S.iloc[0, 1]) < 10**-6:
         k_length = k_length - 1
         Index_K_unsampled.append(9)
     
-    if np.abs(S.iloc[3, 1]) < 10**-6:
+    if np.abs(S.iloc[2, 1]) < 10**-6:
         k_length = k_length - 1
         Index_K_unsampled.append(10)
+        
+    if np.abs(S.iloc[3, 1]) < 10**-6:
+        k_length = k_length - 1
+        Index_K_unsampled.append(11)
+    
     
     if np.abs(S.iloc[1, 2]) < 10**-6:
         k_length = k_length - 1
-        Index_K_unsampled.append(11)
+        Index_K_unsampled.append(12)
         
     if np.abs(S.iloc[3, 2]) < 10**-6:
         k_length = k_length - 1
-        Index_K_unsampled.append(12)
+        Index_K_unsampled.append(13)
+    
     
     if np.abs(S.iloc[1, 3]) < 10**-6:
         k_length = k_length - 1
-        Index_K_unsampled.append(13)
+        Index_K_unsampled.append(14)
+    
+    if np.abs(S.iloc[2, 3]) < 10**-6:
+        k_length = k_length - 1
+        Index_K_unsampled.append(15)
+        
         
     # for index_j in range(n): 
     #     for index_i in range(n):
@@ -426,16 +441,17 @@ def main(argv):
     k_grid_log = lhs.generate(space.dimensions, nb_sampling_parameters)
     
     # diffusion rate sampling
-    d_range = np.logspace(-2, 3.0, num = nb_sampling_diffusion)
+    d_range = np.logspace(-1, 3.0, num = nb_sampling_diffusion)
     d_grid = list(itertools.product(np.ones(1),  d_range, d_range, np.zeros(1)))
     
-    index_d_keep = []
-    for kk in range(len(d_grid)):
-        # constrain of diffusion, shh is not 10 time faster than bmp; and bmp is at least 0.2 of noggin
-        if d_grid[kk][2] / d_grid[kk][1] <= 10 and d_grid[kk][1] > 0.2: 
-            index_d_keep.append(kk)
+    # filtering some d_range values
+    # index_d_keep = []
+    # for kk in range(len(d_grid)):
+    #     # constrain of diffusion, shh is not 10 time faster than bmp; and bmp is at least 0.2 of noggin
+    #     if d_grid[kk][1] > 0.2 and d_grid[kk][2] / d_grid[kk][1] <= 10 : 
+    #         index_d_keep.append(kk)
     
-    d_grid = [ d_grid[index] for index in index_d_keep ]
+    # d_grid = [ d_grid[index] for index in index_d_keep ]
     
     
     # initial conditions: each node has 3 initial values
