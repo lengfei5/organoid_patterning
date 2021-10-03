@@ -354,7 +354,8 @@ saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cyst.fp.Fi
 ##########################################
 # extract turing-relevant parameters
 ######################################### 
-res = readRDS(file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cyst.fp.Filering_', analysis.verison, '.rds'))
+#res = readRDS(file = '~/workspace/imp/organoid_patterning/results/Rdata/mergedTable_cyst.fp_allConditions_cyst.fp.Filering_hNTdrugs3_0310_Analysis20210507_cellProfiler.rds')
+#res = readRDS(file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cyst.fp.Filering_', analysis.verison, '.rds'))
 
 source('Functions_3dImage.R')
 cat(length(unique(res$ID_cyst)), ' cysts and ', length(unique(res$ID_fp)) -1, 'fps\n')
@@ -388,9 +389,13 @@ saveRDS(params, file = paste0(Rdata, '/turing_parameters_extracted_Teresa.contro
 params = readRDS(file = paste0(Rdata, '/turing_parameters_extracted_Teresa.control.LDN_d5.d6_merged.rds'))
 params$condition = gsub('.d6.d6', '.d6', params$condition)
 
+
 #library(tidyquant)
 conds = unique(params$condition)
 
+conds.sels = list(
+   which(params$condition == "RA_LDNSB"))
+  
 # check controls first
 conds.sels = list(
   # which(params$condition == "RA_LDNSB"|
@@ -446,10 +451,10 @@ pdf(pdfname,  width = 20, height = 16)
 
 for(n in 1:length(conds.sels))
 {
-  # n = 2
+  # n = 1
   sels = conds.sels[[n]]
   nb.fp = as.numeric(as.character(params$nb.fp[sels]))
-  sels = sels[which(nb.fp>=0 & nb.fp<=10)]
+  sels = sels[which(nb.fp>=0 & nb.fp<6)]
   
   if(n == 1){
     level_order = levels(factor(params$condition[sels]))
@@ -492,7 +497,9 @@ for(n in 1:length(conds.sels))
   #factor(Var1, levels = c('pooled', 'negative',  'positive'))))
   
   p6 = ggplot(params[sels, ], aes(x=nb.fp, y=volume, color=condition, fill = condition)) +
-    geom_violin() + ggtitle('size dependency of fp nb (cyst volume)') 
+    geom_boxplot() + ggtitle('size dependency of fp nb (cyst volume)') + 
+    theme(axis.text.x = element_text(angle = 0, size = 16), 
+          axis.text.y = element_text(size = 16) )
   
   p61 = ggplot(params[sels, ], aes(x=nb.fp, y=radius.cyst, color=condition, fill = condition)) +
     geom_violin() + ggtitle('size dependency of fp nb (cyst radius)') 

@@ -108,7 +108,7 @@ for(n in 1:nrow(xx))
 rm(list = ls())
 library("igraph")
 
-RDoutDir = '../results/RD_topology_screening/topology_screening_4N3M_v1/'
+RDoutDir = '../results/RD_topology_screening/topology_screening_4N3M_v2/'
 screening.outDir = paste0(RDoutDir, 'RD_out_4N3M/')
 modelDir = paste0(RDoutDir, '4N3M_topology_enumerate')
 
