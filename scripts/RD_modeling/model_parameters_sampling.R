@@ -108,9 +108,28 @@ for(n in 1:nrow(xx))
 rm(list = ls())
 library("igraph")
 
+
 RDoutDir = '../results/RD_topology_screening/topology_screening_4N3M_v2/'
 screening.outDir = paste0(RDoutDir, 'RD_out_4N3M/')
 modelDir = paste0(RDoutDir, '4N3M_topology_enumerate')
+network = '4N3M'
+
+# 
+# RDoutDir = '../results/RD_topology_screening/topology_screening_3N2M_v2/'
+# screening.outDir = paste0(RDoutDir, 'RD_out_3N2M_50k_v3/')
+# modelDir = paste0(RDoutDir, '3N2M_topology_enumerate')
+# network = '3N2M'
+
+#selection.criterion = 'D.larger.1_lambda.neg.max.q_phase'
+#resDir = paste0(RDoutDir, 'topology_summary_selection')
+resDir = paste0(RDoutDir, 'topology_summary_selection_D.larger.1_lambda.neg.max.q_phase_final')
+modelSaveDir = paste0(resDir, '/Models_selected')
+paramSaveDir = paste0(resDir, '/table_params')
+
+if(!dir.exists(resDir)) dir.create(resDir)
+if(!dir.exists(modelSaveDir)) dir.create(modelSaveDir)
+if(!dir.exists(paramSaveDir)) dir.create(paramSaveDir)
+
 
 # make graph from adjacency matrix
 make.plot.from.adjacency.matrix = function(s, main = '', network = '3N2M')
@@ -188,21 +207,11 @@ rownames(s0) = colnames(s0)
 # make.plot.from.adjacency.matrix(s0)
 
 model.list = list.files(path = modelDir, pattern = '*.csv', full.names = TRUE)
-network = '4N3M'
 
 nb = 0
 
-#selection.criterion = 'D.larger.1_lambda.neg.max.q_phase'
-resDir = paste0(RDoutDir, 'topology_summary_selection_D.larger.1_lambda.neg.max.q_phase')
-modelSaveDir = paste0(resDir, '/Models_selected')
-paramSaveDir = paste0(resDir, '/table_params')
-
-if(!dir.exists(resDir)) dir.create(resDir)
-if(!dir.exists(modelSaveDir)) dir.create(modelSaveDir)
-if(!dir.exists(paramSaveDir)) dir.create(paramSaveDir)
-
 for(n in 1:length(model.list)){
-  # n = grep('Model_98', model.list)
+  # n = grep('Model_15', model.list)
   Model = basename(model.list[n])
   Model = gsub('.csv', '', Model)
   
@@ -238,7 +247,7 @@ for(n in 1:length(model.list)){
     
     keep = data.frame(index.param = index.param, keep, stringsAsFactors = FALSE)
     
-    if(nb.param >0) {
+    if(nb.param >0 & ss[2, 2] < 1 & ss[4, 2] > 0) {
       nb = nb + 1
       cat('Model index: ',  n, ': ', Model,  ' -- nb of reaction params:',  nb.param, '\n')
       
@@ -283,26 +292,27 @@ for(n in 1:length(model.list)){
       {
         # j = 1
         sels = which(keep$index.param == j)
+        # sels = which(keep$index.param == j & (keep$d1 > 1 & keep$d1 < 10 ))
         
         lambda_real = keep[sels, grep('lambda_re', colnames(keep))]
         lambda_im = keep[sels, grep('lambda_im', colnames(keep))]
         k = keep[sels, match(paste0('q', c(0:(ncol(lambda_real)-1))) , colnames(keep))]
         
-        plot(1, 1, type = 'n', xlim = range(k), ylim = range(lambda_real), log='x', xlab = 'wavenumber (k)', ylab = 'Re(lamba.max)',
-             main = Model)
-        abline(h = 0, lwd = 2.0, col = 'gray80')
+        plot(1, 1, type = 'n', xlim = range(k), ylim = range(lambda_real), log='x', xlab = 'k (wavenumber)', ylab = 'Re(lamba.max)',
+             main = Model, cex.lab = 1.5, cex.axis = 1.5)
+        abline(h = 0, lwd = 2.0, col = 'black')
         for(ii in 1:nrow(k)){
           points(as.numeric(k[ii, ]), as.numeric(lambda_real[ii, ]), 
-               type = 'l', col = ii, lwd = 2.0)
+               type = 'l', col = ii, lwd = 4.0)
           
         }
         if(network == '3N2M'){
           legend('topleft', legend = paste0('d = ', signif(keep$d1[sels], d = 2)), 
-                 col = 1:nrow(k), cex = 0.7)
+                 col = 1:nrow(k), cex = 1.5, lwd = 4, bty = 'n')
         }
         if(network == '4N3M'){
           legend('topleft', legend = paste0('d = ', signif(keep$d1[sels], d = 2), ';', signif(keep$d2[sels], d = 2)), 
-                 col = 1:nrow(k), cex = 0.7)
+                 col = 1:nrow(k), cex = 1.5, lwd = 4.0, bty = 'n')
         }
         
       }

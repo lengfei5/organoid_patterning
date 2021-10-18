@@ -407,10 +407,21 @@ def RD_numericalSolver(c0_tuple = (),
     #t_point = 1000000
     #i = np.searchsorted(t, t_point)
     i = len(t) - 1
-    plt.plot(x, (conc[2][i, :]-np.mean(conc[2][i, :]))/np.std(conc[2][i, :]) + 2.0 , color="green")
-    plt.plot(x, (conc[0][i, :]-np.mean(conc[0][i, :]))/np.std(conc[0][i, :]))
-    plt.plot(x, (conc[1][i, :]-np.mean(conc[1][i, :]))/np.std(conc[1][i, :]) - 1.0, color="red")
-   
+    fig, ax = plt.subplots()
+    ax.plot(x, (conc[2][i, :]-np.mean(conc[2][i, :]))/np.std(conc[2][i, :]) + 2.0 , color="green", label = 'Foxa2')
+    ax.plot(x, (conc[0][i, :]-np.mean(conc[0][i, :]))/np.std(conc[0][i, :]), label = 'Noggin')
+    ax.plot(x, (conc[1][i, :]-np.mean(conc[1][i, :]))/np.std(conc[1][i, :]) - 1.0, color="red", label = 'BMP')
+    ax.legend()
+    ax.set_ylabel('scaled levels')
+    ax.set_xlabel('x')
+    # ax.plot(t,sol[:,0],label='x1')
+    # ax.plot(t,sol[:,1],label='x2')
+    # ax.plot(t,sol[:,2],label='x3')
+    # #ax.plot(t,result[:,2],label='R0=1')
+    
+    
+    
+    
     
     print('done')     
     
@@ -484,7 +495,7 @@ def main(argv):
     #for i in range(len(k_grid)):
     for i in range(params.shape[0]):
         
-        # i = 2
+        # i = 8
         print(i)
         par = np.asarray(params.iloc[i])
         
@@ -501,6 +512,7 @@ def main(argv):
         lamda_im = par[124:173]
         index_max = np.argmax(lamda_rel) 
         L = 2.0*3.14159/q[index_max] * 10
+        L = 10
         
         print('imaginary part  of lamda : '+ str(lamda_im[index_max]))
         print(steadyState)
@@ -511,9 +523,18 @@ def main(argv):
         f_0 = np.ones(nb_grids)*steadyState[2]
         
         # Make a small perturbation to a_0 by adding noise
-        a_0 += 0.001 * np.random.rand(len(a_0))*steadyState[0] 
+        a_0 += 1 * np.random.rand(len(a_0))*steadyState[0]
+        
+        x = np.linspace(0, L, len(a_0))
+        #a_0 +=  0.01 * cos(2*pi/50*x) * steadyState[0]
+        #a_0 += (0.001 * np.random.rand(len(a_0)) + 0.01 * (1+ cos(1*pi/1*x)))*steadyState[0]
         #s_0 += 0.01 * np.random.rand(len(s_0))*steadyState[1]
         #f_0 += 0.01 * np.random.rand(len(f_0))*steadyState[2]
+       
+        plt.plot(x, a_0)
+        plt.plot(x, a_0 + 10)
+        plt.ylim(0.2, 12)
+        plt.show()
         
         RD_numericalSolver(c0_tuple = (a_0, s_0, f_0), L = L, nb_grids = nb_grids, t = t, diff_coeffs = D,
                            periodic_bc = False, 

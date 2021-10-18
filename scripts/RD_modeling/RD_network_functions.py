@@ -454,8 +454,8 @@ def rd_solve(
         
         )
     
-    c = solve_ivp(fun=dc_dt_ivp, t_span=(t[0], 100), y0 = c0, method='BDF',
-                  args = params,)  
+    #c = solve_ivp(fun=dc_dt_ivp, t_span=(t[0], 100), y0 = c0, method='BDF',
+    #              args = params,)  
         
     return tuple([c[:, i::n_species] for i in range(n_species)])
 
