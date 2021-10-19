@@ -108,21 +108,29 @@ for(n in 1:nrow(xx))
 rm(list = ls())
 library("igraph")
 
-
-RDoutDir = '../results/RD_topology_screening/topology_screening_4N3M_v2/'
-screening.outDir = paste0(RDoutDir, 'RD_out_4N3M/')
-modelDir = paste0(RDoutDir, '4N3M_topology_enumerate')
+#network = '3N2M'
 network = '4N3M'
 
-# 
-# RDoutDir = '../results/RD_topology_screening/topology_screening_3N2M_v2/'
-# screening.outDir = paste0(RDoutDir, 'RD_out_3N2M_50k_v3/')
-# modelDir = paste0(RDoutDir, '3N2M_topology_enumerate')
-# network = '3N2M'
+if(network == '4N3M'){
+  RDoutDir = '../results/RD_topology_screening/topology_screening_4N3M_v2/'
+  screening.outDir = paste0(RDoutDir, 'RD_out_4N3M/')
+  modelDir = paste0(RDoutDir, '4N3M_topology_enumerate')
+  
+}
+
+if(network == '3N2M'){
+
+  RDoutDir = '../results/RD_topology_screening/topology_screening_3N2M_v2/'
+  screening.outDir = paste0(RDoutDir, 'RD_out_3N2M_50k_v3/')
+  modelDir = paste0(RDoutDir, '3N2M_topology_enumerate')
+  
+}
+
+
 
 #selection.criterion = 'D.larger.1_lambda.neg.max.q_phase'
 #resDir = paste0(RDoutDir, 'topology_summary_selection')
-resDir = paste0(RDoutDir, 'topology_summary_selection_D.larger.1_lambda.neg.max.q_phase_final')
+resDir = paste0(RDoutDir, 'topology_summary_selection_D.larger.1_foxa2.noggin.phase_NoNogginAutoactivation')
 modelSaveDir = paste0(resDir, '/Models_selected')
 paramSaveDir = paste0(resDir, '/table_params')
 
@@ -178,13 +186,21 @@ filter.reaction.parameters.for.RD.patterning = function(res, filter.phase = FALS
         pp = phases[jj, kk_pos]
         
         if(network == '3N2M'){
-          if(res$d1[jj] >= 0.2 & (all(pp == '1;0;1') | all(pp == '0;1;0'))) {
+          if(res$d1[jj] >= 0.2 & (any(pp == '1;0;1') | 
+                                  any(pp == '0;1;0') |
+                                  any(pp == '0;0;0') | 
+                                  any(pp == '1;1;1')
+                                  )
+             ) {
             index_keep = c(index_keep, jj)
           }
         }
         
         if(network == '4N3M') {
-          if( res$d1[jj] >= 0.2 & (any(pp == '1;0;1;1'| pp == '0;1;0;0'))) {
+          if( res$d1[jj] >= 0.2 & (any(pp == '1;0;1;1') | 
+                                   any(pp == '0;1;0;0') |
+                                   any(pp == '1;1;1;1') |
+                                   any(pp == '0;0;0;0'))) {
             index_keep = c(index_keep, jj)
           }
         }
@@ -211,7 +227,7 @@ model.list = list.files(path = modelDir, pattern = '*.csv', full.names = TRUE)
 nb = 0
 
 for(n in 1:length(model.list)){
-  # n = grep('Model_15', model.list)
+  # n = grep('Model_63', model.list)
   Model = basename(model.list[n])
   Model = gsub('.csv', '', Model)
   
@@ -227,7 +243,7 @@ for(n in 1:length(model.list)){
     keep = c()
     for(i in 1:length(param.list))
     {
-      # i = 1
+      # i = 3
       res = read.csv(file = param.list[i], header = TRUE)
       
       ##########################################
@@ -247,7 +263,10 @@ for(n in 1:length(model.list)){
     
     keep = data.frame(index.param = index.param, keep, stringsAsFactors = FALSE)
     
-    if(nb.param >0 & ss[2, 2] < 1 & ss[4, 2] > 0) {
+    if(network == '4N3M')  prefilter = nb.param >0 & ss[2, 2] < 1 & ss[4, 2] > -1 & ss[1, 1] == 0
+    if(network == '3N2M') prefilter = nb.param >0
+    
+    if(prefilter) {
       nb = nb + 1
       cat('Model index: ',  n, ': ', Model,  ' -- nb of reaction params:',  nb.param, '\n')
       
@@ -325,3 +344,5 @@ for(n in 1:length(model.list)){
     }  
   }
 }
+
+
