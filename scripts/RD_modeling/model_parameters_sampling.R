@@ -10,9 +10,7 @@
 rm(list = ls())
 
 library(igraph)
-
-network = '4N3M'
-
+network = '3N2M'
 
 if(network == '3N2M'){
   resDir = '../results/RD_topology_screening/3N2M_topology_enumerate_v1/'
