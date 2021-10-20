@@ -104,38 +104,6 @@ for(n in 1:nrow(xx))
 ########################################################
 ########################################################
 rm(list = ls())
-library("igraph")
-
-#network = '3N2M'
-network = '4N3M'
-
-if(network == '4N3M'){
-  RDoutDir = '../results/RD_topology_screening/topology_screening_4N3M_v2/'
-  screening.outDir = paste0(RDoutDir, 'RD_out_4N3M/')
-  modelDir = paste0(RDoutDir, '4N3M_topology_enumerate')
-  
-}
-
-if(network == '3N2M'){
-
-  RDoutDir = '../results/RD_topology_screening/topology_screening_3N2M_v2/'
-  screening.outDir = paste0(RDoutDir, 'RD_out_3N2M_50k_v3/')
-  modelDir = paste0(RDoutDir, '3N2M_topology_enumerate')
-  
-}
-
-
-
-#selection.criterion = 'D.larger.1_lambda.neg.max.q_phase'
-#resDir = paste0(RDoutDir, 'topology_summary_selection')
-resDir = paste0(RDoutDir, 'topology_summary_selection_D.larger.1_foxa2.noggin.phase_NoNogginAutoactivation')
-modelSaveDir = paste0(resDir, '/Models_selected')
-paramSaveDir = paste0(resDir, '/table_params')
-
-if(!dir.exists(resDir)) dir.create(resDir)
-if(!dir.exists(modelSaveDir)) dir.create(modelSaveDir)
-if(!dir.exists(paramSaveDir)) dir.create(paramSaveDir)
-
 
 # make graph from adjacency matrix
 make.plot.from.adjacency.matrix = function(s, main = '', network = '3N2M')
@@ -211,14 +179,45 @@ filter.reaction.parameters.for.RD.patterning = function(res, filter.phase = FALS
   
 }
 
-s0 = matrix(NA, nrow = 3, ncol = 3)
-s0[1, 1] = 0; s0[1, 2] = -1; s0[1, 3] = 0;
-s0[2, 1] = 1; s0[2, 2] = 0; s0[2, 3] = -1
-s0[3, 1] = 1; s0[3, 2] = 1; s0[3, 3] = 1
+# s0 = matrix(NA, nrow = 3, ncol = 3)
+# s0[1, 1] = 0; s0[1, 2] = -1; s0[1, 3] = 0;
+# s0[2, 1] = 1; s0[2, 2] = 0; s0[2, 3] = -1
+# s0[3, 1] = 1; s0[3, 2] = 1; s0[3, 3] = 1
+# 
+# colnames(s0) = c('Nog', 'BMP', 'Foxa2')
+# rownames(s0) = colnames(s0) 
+# # make.plot.from.adjacency.matrix(s0)
 
-colnames(s0) = c('Nog', 'BMP', 'Foxa2')
-rownames(s0) = colnames(s0) 
-# make.plot.from.adjacency.matrix(s0)
+library("igraph")
+#network = '3N2M'
+network = '4N3M'
+
+if(network == '4N3M'){
+  RDoutDir = '../results/RD_topology_screening/topology_screening_4N3M_v2/'
+  screening.outDir = paste0(RDoutDir, 'RD_out_4N3M/')
+  modelDir = paste0(RDoutDir, '4N3M_topology_enumerate')
+  
+}
+
+if(network == '3N2M'){
+  
+  RDoutDir = '../results/RD_topology_screening/topology_screening_3N2M_v2/'
+  screening.outDir = paste0(RDoutDir, 'RD_out_3N2M_50k_v3/')
+  modelDir = paste0(RDoutDir, '3N2M_topology_enumerate')
+  
+}
+
+
+#selection.criterion = 'D.larger.1_lambda.neg.max.q_phase'
+#resDir = paste0(RDoutDir, 'topology_summary_selection')
+resDir = paste0(RDoutDir, 'topology_summary_selection_D.larger.1_foxa2.noggin.phase_Noggin.withAutoactivation_foxa2.expressingBmp')
+modelSaveDir = paste0(resDir, '/Models_selected')
+paramSaveDir = paste0(resDir, '/table_params')
+
+if(!dir.exists(resDir)) dir.create(resDir)
+if(!dir.exists(modelSaveDir)) dir.create(modelSaveDir)
+if(!dir.exists(paramSaveDir)) dir.create(paramSaveDir)
+
 
 model.list = list.files(path = modelDir, pattern = '*.csv', full.names = TRUE)
 
@@ -236,111 +235,115 @@ for(n in 1:length(model.list)){
     
     ss = read.csv(model.list[n], header = TRUE, row.names = 1)
     
-    nb.param = 0
-    index.param = c()
-    keep = c()
-    for(i in 1:length(param.list))
-    {
-      # i = 3
-      res = read.csv(file = param.list[i], header = TRUE)
+    if(ss[2, 2] < 1 & ss[4, 2] > 0 & ss[1, 1] > -1) {
       
-      ##########################################
-      # 1st filter the parameters for which Re(lambda) > 0 when q = 0
-      ##########################################
-      res = res[which(res$noDiffusion0 <0 ), ]
-      res = filter.reaction.parameters.for.RD.patterning(res, filter.phase = TRUE, network = network)
-      
-      if(nrow(res) > 0) {
-        nb.param = nb.param + 1
-        index.param = c(index.param, rep(nb.param, nrow(res)))
-        keep = rbind(keep, res)
-      }
-    }
-    
-    # cat(Model, '---', nb.param, 'sets of reaction parameters\n')
-    
-    keep = data.frame(index.param = index.param, keep, stringsAsFactors = FALSE)
-    
-    if(network == '4N3M')  prefilter = nb.param >0 & ss[2, 2] < 1 & ss[4, 2] > -1 & ss[1, 1] == 0
-    if(network == '3N2M') prefilter = nb.param >0
-    
-    if(prefilter) {
-      nb = nb + 1
-      cat('Model index: ',  n, ': ', Model,  ' -- nb of reaction params:',  nb.param, '\n')
-      
-      pdfname = paste0(modelSaveDir, "/", Model, ".pdf")
-      pdf(pdfname, width = 8, height = 6)
-      par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
-      
-      if(network == '3N2M'){
-        make.plot.from.adjacency.matrix(as.matrix(ss), 
-                                        main = paste0(Model, ' , Q = ', nb.param, ', D_min = ', signif(min(keep$d1), d=2)),
-                                        network = network)
-      }
-      if(network == '4N3M'){
-        make.plot.from.adjacency.matrix(as.matrix(ss), 
-                                        main = paste0(Model, ' , Q = ', nb.param, ', D_bmp.shh.min = ', signif(min(keep$d1), d=2), 
-                                                     ';', signif(min(keep$d2), d=2)),
-                                        network = network)
-      }
-      
-      dev.off()
-      
-      # make summary for the model
-      pdfname = paste0(resDir, "/", Model, ".pdf")
-      pdf(pdfname, width = 12, height = 8)
-      par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
-      
-      #s = as.matrix(ss)
-      
-      if(network == '3N2M'){
-        make.plot.from.adjacency.matrix(as.matrix(ss), 
-                                        main = paste0(Model, ' , Q = ', nb.param, ', D_min = ', signif(min(keep$d1), d=2)),
-                                        network = network)
-      }
-      if(network == '4N3M'){
-        make.plot.from.adjacency.matrix(as.matrix(ss), 
-                                        main = paste0(Model, ' , Q = ', nb.param, ', D_bmp.shh.min = ', signif(min(keep$d1), d=2), 
-                                                      '; ', signif(min(keep$d2), d=2)),
-                                        network = network)
-      }
-      
-      for(j in unique(keep$index.param))
+      nb.param = 0
+      index.param = c()
+      keep = c()
+      for(i in 1:length(param.list))
       {
-        # j = 1
-        sels = which(keep$index.param == j)
-        # sels = which(keep$index.param == j & (keep$d1 > 1 & keep$d1 < 10 ))
+        # i = 3
+        res = read.csv(file = param.list[i], header = TRUE)
         
-        lambda_real = keep[sels, grep('lambda_re', colnames(keep))]
-        lambda_im = keep[sels, grep('lambda_im', colnames(keep))]
-        k = keep[sels, match(paste0('q', c(0:(ncol(lambda_real)-1))) , colnames(keep))]
+        ##########################################
+        # 1st filter the parameters for which Re(lambda) > 0 when q = 0
+        ##########################################
+        res = res[which(res$noDiffusion0 <0 ), ]
+        res = filter.reaction.parameters.for.RD.patterning(res, filter.phase = TRUE, network = network)
         
-        plot(1, 1, type = 'n', xlim = range(k), ylim = range(lambda_real), log='x', xlab = 'k (wavenumber)', ylab = 'Re(lamba.max)',
-             main = Model, cex.lab = 1.5, cex.axis = 1.5)
-        abline(h = 0, lwd = 2.0, col = 'black')
-        for(ii in 1:nrow(k)){
-          points(as.numeric(k[ii, ]), as.numeric(lambda_real[ii, ]), 
-               type = 'l', col = ii, lwd = 4.0)
-          
+        if(nrow(res) > 0) {
+          nb.param = nb.param + 1
+          index.param = c(index.param, rep(nb.param, nrow(res)))
+          keep = rbind(keep, res)
         }
+      }
+      
+      # cat(Model, '---', nb.param, 'sets of reaction parameters\n')
+      
+      keep = data.frame(index.param = index.param, keep, stringsAsFactors = FALSE)
+      
+      #if(network == '4N3M')  prefilter = 
+      #if(network == '3N2M') prefilter = nb.param >0
+      
+      if(nb.param >0) {
+        nb = nb + 1
+        cat('Model index: ',  n, ': ', Model,  ' -- nb of reaction params:',  nb.param, '\n')
+        
+        pdfname = paste0(modelSaveDir, "/", Model, ".pdf")
+        pdf(pdfname, width = 8, height = 6)
+        par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
+        
         if(network == '3N2M'){
-          legend('topleft', legend = paste0('d = ', signif(keep$d1[sels], d = 2)), 
-                 col = 1:nrow(k), cex = 1.5, lwd = 4, bty = 'n')
+          make.plot.from.adjacency.matrix(as.matrix(ss), 
+                                          main = paste0(Model, ' , Q = ', nb.param, ', D_min = ', signif(min(keep$d1), d=2)),
+                                          network = network)
         }
         if(network == '4N3M'){
-          legend('topleft', legend = paste0('d = ', signif(keep$d1[sels], d = 2), ';', signif(keep$d2[sels], d = 2)), 
-                 col = 1:nrow(k), cex = 1.5, lwd = 4.0, bty = 'n')
+          make.plot.from.adjacency.matrix(as.matrix(ss), 
+                                          main = paste0(Model, ' , Q = ', nb.param, ', D_bmp.shh.min = ', signif(min(keep$d1), d=2), 
+                                                        ';', signif(min(keep$d2), d=2)),
+                                          network = network)
         }
         
-      }
-      
-      dev.off()
-      
-      write.csv(keep, file = paste0(paramSaveDir, '/params_saved_', Model, '.csv'), row.names = FALSE, quote = FALSE)
-      write.csv(ss, file = paste0(paramSaveDir, '/', Model, '.csv'), row.names = TRUE, quote = FALSE)
-      
-    }  
+        dev.off()
+        
+        # make summary for the model
+        pdfname = paste0(resDir, "/", Model, ".pdf")
+        pdf(pdfname, width = 12, height = 8)
+        par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
+        
+        #s = as.matrix(ss)
+        
+        if(network == '3N2M'){
+          make.plot.from.adjacency.matrix(as.matrix(ss), 
+                                          main = paste0(Model, ' , Q = ', nb.param, ', D_min = ', signif(min(keep$d1), d=2)),
+                                          network = network)
+        }
+        if(network == '4N3M'){
+          make.plot.from.adjacency.matrix(as.matrix(ss), 
+                                          main = paste0(Model, ' , Q = ', nb.param, ', D_bmp.shh.min = ', signif(min(keep$d1), d=2), 
+                                                        '; ', signif(min(keep$d2), d=2)),
+                                          network = network)
+        }
+        
+        for(j in unique(keep$index.param))
+        {
+          # j = 1
+          sels = which(keep$index.param == j)
+          # sels = which(keep$index.param == j & (keep$d1 > 1 & keep$d1 < 10 ))
+          
+          lambda_real = keep[sels, grep('lambda_re', colnames(keep))]
+          lambda_im = keep[sels, grep('lambda_im', colnames(keep))]
+          k = keep[sels, match(paste0('q', c(0:(ncol(lambda_real)-1))) , colnames(keep))]
+          
+          plot(1, 1, type = 'n', xlim = range(k), ylim = range(lambda_real), log='x', xlab = 'k (wavenumber)', ylab = 'Re(lamba.max)',
+               main = Model, cex.lab = 1.5, cex.axis = 1.5)
+          abline(h = 0, lwd = 2.0, col = 'black')
+          for(ii in 1:nrow(k)){
+            points(as.numeric(k[ii, ]), as.numeric(lambda_real[ii, ]), 
+                   type = 'l', col = ii, lwd = 4.0)
+            
+          }
+          if(network == '3N2M'){
+            legend('topleft', legend = paste0('d = ', signif(keep$d1[sels], d = 2)), 
+                   col = 1:nrow(k), cex = 1.5, lwd = 4, bty = 'n')
+          }
+          if(network == '4N3M'){
+            legend('topleft', legend = paste0('d = ', signif(keep$d1[sels], d = 2), ';', signif(keep$d2[sels], d = 2)), 
+                   col = 1:nrow(k), cex = 1.5, lwd = 4.0, bty = 'n')
+          }
+          
+        }
+        
+        dev.off()
+        
+        write.csv(keep, file = paste0(paramSaveDir, '/params_saved_', Model, '.csv'), row.names = FALSE, quote = FALSE)
+        write.csv(ss, file = paste0(paramSaveDir, '/', Model, '.csv'), row.names = TRUE, quote = FALSE)
+        
+      }  
+    }
   }
+  
 }
 
 
