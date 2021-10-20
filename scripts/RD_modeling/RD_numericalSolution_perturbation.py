@@ -544,71 +544,9 @@ def main(argv):
         
     print(time.process_time() - start_time, "seconds for for loop")
     
-        #linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q, i, outputDir)
-        #Parallel(n_jobs=2)(delayed(linear_stability_singleParam)(i, k_grid_log, nb_params, Index_K_unsampled, n, f_ode, S, t_final, c_init, X, K, d_grid, q) for i in range(len(k_grid_log)))
-    
-    
-    
-    # define symbolic variables for Jacobian matrix 
-    #X = sym.symbols(('x0:' + str(n)))
-    #K = sym.symbols(('k0:' + str(nb_params)))
-    
-    ## keep a record of unsampled parameters
-    #K_total = [None] * nb_params
-    #for index_par in range(nb_params):
-    #    K_total[index_par] = 'k' + str(index_par)
+    #linear_stability_test_param(n, f_ode, k, S, t_final, c_init, X, K, d_grid, q, i, outputDir)
+    #Parallel(n_jobs=2)(delayed(linear_stability_singleParam)(i, k_grid_log, nb_params, Index_K_unsampled, n, f_ode, S, t_final, c_init, X, K, d_grid, q) for i in range(len(k_grid_log)))
         
-    # Index_K_unsampled = []
-    # k_length = 8 # nb of reaction parameters: 3* number of nodes (3*3) + number of interactions (6)
-    # for index_j in range(3): 
-    #     for index_i in range(3):
-    #         #print(S.iloc[index_j, index_i])
-    #         if index_i != index_j:
-    #             if np.abs(S.iloc[index_j, index_i]) > 0: 
-    #                 k_length = k_length + 1
-    #             else:
-    #                 if index_i == 0 and index_j == 1:
-    #                     Index_K_unsampled.append(8)
-    #                 elif index_i ==0 and index_j == 2:
-    #                     Index_K_unsampled.append(9)
-    #                 elif index_i == 1 and index_j == 0:
-    #                     Index_K_unsampled.append(10)
-    #                 elif index_i == 1 and index_j == 2:
-    #                     Index_K_unsampled.append(11)
-    #                 elif index_i == 2 and index_j == 0:
-    #                     Index_K_unsampled.append(12)
-    #                 elif index_i == 2 and index_j == 1:
-    #                     Index_K_unsampled.append(13)
-    # if len(Index_K_unsampled) + k_length != nb_params:
-    #     print(" nb of sampled parameters not correct  !")
-    #     os._exit(1)
-                            
-    #%% sampling the parameters, which node is difusor and diffusion coeffs
-    
-    ## lhs sampling for parameter
-    # np.random.seed(123)
-    
-    # list_dimensions = [(-2, 2)]*k_length
-    # space = Space(list_dimensions)
-    
-    # lhs = Lhs(criterion="maximin", iterations=1000)
-    # k_grid_log = lhs.generate(space.dimensions, nb_sampling_parameters)
-    
-    # # diffusion rate sampling
-    # d_range = np.logspace(-3, 3.0, num = nb_sampling_diffusion)
-    # d_grid = list(itertools.product(np.ones(1),  d_range, np.zeros(1)))
-    
-    # # initial conditions: each node has 3 initial values
-    # x_init = np.logspace(-1, 4, nb_sampling_init)
-    # c_init = itertools.combinations_with_replacement(x_init, n)
-    
-    # # time 
-    # t_final = 1000
-    
-    # print(time.process_time() - start_time, "seconds to set up parameters ")
-    
-    
-    
     
 if __name__ == "__main__":
 
