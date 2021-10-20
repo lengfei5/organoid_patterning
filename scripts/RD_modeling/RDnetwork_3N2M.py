@@ -125,7 +125,7 @@ def f_ode(x, t, k, S):
     
     ## NT organoid phase III pattern selection:  Noggin, BMP, FoxA2
     dx0dt = k[0]  -     x[0] + k[5]*(1.0/(1.0+(1.0/x[0])**(2.0*S.iloc[0,0])) * 1.0/(1.0 + (k[8]/x[1])**(2.0*S.iloc[1, 0])) * 1.0/(1.0 + (k[9]/x[2])**(2.0*S.iloc[2, 0]))) # Noggin
-    dx1dt = k[1] - k[3]*x[1] + k[6]*(1.0/(1.0+(k[10]/x[0])**(2.0*S.iloc[0,1])) * 1.0/(1.0 + (1.0/x[1])**(2.0*S.iloc[1, 1])) * 1.0/(1.0 + (k[11]/x[2])**(2.0*S.iloc[2, 1]))) # BMP
+    dx1dt = k[1] - k[3]*x[1] + k[6]*(1.0/(1.0+(k[10]/x[0])**(S.iloc[0,1])) * 1.0/(1.0 + (1.0/x[1])**(2.0*S.iloc[1, 1])) * 1.0/(1.0 + (k[11]/x[2])**(2.0*S.iloc[2, 1]))) # BMP
     dx2dt = k[2] - k[4]*x[2] + k[7]*(1.0/(1.0+(k[12]/x[0])**(2.0*S.iloc[0,2])) * 1.0/(1.0 + (k[13]/x[1])**(2.0*S.iloc[1, 2])) * 1.0/(1.0 + (1.0/x[2])**(2.0*S.iloc[2, 2]))) # Foxa2
     
     dRdt = [dx0dt, dx1dt, dx2dt]
@@ -315,12 +315,12 @@ def main(argv):
         pass
     
     # total number for parameter sampling 
-    nb_sampling_parameters = 1000 # reaction parameters
+    nb_sampling_parameters = 100000 # reaction parameters
     
     nb_sampling_diffusion = 50 # diffusion rate
     nb_sampling_init = 3 # nb of initial condtion sampled
     
-    q = 2*3.14159 / np.logspace(-2, 3.0, num=nb_sampling_diffusion) # wavenumber
+    q = 2*3.14159 / np.logspace(-2, 3.0, num=50) # wavenumber
     
     n = 3 # nb of node
     nb_params = 14

@@ -140,7 +140,7 @@ def f_ode(x, t, k, S):
     
     ## NT organoid phase III pattern selection:  Noggin, BMP, Shh, FoxA2
     dx0dt = 0.1 -      x[0] + k[3]*(1.0/(1.0 + (1.0 /x[0])**(2.0*S.iloc[0,0])) * 1.0/(1.0 + ( k[7]/x[1])**(2.0*S.iloc[1, 0])) *  1.0/(1.0 +           1.0                   ) * 1.0/(1.0 + (k[8] /x[3])**(2.0*S.iloc[3, 0]))) # Noggin
-    dx1dt = 0.1 - k[0]*x[1] + k[4]*(1.0/(1.0 + (k[9]/x[0])**(S.iloc[0,1])) * 1.0/(1.0 + ( 1.0/ x[1])**(2.0*S.iloc[1, 1])) *  1.0/(1.0 + (k[10]/x[2])**(2.0*S.iloc[2, 1])) * 1.0/(1.0 + (k[11]/x[3])**(2.0*S.iloc[3, 1]))) # BMP
+    dx1dt = 0.1 - k[0]*x[1] + k[4]*(1.0/(1.0 + (k[9]/x[0])**(2.0*S.iloc[0,1])) * 1.0/(1.0 + ( 1.0/ x[1])**(2.0*S.iloc[1, 1])) *  1.0/(1.0 + (k[10]/x[2])**(2.0*S.iloc[2, 1])) * 1.0/(1.0 + (k[11]/x[3])**(2.0*S.iloc[3, 1]))) # BMP
     dx2dt = 0.1 - k[1]*x[2] + k[5]*(1.0/(1.0 +                    1.0        ) * 1.0/(1.0 + (k[12]/x[1])**(2.0*S.iloc[1, 2])) *  1.0/(1.0 + (1.0 / x[2])**(2.0*S.iloc[2, 2])) * 1.0/(1.0 + (k[13]/x[3])**(2.0*S.iloc[3, 2]))) # Shh
     dx3dt = 0.1 - k[2]*x[3] + k[6]*(1.0/(1.0 +                    1.0        ) * 1.0/(1.0 + (k[14]/x[1])**(2.0*S.iloc[1, 3])) *  1.0/(1.0 + (k[15]/x[2])**(2.0*S.iloc[2, 3])) * 1.0/(1.0 + ( 1.0 /x[3])**(2.0*S.iloc[3, 3]))) # Foxa2
     
@@ -332,10 +332,9 @@ def main(argv):
     #binary_diffusor = [1, 1, 1, 0]
     
     # total number for parameter sampling 
-    nb_sampling_parameters = 50000 # reaction parameters
-    
+    nb_sampling_parameters = 100 # reaction parameters
     nb_sampling_diffusion = 16 # diffusion rate
-    nb_sampling_wavenumber = 25
+    nb_sampling_wavenumber = 30
     nb_sampling_init = 3 # nb of initial condtion sampled
     
     q = 2*3.14159 / np.logspace(-2, 3.0, num=nb_sampling_wavenumber) # wavenumber

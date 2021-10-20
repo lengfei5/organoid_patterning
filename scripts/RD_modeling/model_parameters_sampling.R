@@ -13,7 +13,7 @@ library(igraph)
 network = '3N2M'
 
 if(network == '3N2M'){
-  resDir = '../results/RD_topology_screening/3N2M_topology_enumerate_v1/'
+  resDir = 'RD_modeling/3N2M_topology_enumerate/'
   if(!dir.exists(resDir)) dir.create(resDir)
   
   s0 = matrix(NA, nrow = 3, ncol = 3)
@@ -23,16 +23,16 @@ if(network == '3N2M'){
   s0[2, 1] = 1 # BMP activate Nog from TM3 data
   s0[3, 1] = 1 # Foxa2 cells expressing Nog
   s0[1, 2] = -1; # Nog inhibite BMP
-  s0[3, 3] = 1 # Foxa2 self activation
-  
+  # s0[3, 3] = 1 # Foxa2 self activation
+  s0[2, 3] = -1 # BMP inhibit Foxa2
   
   ii2assign = which(is.na(s0))
   
   xx = expand.grid(0:1, # noggin auto-activation 
-                   -1:1, 
-                   -1:1, 
+                   -1:1, # bmp auto-regulation
+                   0:1, # foxa2 regulates bmp
                    0:1, # Nog activate Foxa2
-                   -1:1)
+                   -1:1) # foxa2 auto-regulation
   
 }
 
@@ -93,7 +93,7 @@ for(n in 1:nrow(xx))
   dev.off()
   
   #g1 = graph_from_adjacency_matrix(s, mode = 'directed')
-  #plot(g1)
+  #plot(g1) 
   
 }
 
