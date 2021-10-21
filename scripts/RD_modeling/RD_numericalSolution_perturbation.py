@@ -355,6 +355,19 @@ def fode_3N2M_rxn(as_tuple, t, k, S):
     return (dx0dt, dx1dt, dx2dt)
 
 
+def fode_4N3M_rxn(as_tuple, t, k, S):
+    #dRdt = np.empty(n)
+    
+    a, b, s, f = as_tuple
+    
+    dx0dt = 0.1 -      a + k[3]*(1.0/(1.0 + (1.0 /a)**(2.0*S.iloc[0,0])) * 1.0/(1.0 + ( k[7]/b)**(2.0*S.iloc[1, 0])) *  1.0/(1.0 +           1.0                ) * 1.0/(1.0 + (k[8] /f)**(2.0*S.iloc[3, 0]))) # Noggin
+    dx1dt = 0.1 - k[0]*b + k[4]*(1.0/(1.0 + (k[9]/a)**(2.0*S.iloc[0,1])) * 1.0/(1.0 + ( 1.0/ b)**(2.0*S.iloc[1, 1])) *  1.0/(1.0 + (k[10]/s)**(2.0*S.iloc[2, 1])) * 1.0/(1.0 + (k[11]/f)**(2.0*S.iloc[3, 1]))) # BMP
+    dx2dt = 0.1 - k[1]*s + k[5]*(1.0/(1.0 +                    1.0     ) * 1.0/(1.0 + (k[12]/b)**(2.0*S.iloc[1, 2])) *  1.0/(1.0 + (1.0 / s)**(2.0*S.iloc[2, 2])) * 1.0/(1.0 + (k[13]/f)**(2.0*S.iloc[3, 2]))) # Shh
+    dx3dt = 0.1 - k[2]*f + k[6]*(1.0/(1.0 +                    1.0     ) * 1.0/(1.0 + (k[14]/b)**(2.0*S.iloc[1, 3])) *  1.0/(1.0 + (k[15]/s)**(2.0*S.iloc[2, 3])) * 1.0/(1.0 + ( 1.0 /f)**(2.0*S.iloc[3, 3]))) # Foxa2
+            
+    return (dx0dt, dx1dt, dx2dt, dx3dt)
+
+
 def RD_numericalSolver(c0_tuple = (), 
                        L = 20, 
                        nb_grids = 500, 
@@ -366,11 +379,10 @@ def RD_numericalSolver(c0_tuple = (),
                        mxstep=5000,
                        ):
     # Diffusion coefficients
-    # diff_coeffs = D; periodic_bc = False; rxn_fun = fode_3N2M_rxn;L = 200
-   # 
+    # diff_coeffs = D; periodic_bc = False; rxn_fun = fode_4N3M_rxn; c0_tuple = (a_0, b_0, s_0, f_0);  mxstep=10000
     print('RD numerical solution and perturbation responses in 1D ')
     ## here we start the example from http://be150.caltech.edu/2020/content/lessons/20_turing.html
-    a_0, s_0, f_0 = c0_tuple
+    a_0, b_0, s_0, f_0 = c0_tuple
     
     # x-coordinates for plotting
     x = np.linspace(0, L, len(a_0))
@@ -385,14 +397,14 @@ def RD_numericalSolver(c0_tuple = (),
     # rxn_params = (k,)
     #diff_coeffs[2] = 0.01
     # periodic boundary condtion
-    if periodic_bc:
-        a_0[-1] = a_0[0]
-        s_0[-1] = s_0[0]
-        f_0[-1] = f_0[0]
+    # if periodic_bc:
+    #     a_0[-1] = a_0[0]
+    #     s_0[-1] = s_0[0]
+    #     f_0[-1] = f_0[0]
     
     # Solve numeerically the RD with no-flux boundary condition
     #import biocircuits
-    conc = rd_solve((a_0, s_0, f_0),
+    conc = rd_solve((a_0, b_0, s_0, f_0),
         t,
         L=L,
         derivs_0=0,
@@ -408,9 +420,10 @@ def RD_numericalSolver(c0_tuple = (),
     #i = np.searchsorted(t, t_point)
     i = len(t) - 1
     fig, ax = plt.subplots()
-    ax.plot(x, (conc[2][i, :]-np.mean(conc[2][i, :]))/np.std(conc[2][i, :]) + 2.0 , color="green", label = 'Foxa2')
+    ax.plot(x, (conc[3][i, :]-np.mean(conc[3][i, :]))/np.std(conc[3][i, :]) + 2.0 , color="green", label = 'Foxa2')
     ax.plot(x, (conc[0][i, :]-np.mean(conc[0][i, :]))/np.std(conc[0][i, :]), label = 'Noggin')
     ax.plot(x, (conc[1][i, :]-np.mean(conc[1][i, :]))/np.std(conc[1][i, :]) - 1.0, color="red", label = 'BMP')
+    ax.plot(x, (conc[2][i, :]-np.mean(conc[2][i, :]))/np.std(conc[2][i, :]) + 1.0 , color="orange", label = 'Shh')
     ax.legend()
     ax.set_ylabel('scaled levels')
     ax.set_xlabel('x')
@@ -418,9 +431,6 @@ def RD_numericalSolver(c0_tuple = (),
     # ax.plot(t,sol[:,1],label='x2')
     # ax.plot(t,sol[:,2],label='x3')
     # #ax.plot(t,result[:,2],label='R0=1')
-    
-    
-    
     
     
     print('done')     
@@ -446,8 +456,8 @@ def main(argv):
             paramfile = arg
     
     # test example
-    modelfile = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_3N2M_v2/topology_summary_selection_D.larger.1_lambda.neg.max.q_phase/table_params/Model_16.csv'
-    paramfile = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_3N2M_v2/topology_summary_selection_D.larger.1_lambda.neg.max.q_phase/table_params/params_saved_Model_16.csv'
+    modelfile = '~/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_4N3M_v2/topology_summary_selection_D.larger.1_foxa2.noggin.phase_Noggin.noAutoactivation_foxa2.expressingBmp/table_params/Model_279.csv'
+    paramfile = '~/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_4N3M_v2/topology_summary_selection_D.larger.1_foxa2.noggin.phase_Noggin.noAutoactivation_foxa2.expressingBmp/table_params/params_saved_Model_279.csv'
     print('model file is -- ', modelfile)
     print('param file is -- ', paramfile)
     
@@ -466,16 +476,21 @@ def main(argv):
     # read the network topology
     S = pd.read_csv(modelfile, index_col=0) 
     
-    if S.shape[0] != 3 or S.shape[1] != 3:
+    n = 4 # nb of node
+    
+    if n == 3: 
+        nb_params = 14
+    if n == 4:
+        nb_params = 16
+        nb_q = 25
+    
+    if S.shape[0] != n or S.shape[1] != n:
         print("Required 3x3 matrix for network topology !")
         os._exit(1)
     
     # read the saved parameters 
     params = pd.read_csv(paramfile)
-    
-    n = 3 # nb of node
-    nb_params = 14
-    
+        
      # Time points
     t = np.linspace(0.0, 5000.0, 100)
     # Physical length of system
@@ -495,52 +510,57 @@ def main(argv):
     #for i in range(len(k_grid)):
     for i in range(params.shape[0]):
         
-        # i = 8
+        # i = 180
         print(i)
         par = np.asarray(params.iloc[i])
         
-        ks = par[1:15]
-        D = tuple(par[20:23])
-        if D[0] != 1 and D[2] != 0: 
+        ks = par[1:(nb_params+1)]
+        steadyState = par[(nb_params +1): (nb_params + 1 + n)]
+        D = tuple(par[(nb_params + n +3):(nb_params + n + 7)])
+        if D[0] != 1 and D[2] != 0  and D[-1] ==0 : 
             print(" non smpled parameters assignment not correct  !")
             os._exit(1)
         
         rxn_params=(ks, S)
-        steadyState = par[15:18]
-        q = par[23:73]
-        lamda_rel = par[73:123]
-        lamda_im = par[124:173]
+        
+        q = par[(nb_params + n + 7):(nb_params + n + 7+ nb_q)]
+        lamda_rel = par[(nb_params + n + 7+ nb_q):(nb_params + n + 7+ nb_q*2)]
+        lamda_im =  par[(nb_params + n + 7+ nb_q*2):(nb_params + n + 7+ nb_q*3)]
         index_max = np.argmax(lamda_rel) 
-        L = 2.0*3.14159/q[index_max] * 10
-        L = 10
+        L = 2.0*3.14159/q[index_max] * 6
+        #L = 10
+        
+        print(max(lamda_rel))
+        print(2.0*pi/q[index_max])
         
         print('imaginary part  of lamda : '+ str(lamda_im[index_max]))
         print(steadyState)
         nb_grids = 1000
         # Set up intial condition (using 500 grid points)
         a_0 = np.ones(nb_grids)*steadyState[0]
-        s_0 = np.ones(nb_grids)*steadyState[1]
-        f_0 = np.ones(nb_grids)*steadyState[2]
+        b_0 = np.ones(nb_grids)*steadyState[1]
+        s_0 = np.ones(nb_grids)*steadyState[2]
+        f_0 = np.ones(nb_grids)*steadyState[3]
         
         # Make a small perturbation to a_0 by adding noise
-        a_0 += 1 * np.random.rand(len(a_0))*steadyState[0]
-        
-        x = np.linspace(0, L, len(a_0))
-        #a_0 +=  0.01 * cos(2*pi/50*x) * steadyState[0]
-        #a_0 += (0.001 * np.random.rand(len(a_0)) + 0.01 * (1+ cos(1*pi/1*x)))*steadyState[0]
-        #s_0 += 0.01 * np.random.rand(len(s_0))*steadyState[1]
-        #f_0 += 0.01 * np.random.rand(len(f_0))*steadyState[2]
+        #a_0 += 0.01 * np.random.rand(len(a_0))*steadyState[0]
+        #b_0 += 0.001 * np.random.rand(len(b_0))*steadyState[1]
+        #x = np.linspace(0, L, len(a_0))
+        a_0 +=  0.001 * cos(2*pi/16*x) * steadyState[0]
+        b_0 +=  0.001 * cos(2*pi/16*x)* steadyState[0]
+        #s_0 += 0.01 * np.random.rand(len(s_0))*steadyState[2]
+        #f_0 += 0.01 * np.random.rand(len(f_0))*steadyState[3]
        
-        plt.plot(x, a_0)
-        plt.plot(x, a_0 + 10)
-        plt.ylim(0.2, 12)
-        plt.show()
+        # plt.plot(x, a_0)
+        # plt.plot(x, a_0 + 10)
+        # plt.ylim(0.2, 12)
+        # plt.show()
         
-        RD_numericalSolver(c0_tuple = (a_0, s_0, f_0), L = L, nb_grids = nb_grids, t = t, diff_coeffs = D,
+        RD_numericalSolver(c0_tuple = (a_0, b_0, s_0, f_0), L = L, nb_grids = nb_grids, t = t, diff_coeffs = D,
                            periodic_bc = False, 
-                           rxn_fun=fode_3N2M_rxn,
+                           rxn_fun=fode_4N3M_rxn,
                            rxn_params=rxn_params, 
-                           mxstep=10000)
+                           mxstep=50000)
         
     print(time.process_time() - start_time, "seconds for for loop")
     
