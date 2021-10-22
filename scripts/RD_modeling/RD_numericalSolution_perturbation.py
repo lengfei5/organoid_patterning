@@ -510,7 +510,7 @@ def main(argv):
     #for i in range(len(k_grid)):
     for i in range(params.shape[0]):
         
-        # i = 180
+        # i = 154
         print(i)
         par = np.asarray(params.iloc[i])
         
@@ -527,9 +527,12 @@ def main(argv):
         lamda_rel = par[(nb_params + n + 7+ nb_q):(nb_params + n + 7+ nb_q*2)]
         lamda_im =  par[(nb_params + n + 7+ nb_q*2):(nb_params + n + 7+ nb_q*3)]
         index_max = np.argmax(lamda_rel) 
-        L = 2.0*3.14159/q[index_max] * 6
+        L = 2.0*3.14159/q[index_max] * 10
         #L = 10
-        
+        plt.plot(q, lamda_rel)
+        #plt.ylim(-0.1, max(lamda_rel))
+        plt.xscale("log")
+
         print(max(lamda_rel))
         print(2.0*pi/q[index_max])
         
@@ -543,11 +546,11 @@ def main(argv):
         f_0 = np.ones(nb_grids)*steadyState[3]
         
         # Make a small perturbation to a_0 by adding noise
-        #a_0 += 0.01 * np.random.rand(len(a_0))*steadyState[0]
+        a_0 += 0.01 * np.random.rand(len(a_0))*steadyState[0]
         #b_0 += 0.001 * np.random.rand(len(b_0))*steadyState[1]
         #x = np.linspace(0, L, len(a_0))
-        a_0 +=  0.001 * cos(2*pi/16*x) * steadyState[0]
-        b_0 +=  0.001 * cos(2*pi/16*x)* steadyState[0]
+        #a_0 +=  0.001 * cos(2*pi/2*x) * steadyState[0]
+        #b_0 +=  0.001 * cos(2*pi/16*x)* steadyState[0]
         #s_0 += 0.01 * np.random.rand(len(s_0))*steadyState[2]
         #f_0 += 0.01 * np.random.rand(len(f_0))*steadyState[3]
        
