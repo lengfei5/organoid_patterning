@@ -318,6 +318,7 @@ def rd_solve(
     L=1,
     derivs_0=0,
     derivs_L=0,
+    ode_ivp = False,
     periodic_bc = False,
     diff_coeff_fun=None,
     diff_coeff_params=(),
@@ -325,7 +326,8 @@ def rd_solve(
     rxn_params=(),
     rtol=1.49012e-8,
     atol=1.49012e-8,
-    mxstep = 2000
+    mxstep = 2000,
+    tf = 500
 ):
     """
     Parameters
@@ -380,17 +382,16 @@ def rd_solve(
        for the solver to maintain tight tolerances.
     """
     # test the furnction
-    # c_0_tuple = (a_0, s_0, f_0);  
+    # c_0_tuple = (a_0, b_0, s_0, f_0);  
     # derivs_0=0; derivs_L=0;
     # periodic_bc = False
     # diff_coeff_fun=constant_diff_coeffs
     # diff_coeff_params=(diff_coeffs, )
     # rtol=1.49012e-8
     # atol=1.49012e-8
-    # rxn_fun=asdm_rxn
+    # rxn_fun=fode_4N3M_rxn
     # rxn_params=rxn_params
    
-    
     # Number of grid points
     n_gridpoints = len(c_0_tuple[0])
 
@@ -429,35 +430,42 @@ def rd_solve(
         c0[i::n_species] = c_0_tuple[i]
         
     # Solve using odeint, taking advantage of banded structure
-    if periodic_bc:
-        c = scipy.integrate.odeint(
-        dc_dt,
-        c0,
-        t,
-        args=params,
-        ml=n_species,
-        mu=n_species,
-        rtol=rtol,
-        atol=atol,
-        mxstep = mxstep
-        )
+    if  not ode_ivp:
+        if periodic_bc:
+            c = scipy.integrate.odeint(
+                dc_dt,
+                c0,
+                t,
+                args=params,
+                ml=n_species,
+                mu=n_species,
+                rtol=rtol,
+                atol=atol,
+                mxstep = mxstep
+                )
+        else:
+            c = scipy.integrate.odeint(
+                dc_dt,
+                c0,
+                t,
+                args=params,
+                ml=n_species,
+                mu=n_species,
+                rtol=rtol,
+                atol=atol,
+        
+            )
+        return tuple([c[:, i::n_species] for i in range(n_species)])
+        
     else:
-        c = scipy.integrate.odeint(
-        dc_dt,
-        c0,
-        t,
-        args=params,
-        ml=n_species,
-        mu=n_species,
-        rtol=rtol,
-        atol=atol,
+        c = solve_ivp(fun=dc_dt_ivp, t_span=(0, tf), y0 = c0, method='LSODA',
+                      args = params, )
         
-        )
-    
-    #c = solve_ivp(fun=dc_dt_ivp, t_span=(t[0], 100), y0 = c0, method='BDF',
-    #              args = params,)  
+        cvp = c['y'][: , -1]
+        cvp = tuple([cvp[i::n_species] for i in range(n_species)])
+       
+        return cvp
         
-    return tuple([c[:, i::n_species] for i in range(n_species)])
 
 
 def state_plotter(times, states, fig_num):
