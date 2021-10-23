@@ -379,7 +379,7 @@ def RD_numericalSolver(c0_tuple = (),
                        mxstep=5000,
                        ):
     # Diffusion coefficients
-    # diff_coeffs = D; periodic_bc = False; rxn_fun = fode_4N3M_rxn; c0_tuple = (a_0, b_0, s_0, f_0);  mxstep=1000
+    # diff_coeffs = D; periodic_bc = False; rxn_fun = fode_4N3M_rxn; c0_tuple = (a_0, b_0, s_0, f_0);  mxstep=10000
     print('RD numerical solution and perturbation responses in 1D ')
     ## here we start the example from http://be150.caltech.edu/2020/content/lessons/20_turing.html
     a_0, b_0, s_0, f_0 = c0_tuple
@@ -393,12 +393,10 @@ def RD_numericalSolver(c0_tuple = (),
     #     s_0[-1] = s_0[0]
     #     f_0[-1] = f_0[0]
     
-    # Solve numeerically the RD with no-flux boundary condition
-    #import biocircuits
-    #import warnings
-    # warnings.filterwarnings("default")
-    
-    conc = rd_solve((a_0, b_0, s_0, f_0),
+    # Solve numeerically the RD with no-flux boundary condition: first 5 try with ode and then ivp (slow)
+    for nb_try in range(5):    
+        print('nb of try ' + str(nb_try))
+        conc = rd_solve((a_0, b_0, s_0, f_0),
         t,
         L=L,
         derivs_0=0,
@@ -409,49 +407,51 @@ def RD_numericalSolver(c0_tuple = (),
         rxn_params=rxn_params,
         mxstep=mxstep)
         
-    
+        if np.sum(conc[3][(len(t) -1), :] > 0) > 0 and np.sum(conc[0][(len(t) -1), :] > 0) > 0 and np.sum(conc[1][(len(t) -1), :] > 0) > 0 and np.sum(conc[2][(len(t) -1), :] > 0) > 0 :
+            break
     #t_point = 1000000
     #i = np.searchsorted(t, t_point)
-    
-    i = len(t) - 1
-    fig, ax = plt.subplots()
-    ax.plot(x, (conc[3][i, :]-np.mean(conc[3][i, :]))/np.std(conc[3][i, :]) + 2.0 , color="green", label = 'Foxa2')
-    ax.plot(x, (conc[0][i, :]-np.mean(conc[0][i, :]))/np.std(conc[0][i, :]), label = 'Noggin')
-    ax.plot(x, (conc[1][i, :]-np.mean(conc[1][i, :]))/np.std(conc[1][i, :]) - 1.0, color="red", label = 'BMP')
-    ax.plot(x, (conc[2][i, :]-np.mean(conc[2][i, :]))/np.std(conc[2][i, :]) + 1.0 , color="orange", label = 'Shh')
-    ax.legend()
-    ax.set_ylabel('scaled levels')
-    ax.set_xlabel('x')
+    if np.sum(conc[3][(len(t) -1), :] > 0) > 0 and np.sum(conc[0][(len(t) -1), :] > 0) > 0 and np.sum(conc[1][(len(t) -1), :] > 0) > 0 and np.sum(conc[2][(len(t) -1), :] > 0) > 0 :
+        i = len(t) - 1
+        fig, ax = plt.subplots()
+        ax.plot(x, (conc[3][i, :]-np.mean(conc[3][i, :]))/np.std(conc[3][i, :]) + 2.0 , color="green", label = 'Foxa2')
+        ax.plot(x, (conc[0][i, :]-np.mean(conc[0][i, :]))/np.std(conc[0][i, :]), label = 'Noggin')
+        ax.plot(x, (conc[1][i, :]-np.mean(conc[1][i, :]))/np.std(conc[1][i, :]) - 1.0, color="red", label = 'BMP')
+        ax.plot(x, (conc[2][i, :]-np.mean(conc[2][i, :]))/np.std(conc[2][i, :]) + 1.0 , color="orange", label = 'Shh')
+        ax.legend()
+        ax.set_ylabel('scaled levels')
+        ax.set_xlabel('x')
+    else: 
+        print('-- odeint failed -- ')
+        # print('-- start the solver_ivp')
+        # start_time = time.process_time()
+        # cvp =  rd_solve((a_0, b_0, s_0, f_0),
+        #                 t,
+        #                 L=L,
+        #                 derivs_0=0,
+        #                 derivs_L=0,
+        #                 ode_ivp = True,
+        #                 diff_coeff_fun=constant_diff_coeffs,
+        #                 diff_coeff_params=(diff_coeffs,),
+        #                 rxn_fun=rxn_fun,
+        #                 rxn_params=rxn_params,
+        #                 tf = 500
+        #                 )
         
+        # print(time.process_time() - start_time, "seconds for PDE solver_ivp")
     
-    # start_time = time.process_time()
-    # cvp =  rd_solve((a_0, b_0, s_0, f_0),
-    #     t,
-    #     L=L,
-    #     derivs_0=0,
-    #     derivs_L=0,
-    #     ode_ivp = True,
-    #     diff_coeff_fun=constant_diff_coeffs,
-    #     diff_coeff_params=(diff_coeffs,),
-    #     rxn_fun=rxn_fun,
-    #     rxn_params=rxn_params,
-    #     tf = 500
-    #     )
-    
-    # print(time.process_time() - start_time, "seconds for PDE solver")
-    
-    # fig, ax = plt.subplots()
-    # ax.plot(x, cvp[0],  label = 'Noggin')
-    # ax.plot(x, cvp[1], color="red", label = 'BMP')
-    # ax.plot(x, cvp[2], color="orange", label = 'Shh')
-    # ax.plot(x, cvp[3],  color="green", label = 'Foxa2')
-    # # ax.plot(x, (conc[3][i, :]-np.mean(conc[3][i, :]))/np.std(conc[3][i, :]) + 2.0 , color="green", label = 'Foxa2')
-    # # ax.plot(x, (conc[0][i, :]-np.mean(conc[0][i, :]))/np.std(conc[0][i, :]), label = 'Noggin')
-    # # ax.plot(x, (conc[1][i, :]-np.mean(conc[1][i, :]))/np.std(conc[1][i, :]) - 1.0, color="red", label = 'BMP')
-    # # ax.plot(x, (conc[2][i, :]-np.mean(conc[2][i, :]))/np.std(conc[2][i, :]) + 1.0 , color="orange", label = 'Shh')
-    # ax.legend()
-    # ax.set_ylabel('scaled levels')
-    # ax.set_xlabel('x')
+        # fig, ax = plt.subplots()
+        # ax.plot(x, cvp[0],  label = 'Noggin')
+        # ax.plot(x, cvp[1], color="red", label = 'BMP')
+        # ax.plot(x, cvp[2], color="orange", label = 'Shh')
+        # ax.plot(x, cvp[3],  color="green", label = 'Foxa2')
+        # # ax.plot(x, (conc[3][i, :]-np.mean(conc[3][i, :]))/np.std(conc[3][i, :]) + 2.0 , color="green", label = 'Foxa2')
+        # # ax.plot(x, (conc[0][i, :]-np.mean(conc[0][i, :]))/np.std(conc[0][i, :]), label = 'Noggin')
+        # # ax.plot(x, (conc[1][i, :]-np.mean(conc[1][i, :]))/np.std(conc[1][i, :]) - 1.0, color="red", label = 'BMP')
+        # # ax.plot(x, (conc[2][i, :]-np.mean(conc[2][i, :]))/np.std(conc[2][i, :]) + 1.0 , color="orange", label = 'Shh')
+        # ax.legend()
+        # ax.set_ylabel('scaled levels')
+        # ax.set_xlabel('x')
         
         
     # print('done')     
@@ -530,9 +530,10 @@ def main(argv):
     #for i in range(len(k_grid)):
     for i in range(params.shape[0]):
         
-        # i = 154
+        # i = 12
         # i = 1
         print(i)
+        
         par = np.asarray(params.iloc[i])
         
         ks = par[1:(nb_params+1)]
@@ -549,12 +550,12 @@ def main(argv):
         lamda_im =  par[(nb_params + n + 7+ nb_q*2):(nb_params + n + 7+ nb_q*3)]
         index_max = np.argmax(lamda_rel)
         lamda_pos = lamda_rel[lamda_rel > 0] 
-        L = 2.0*3.14159/q[index_max] * 10
+        L = 2.0*3.14159/q[index_max] * 5
         #L = 10
-        plt.plot(q, lamda_rel)
+        #plt.plot(q, lamda_rel)
         #plt.ylim(-0.1, max(lamda_rel))
-        plt.xscale("log")
-
+        #plt.xscale("log")
+        
         print(max(lamda_rel))
         print(2.0*pi/np.min(lamda_pos))
         print(2.0*pi/np.max(lamda_pos))
@@ -563,6 +564,9 @@ def main(argv):
         print('imaginary part  of lamda : '+ str(lamda_im[index_max]))
         print(steadyState)
         nb_grids = 1000
+        
+        print(L / (nb_grids - 1))
+        
         # Set up intial condition (using 500 grid points)
         a_0 = np.ones(nb_grids)*steadyState[0]
         b_0 = np.ones(nb_grids)*steadyState[1]
@@ -571,12 +575,12 @@ def main(argv):
         
         # Make a small perturbation to a_0 by adding noise
         a_0 += 0.01 * np.random.rand(len(a_0))*steadyState[0]
-        #b_0 += 0.001 * np.random.rand(len(b_0))*steadyState[1]
+        b_0 += 0.001 * np.random.rand(len(b_0))*steadyState[1]
         #x = np.linspace(0, L, len(a_0))
         #a_0 +=  0.001 * cos(2*pi/2*x) * steadyState[0]
         #b_0 +=  0.001 * cos(2*pi/16*x)* steadyState[0]
         #s_0 += 0.01 * np.random.rand(len(s_0))*steadyState[2]
-        #f_0 += 0.01 * np.random.rand(len(f_0))*steadyState[3]
+        f_0 += 0.01 * np.random.rand(len(f_0))*steadyState[3]
        
         # plt.plot(x, a_0)
         # plt.plot(x, a_0 + 10)
