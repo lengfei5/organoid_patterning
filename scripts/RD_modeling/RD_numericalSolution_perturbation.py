@@ -31,12 +31,10 @@ import scipy.integrate
 from scipy.integrate import odeint
 from scipy.integrate import solve_ivp
 #from RD_network_functions import state_plotter
-import biocircuits as bct 
 import matplotlib.pyplot as plt
 
+import biocircuits as bct 
 #import biocircuits
-#import bokeh.io
-#import bokeh.plotting
 import panel as pn
 pn.extension()
 
@@ -46,9 +44,9 @@ import sympy as sym
 from itertools import permutations
 from skopt.space import Space
 from skopt.sampler import Lhs
-
 import sys, getopt
-from RD_network_functions import *
+
+#from RD_network_functions import *
 
 #%% utility functions
 def check_BurnIn_steadyState(sol, f_ode, k, S, n, x0, t_final):
@@ -295,6 +293,7 @@ def constant_diff_coeffs(c_tuple, t, x, diff_coeffs):
     n = len(c_tuple[0])
     return tuple([diff_coeffs[i] * np.ones(n) for i in range(len(c_tuple))])
 
+
 # deinfe the reaction equations
 def asdm_rxn(as_tuple, t, mu):
     """
@@ -394,9 +393,7 @@ def RD_numericalSolver(c0_tuple = (),
     #     f_0[-1] = f_0[0]
     
     # Solve numeerically the RD with no-flux boundary condition: first 5 try with ode and then ivp (slow)
-    for nb_try in range(5):    
-        print('nb of try ' + str(nb_try))
-        conc = bct.rd_solve((a_0, b_0, s_0, f_0),
+    conc = bct.rd_solve((a_0, b_0, s_0, f_0),
         t,
         L=L,
         derivs_0=0,
@@ -406,23 +403,9 @@ def RD_numericalSolver(c0_tuple = (),
         rxn_fun=rxn_fun,
         rxn_params=rxn_params,
         )
-        
-        if np.sum(conc[3][(len(t) -1), :] > 0) > 0 and np.sum(conc[0][(len(t) -1), :] > 0) > 0 and np.sum(conc[1][(len(t) -1), :] > 0) > 0 and np.sum(conc[2][(len(t) -1), :] > 0) > 0 :
-            break
-    #t_point = 1000000
-    #i = np.searchsorted(t, t_point)
-    if np.sum(conc[3][(len(t) -1), :] > 0) > 0 and np.sum(conc[0][(len(t) -1), :] > 0) > 0 and np.sum(conc[1][(len(t) -1), :] > 0) > 0 and np.sum(conc[2][(len(t) -1), :] > 0) > 0 :
-        i = len(t) - 1
-        fig, ax = plt.subplots()
-        ax.plot(x, (conc[3][i, :]-np.mean(conc[3][i, :]))/np.std(conc[3][i, :]) + 2.0 , color="green", label = 'Foxa2')
-        ax.plot(x, (conc[0][i, :]-np.mean(conc[0][i, :]))/np.std(conc[0][i, :]), label = 'Noggin')
-        ax.plot(x, (conc[1][i, :]-np.mean(conc[1][i, :]))/np.std(conc[1][i, :]) - 1.0, color="red", label = 'BMP')
-        ax.plot(x, (conc[2][i, :]-np.mean(conc[2][i, :]))/np.std(conc[2][i, :]) + 1.0 , color="orange", label = 'Shh')
-        ax.legend()
-        ax.set_ylabel('scaled levels')
-        ax.set_xlabel('x')
-    else: 
-        print('-- odeint failed -- ')
+    
+    return conc
+    
         # print('-- start the solver_ivp')
         # start_time = time.process_time()
         # cvp =  rd_solve((a_0, b_0, s_0, f_0),
@@ -530,8 +513,7 @@ def main(argv):
     #for i in range(len(k_grid)):
     for i in range(params.shape[0]):
         
-        # i = 12
-        # i = 1
+        # i = 50
         print(i)
         
         par = np.asarray(params.iloc[i])
@@ -551,19 +533,19 @@ def main(argv):
         index_max = np.argmax(lamda_rel)
         lamda_pos = lamda_rel[lamda_rel > 0] 
         # L = 2.0*3.14159/q[index_max] * 4
-        L = 80
+        L = 100
+        nb_grids = 2000
         #plt.plot(q, lamda_rel)
         #plt.ylim(-0.1, max(lamda_rel))
         #plt.xscale("log")
         
-        print(max(lamda_rel))
-        print(2.0*pi/np.min(lamda_pos))
-        print(2.0*pi/np.max(lamda_pos))
-        print(2.0*pi/q[index_max])
+        print('max eigenvalue '+ str(max(lamda_rel)))
+        #print(2.0*np.pi/np.min(lamda_pos))
+        #print(2.0*np.pi/np.max(lamda_pos))
+        print('optimal lambda ' + str(2.0*np.pi/q[index_max]))
         
         print('imaginary part  of lamda : '+ str(lamda_im[index_max]))
-        print(steadyState)
-        nb_grids = 1000
+        print('steady state -- ' + str(steadyState))
         
         print('system size L = ' + str(L))
         print('grid size h = ' + str(L / (nb_grids - 1)))
@@ -582,16 +564,53 @@ def main(argv):
         #b_0 +=  0.001 * cos(2*pi/16*x)* steadyState[0]
         #s_0 += 0.01 * np.random.rand(len(s_0))*steadyState[2]
         f_0 += 0.01 * np.random.rand(len(f_0))*steadyState[3]
-       
+        x = np.linspace(0, L, len(a_0))
         # plt.plot(x, a_0)
         # plt.plot(x, a_0 + 10)
         # plt.ylim(0.2, 12)
         # plt.show()
         
-        RD_numericalSolver(c0_tuple = (a_0, b_0, s_0, f_0), L = L, nb_grids = nb_grids, t = t, diff_coeffs = D,
-                           rxn_fun=fode_4N3M_rxn,
-                           rxn_params=rxn_params)
+        for nb_try in range(5):    
+            print('nb of try ' + str(nb_try + 1))
+            
+            conc = bct.rd_solve((a_0, b_0, s_0, f_0), t, L=L, derivs_0=0, derivs_L=0,
+                                diff_coeff_fun=constant_diff_coeffs,
+                                diff_coeff_params=(D, ),
+                                rxn_fun=fode_4N3M_rxn,
+                                rxn_params=rxn_params,
+                                atol=1.49012e-8,
+                                
+                                )
+            a_f = conc[0][(len(t) -1), :]
+            b_f = conc[1][(len(t) -1), :]
+            s_f = conc[2][(len(t) -1), :]
+            f_f = conc[3][(len(t) -1), :]
+            if np.sum(a_f > 0) > 0 and np.sum(b_f > 0) > 0 and np.sum(s_f > 0) > 0 and np.sum(f_f > 0) > 0 :
+                break
+                #t_point = 1000000
+                #i = np.searchsorted(t, t_point)
         
+        if np.sum(a_f > 0) > 0 and np.sum(b_f > 0) > 0 and np.sum(s_f > 0) > 0 and np.sum(f_f > 0) > 0 :
+       
+            fig, (ax1, ax2) = plt.subplots(2)
+            ax1.plot(x, a_f,  label = 'Noggin')
+            ax1.plot(x, b_f, color="red", label = 'BMP')
+            ax1.plot(x, s_f, color="orange", label = 'Shh')
+            ax1.plot(x, f_f,  color="green", label = 'Foxa2')
+            ax1.legend()
+            ax1.set_ylabel('nonscaled levels')
+            ax1.set_xlabel('x')
+            
+            ax2.plot(x, (f_f-np.mean(f_f))/np.std(f_f) + 2.0 , color="green", label = 'Foxa2')
+            ax2.plot(x, (a_f-np.mean(a_f))/np.std(a_f), label = 'Noggin')
+            ax2.plot(x, (b_f-np.mean(b_f))/np.std(b_f) - 1.0, color="red", label = 'BMP')
+            ax2.plot(x, (s_f-np.mean(s_f))/np.std(s_f) + 1.0 , color="orange", label = 'Shh')
+            ax2.legend()
+            ax2.set_ylabel('scaled levels')
+            ax2.set_xlabel('x')
+            
+        else: 
+            print('-- odeint failed -- ')
         
     print(time.process_time() - start_time, "seconds for for loop")
             
