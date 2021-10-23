@@ -396,7 +396,7 @@ def RD_numericalSolver(c0_tuple = (),
     # Solve numeerically the RD with no-flux boundary condition: first 5 try with ode and then ivp (slow)
     for nb_try in range(5):    
         print('nb of try ' + str(nb_try))
-        conc = rd_solve((a_0, b_0, s_0, f_0),
+        conc = bct.rd_solve((a_0, b_0, s_0, f_0),
         t,
         L=L,
         derivs_0=0,
@@ -405,7 +405,7 @@ def RD_numericalSolver(c0_tuple = (),
         diff_coeff_params=(diff_coeffs,),
         rxn_fun=rxn_fun,
         rxn_params=rxn_params,
-        mxstep=mxstep)
+        )
         
         if np.sum(conc[3][(len(t) -1), :] > 0) > 0 and np.sum(conc[0][(len(t) -1), :] > 0) > 0 and np.sum(conc[1][(len(t) -1), :] > 0) > 0 and np.sum(conc[2][(len(t) -1), :] > 0) > 0 :
             break
@@ -551,7 +551,7 @@ def main(argv):
         index_max = np.argmax(lamda_rel)
         lamda_pos = lamda_rel[lamda_rel > 0] 
         # L = 2.0*3.14159/q[index_max] * 4
-        L = 40
+        L = 80
         #plt.plot(q, lamda_rel)
         #plt.ylim(-0.1, max(lamda_rel))
         #plt.xscale("log")
@@ -563,7 +563,7 @@ def main(argv):
         
         print('imaginary part  of lamda : '+ str(lamda_im[index_max]))
         print(steadyState)
-        nb_grids = 2000
+        nb_grids = 1000
         
         print('system size L = ' + str(L))
         print('grid size h = ' + str(L / (nb_grids - 1)))
@@ -576,7 +576,7 @@ def main(argv):
         
         # Make a small perturbation to a_0 by adding noise
         a_0 += 0.01 * np.random.rand(len(a_0))*steadyState[0]
-        b_0 += 0.001 * np.random.rand(len(b_0))*steadyState[1]
+        #b_0 += 0.001 * np.random.rand(len(b_0))*steadyState[1]
         #x = np.linspace(0, L, len(a_0))
         #a_0 +=  0.001 * cos(2*pi/2*x) * steadyState[0]
         #b_0 +=  0.001 * cos(2*pi/16*x)* steadyState[0]
@@ -589,10 +589,8 @@ def main(argv):
         # plt.show()
         
         RD_numericalSolver(c0_tuple = (a_0, b_0, s_0, f_0), L = L, nb_grids = nb_grids, t = t, diff_coeffs = D,
-                           periodic_bc = False, 
                            rxn_fun=fode_4N3M_rxn,
-                           rxn_params=rxn_params, 
-                           mxstep=50000)
+                           rxn_params=rxn_params)
         
         
     print(time.process_time() - start_time, "seconds for for loop")
