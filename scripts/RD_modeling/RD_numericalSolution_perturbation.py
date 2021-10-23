@@ -31,7 +31,7 @@ import scipy.integrate
 from scipy.integrate import odeint
 from scipy.integrate import solve_ivp
 #from RD_network_functions import state_plotter
-
+import biocircuits as bct 
 import matplotlib.pyplot as plt
 
 #import biocircuits
@@ -512,7 +512,7 @@ def main(argv):
     params = pd.read_csv(paramfile)
         
      # Time points
-    t = np.linspace(0.0, 5000.0, 100)
+    t = np.linspace(0.0, 1000.0, 100)
     # Physical length of system
    
     # total number for parameter sampling 
@@ -550,8 +550,8 @@ def main(argv):
         lamda_im =  par[(nb_params + n + 7+ nb_q*2):(nb_params + n + 7+ nb_q*3)]
         index_max = np.argmax(lamda_rel)
         lamda_pos = lamda_rel[lamda_rel > 0] 
-        L = 2.0*3.14159/q[index_max] * 5
-        #L = 10
+        # L = 2.0*3.14159/q[index_max] * 4
+        L = 40
         #plt.plot(q, lamda_rel)
         #plt.ylim(-0.1, max(lamda_rel))
         #plt.xscale("log")
@@ -563,9 +563,10 @@ def main(argv):
         
         print('imaginary part  of lamda : '+ str(lamda_im[index_max]))
         print(steadyState)
-        nb_grids = 1000
+        nb_grids = 2000
         
-        print(L / (nb_grids - 1))
+        print('system size L = ' + str(L))
+        print('grid size h = ' + str(L / (nb_grids - 1)))
         
         # Set up intial condition (using 500 grid points)
         a_0 = np.ones(nb_grids)*steadyState[0]
@@ -592,6 +593,7 @@ def main(argv):
                            rxn_fun=fode_4N3M_rxn,
                            rxn_params=rxn_params, 
                            mxstep=50000)
+        
         
     print(time.process_time() - start_time, "seconds for for loop")
             

@@ -10,7 +10,7 @@ import pandas as pd
 import numba
 import scipy.integrate
 from scipy.integrate import solve_ivp
-import biocircuits
+import biocircuits as bct
 import bokeh.io
 import bokeh.plotting
 
