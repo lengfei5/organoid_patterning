@@ -593,9 +593,9 @@ extract.turing.parameters.cellProfiler = function(res.cp, cyst.overlapRatio.thre
   # res.cp = res
   cyst.id = unique(res.cp$ID_cyst)
   cc = res.cp$condition[match(cyst.id, res.cp$ID_cyst)]
-  params =  data.frame(matrix(NA, nrow = length(cyst.id), ncol = 14))
+  params =  data.frame(matrix(NA, nrow = length(cyst.id), ncol = 15))
   colnames(params) = c('nb.fp', 'dist.fp', 'dist.fp.extremeValue', 'foxa2.fp',  'radius.cyst', 'radius.fp', 'radiusSE.fp',
-                       'volume', 'surface.area', 'overlap.ratio', 'olig2', 'foxa2', 'volume.fp', 'volumeSE.fp')
+                       'volume', 'surface.area', 'overlap.ratio', 'olig2', 'foxa2', 'volume.fp', 'volumeSE.fp', 'dist.cyst.fp')
   rownames(params) = cyst.id
   
   # plot(res$AreaShape_EquivalentDiameter_fp/2, (res$Distance_Centroid_organoid_fp )/(res$AreaShape_EquivalentDiameter_cyst/2), 
@@ -638,6 +638,7 @@ extract.turing.parameters.cellProfiler = function(res.cp, cyst.overlapRatio.thre
       
       params$volume.fp[n] = median(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))
       params$radius.fp[n] = median(as.numeric(res.cp$AreaShape_EquivalentDiameter_fp[kk.fp]/2))
+      params$dist.cyst.fp[n] = median(as.numeric(res.cp$Distance_Centroid_organoid_fp[kk.fp]))
       
       if(length(kk.fp)>1){
         params$volumeSE.fp[n] = sd(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))
@@ -658,10 +659,12 @@ extract.turing.parameters.cellProfiler = function(res.cp, cyst.overlapRatio.thre
   params$dist.fp = params$dist.fp * pixel.scale
   params$radius.cyst = params$radius.cyst * pixel.scale
   params$radius.fp = params$radius.fp * pixel.scale
+  params$dist.cyst.fp = params$dist.cyst.fp * pixel.scale
   params$radiusSE.fp = params$radiusSE.fp*pixel.scale
   params$volume = params$volume*pixel.scale^3
   params$volume.fp = params$volume.fp * pixel.scale^3
   params$volumeSE.fp = params$volumeSE.fp*pixel.scale^3
+  
   
   params$surface.area = params$surface.area*pixel.scale^2/(4/3) # unknow factor from CP
   

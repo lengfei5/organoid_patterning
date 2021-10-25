@@ -559,8 +559,8 @@ if(Select.signficant.Genes){
     gg.examepls = c('Id1', 'Id3', 'Smad6', 'Nog', 'Fst', 'Bambi')
     #gg.examepls = c('Bmp7', 'Bmp4', 'Bmp1', 'Bmp6', 'Bmpr2', 'Bmpr1b')
     
-    gg.examepls = c( 'Foxa2', 'Lef1', 'Spry4', 'Id1')
-    mains = 'Foxa2_Wnt_FGF_BMP_readout'
+    gg.examepls = c( 'Foxa2', 'Lef1', 'Spry4', 'Id1', 'Nog', 'Shh')
+    mains = 'Foxa2_Wnt_FGF_BMP_SHH'
     
     cols = colorRampPalette(rev(brewer.pal(9, "RdBu")))(length(gg.examepls) + 2)
     xx = rpkm.RA[match(gg.examepls, rownames(rpkm.RA)), ]
@@ -570,11 +570,11 @@ if(Select.signficant.Genes){
     par(cex = 1.0, las = 1, mgp = c(2,0.2,0), mar = c(3,2,2,0.2), tcl = -0.3)
     
     plot(c(0, 1), type = 'n', xlim = c(-22, 62), ylim = range(c(xx, 0, 1), na.rm = TRUE), 
-         ylab = 'log2(RPKM)', xlab = 'time', main = mains)
+         ylab = 'log2(RPKM)', xlab = 'time (h)', main = mains, cex.lab = 1.5, cex.axis = 1.5)
     for(kk in 1:nrow(xx)){
-      points(tt, xx[kk, ], type = 'l', pch = 16, lwd = 2.0, col = cols[which(gg.examepls == gg.examepls[kk])])
-      points(tt, xx[kk, ], type = 'p', pch = 16, cex = 1.2,col = cols[which(gg.examepls == gg.examepls[kk])])
-      text(tt[1], xx[kk, 1], labels = rownames(xx)[kk], pos = 2, offset = 0.5)
+      points(tt, xx[kk, ], type = 'l', pch = 16, lwd = 3.0, col = cols[which(gg.examepls == gg.examepls[kk])])
+      points(tt, xx[kk, ], type = 'p', pch = 16, cex = 1.5,col = cols[which(gg.examepls == gg.examepls[kk])])
+      text(tt[1], xx[kk, 1], labels = rownames(xx)[kk], pos = 2, offset = 0.5, cex = 1.5)
     }
     abline(h = c(0, 1), col = 'darkgray', lwd = 1.5, lty = 3)
     abline(v = c(6, 32, 54), col = 'cornflowerblue', lwd = 2.0, lty=3)

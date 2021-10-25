@@ -503,15 +503,15 @@ def main(argv):
         #b_0 += 0.001 * np.random.rand(len(b_0))*steadyState[1]
         #x = np.linspace(0, L, len(a_0))
         #f_0 += 0.01 * np.random.rand(len(f_0))*steadyState[3]
-        a_0 +=  0.01 * cos(2*pi/5*x) * steadyState[0]
+        a_0 +=  0.5 * cos(2*pi/5*x) * steadyState[0]
         #b_0 +=  0.001 * cos(2*pi/16*x)* steadyState[0]
         #s_0 += 0.01 * np.random.rand(len(s_0))*steadyState[2]
         #f_0 +=  0.01 * cos(2*pi/10*x) * steadyState[3]
         
-        # plt.plot(x, a_0)
-        # plt.plot(x, a_0 + 10)
-        # plt.ylim(0.2, 12)
-        # plt.show()
+        plt.plot(x, a_0)
+        plt.plot(x, a_0 )
+        plt.ylim(0., 0.2)
+        plt.show()
         
         for nb_try in range(5):    
             print('nb of try ' + str(nb_try + 1))

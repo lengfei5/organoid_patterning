@@ -22,6 +22,12 @@
 ########################################################
 rm(list=ls())
 
+require(ggplot2)
+require(grid)
+require(gridExtra)
+library(tidyr)
+library(dplyr)
+
 # specific input and output folders
 resDir = '../results/CellProfiler_LDN.timeSeries'
 tabDir = paste0(resDir, '/tables')
@@ -156,11 +162,6 @@ DoubleCheck.CP.surfaceArea.volume = FALSE
 # filter cyst or/and floorplates using global parameters
 # QC plots
 ##########################################
-require(ggplot2)
-require(grid)
-require(gridExtra)
-library(tidyr)
-library(dplyr)
 
 res$condition = as.factor(res$condition)
 res$ID_cyst = res$ID
@@ -354,7 +355,7 @@ saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cyst.fp.Fi
 ##########################################
 # extract turing-relevant parameters
 ######################################### 
-#res = readRDS(file = '~/workspace/imp/organoid_patterning/results/Rdata/mergedTable_cyst.fp_allConditions_cyst.fp.Filering_hNTdrugs3_0310_Analysis20210507_cellProfiler.rds')
+# res = readRDS(file = '~/workspace/imp/organoid_patterning/results/Rdata/mergedTable_cyst.fp_allConditions_cyst.fp.Filering_hNTdrugs3_0310_Analysis20210507_cellProfiler.rds')
 #res = readRDS(file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cyst.fp.Filering_', analysis.verison, '.rds'))
 
 source('Functions_3dImage.R')
@@ -499,7 +500,7 @@ for(n in 1:length(conds.sels))
   p6 = ggplot(params[sels, ], aes(x=nb.fp, y=volume, color=condition, fill = condition)) +
     geom_boxplot() + ggtitle('size dependency of fp nb (cyst volume)') + 
     theme(axis.text.x = element_text(angle = 0, size = 16), 
-          axis.text.y = element_text(size = 16) )
+          axis.text.y = element_text(size = 12, angle = 90) )
   
   p61 = ggplot(params[sels, ], aes(x=nb.fp, y=radius.cyst, color=condition, fill = condition)) +
     geom_violin() + ggtitle('size dependency of fp nb (cyst radius)') 
@@ -525,6 +526,21 @@ for(n in 1:length(conds.sels))
   grid.arrange(p4, p3,  nrow = 2, ncol = 1)
   grid.arrange(p6, p61,  nrow = 2, ncol = 1)
   grid.arrange(p9, nrow = 1, ncol = 1)
+  
+  params$fp.surface = 4*pi*params$dist.cyst.fp^2
+  sels0 = sels[which(as.numeric(params$nb.fp[sels])>0)]
+  ggplot(params[sels0, ], aes(x=nb.fp, y=fp.surface, color=condition, fill = condition)) +
+    geom_boxplot() + ggtitle('size dependency of fp nb (cyst volume)') + 
+    theme(axis.text.x = element_text(angle = 0, size = 16), 
+          axis.text.y = element_text(size = 12, angle = 0) )# + 
+    # geom_abline(
+    #   slope = 1.5*10^4,
+    #   intercept = 0,
+    #   na.rm = FALSE,
+    #   show.legend = NA
+    # )
+  
+  
   
 }
 
