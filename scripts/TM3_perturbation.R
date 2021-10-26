@@ -410,6 +410,8 @@ if(Compare.RA.positve.negative){
   
   saveRDS(res1, file = paste0(resDir, '/TM3_Foxa2.positive_vs_neg.day3_comparison_cpm.mean.rds'))
   
+  save(res1, cpm, file = paste0(resDir, '/TM3_Foxa2.positive_vs_neg.day3_comparisonStats_cpm.Rdata'))
+  
   ##########################################
   # ## visualize global DE genes 
   #  ## GO enrich analysis for upregulated and downregulated genes
@@ -950,6 +952,44 @@ dev.off()
 ##########################################
 Make.plot.examples.noggin = FALSE
 if(Make.plot.examples.noggin){
+  
+  load(file = paste0(resDir, '/TM3_Foxa2.positive_vs_neg.day3_comparisonStats_cpm.Rdata'))
+  
+  res = readRDS(file = paste0(RdataDir, '/TM3_res_pairwiseComparisons_perturbation.vs.RA_positive.negative.pooled.rds'))
+  
+  load(file = paste0(RdataDir, '/TM3_pooled.pos.neg_ddx_cc.pools_', Counts.to.Use, version.analysis, '.Rdata'))
+  fpm = fpm(dds, robust = TRUE)
+  gg = 'Nog'
+  fpm = fpm[which(rownames(fpm) == gg), grep('RA_|BMP_', colnames(fpm))]
+  fpm = log2(fpm)
+  fpm = data.frame(data = fpm)
+  fpm$condition = sapply(rownames(fpm), function(x) unlist(strsplit(as.character(x), '_'))[1])
+  fpm$cell = sapply(rownames(fpm), function(x) unlist(strsplit(as.character(x), '_'))[3])
+  
+  fpm$cc = paste0(fpm$condition, '_', fpm$cell)
+  fpm$sd = NA
+  fpm$mean = NA
+  for(n in 1:nrow(fpm))
+  {
+    jj = which(fpm$cc == fpm$cc[n])
+    fpm$mean[n] = mean(fpm$data[jj])
+    fpm$sd[n] = sd(fpm$data[jj])/sqrt(length(jj))
+  }
+  
+  fpm = fpm[match(unique(fpm$cc), fpm$cc), ]
+  
+  library(ggplot2)
+  # Default bar plot
+  p<- ggplot(fpm, aes(x=factor(condition, levels = c('RA', 'BMP')), y=mean, fill= factor(cell, levels = c('Foxa2.pos', 'Foxa2.neg')))) + 
+    geom_bar(stat="identity", color="black", 
+             position=position_dodge()) +
+    geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+                  position=position_dodge(.9)) +
+    theme(legend.title=element_blank()) +
+    labs(x="", y="log2(normalized data) ")
+  print(p) + ggsave(paste0(resDir, "/Noggin_example.pdf"), width=8, height = 8)
+  
+  
   
 }
 

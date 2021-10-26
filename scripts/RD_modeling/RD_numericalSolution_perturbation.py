@@ -400,8 +400,8 @@ def main(argv):
             paramfile = arg
     
     # test example
-    modelfile = '~/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_4N3M_v2/topology_summary_selection_D.larger.1_foxa2.noggin.phase_Noggin.noAutoactivation_foxa2.expressingBmp/table_params/Model_279.csv'
-    paramfile = '~/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_4N3M_v2/topology_summary_selection_D.larger.1_foxa2.noggin.phase_Noggin.noAutoactivation_foxa2.expressingBmp/table_params/params_saved_Model_279.csv'
+    modelfile = '~/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_4N3M_v2/topology_summary_selection_D.larger.1_foxa2.noggin.phase_Noggin.noAutoactivation_foxa2.expressingBmp/table_params/Model_64.csv'
+    paramfile = '~/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_4N3M_v2/topology_summary_selection_D.larger.1_foxa2.noggin.phase_Noggin.noAutoactivation_foxa2.expressingBmp/table_params/params_saved_Model_64.csv'
     print('model file is -- ', modelfile)
     print('param file is -- ', paramfile)
     
@@ -453,7 +453,7 @@ def main(argv):
     #for i in range(len(k_grid)):
     for i in range(params.shape[0]):
         
-        # i = 20
+        # i = 12
         print(i)
         
         par = np.asarray(params.iloc[i])
@@ -473,7 +473,7 @@ def main(argv):
         index_max = np.argmax(lamda_rel)
         lamda_pos = lamda_rel[lamda_rel > 0] 
         # L = 2.0*3.14159/q[index_max] * 4
-        L = 20
+        L = 50
         nb_grids = 2000
         #plt.plot(q, lamda_rel)
         #plt.ylim(-0.1, max(lamda_rel))
@@ -496,32 +496,34 @@ def main(argv):
         b_0 = np.ones(nb_grids)*steadyState[1]
         s_0 = np.ones(nb_grids)*steadyState[2]
         f_0 = np.ones(nb_grids)*steadyState[3]
+        #a_0 = np.ones(nb_grids)*0.4
         
         x = np.linspace(0, L, len(a_0))
         # Make a small perturbation to a_0 by adding noise
-        #a_0 += 0.01 * np.random.rand(len(a_0))*steadyState[0]
+        a_0 += 0.01* np.random.rand(len(a_0))*steadyState[0]
         #b_0 += 0.001 * np.random.rand(len(b_0))*steadyState[1]
         #x = np.linspace(0, L, len(a_0))
-        #f_0 += 0.01 * np.random.rand(len(f_0))*steadyState[3]
-        a_0 +=  0.5 * cos(2*pi/5*x) * steadyState[0]
+        f_0 += 0.01 * np.random.rand(len(f_0))*steadyState[3]
+        #a_0 +=  0.01 * cos(2*pi/2*x) * steadyState[0]
         #b_0 +=  0.001 * cos(2*pi/16*x)* steadyState[0]
         #s_0 += 0.01 * np.random.rand(len(s_0))*steadyState[2]
         #f_0 +=  0.01 * cos(2*pi/10*x) * steadyState[3]
         
-        plt.plot(x, a_0)
-        plt.plot(x, a_0 )
-        plt.ylim(0., 0.2)
-        plt.show()
+        # plt.plot(x, a_0)
+        # plt.ylim(0.2, 0.6)
+        # plt.plot(x, a_0)
+        
+        # plt.show()
         
         for nb_try in range(5):    
             print('nb of try ' + str(nb_try + 1))
-            
+            atol = 1.49012e-8
             conc = bct.rd_solve((a_0, b_0, s_0, f_0), t, L=L, derivs_0=0, derivs_L=0,
                                 diff_coeff_fun=constant_diff_coeffs,
                                 diff_coeff_params=(D, ),
                                 rxn_fun=fode_4N3M_rxn,
                                 rxn_params=rxn_params,
-                                atol=1.49012e-8,
+                                atol=atol/10,
                                 )
           
             
@@ -536,7 +538,7 @@ def main(argv):
         
         if np.sum(a_f > 0) > 0 and np.sum(b_f > 0) > 0 and np.sum(s_f > 0) > 0 and np.sum(f_f > 0) > 0 :
        
-            fig, (ax1, ax2) = plt.subplots(2)
+            fig, ax1 = plt.subplots()
             ax1.plot(x, a_f,  label = 'Noggin')
             ax1.plot(x, b_f, color="red", label = 'BMP')
             ax1.plot(x, s_f, color="orange", label = 'Shh')
@@ -544,7 +546,11 @@ def main(argv):
             ax1.legend()
             ax1.set_ylabel('nonscaled levels')
             ax1.set_xlabel('x')
+            ax1.set_title('M279_params_' + str(i) + '_unscaled')
+            plt.savefig('/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_4N3M_v3/NumericalSolution/M64_params_index_' + str(i) + '_unscaled.png')
             
+            
+            fig, ax2 = plt.subplots()
             ax2.plot(x, (f_f-np.mean(f_f))/np.std(f_f) + 2.0 , color="green", label = 'Foxa2')
             ax2.plot(x, (a_f-np.mean(a_f))/np.std(a_f), label = 'Noggin')
             ax2.plot(x, (b_f-np.mean(b_f))/np.std(b_f) - 1.0, color="red", label = 'BMP')
@@ -552,45 +558,51 @@ def main(argv):
             ax2.legend()
             ax2.set_ylabel('scaled levels')
             ax2.set_xlabel('x')
+            ax2.set_title('M279_params_' + str(i) + '_scaled')
+            plt.savefig('/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_4N3M_v3/NumericalSolution/M64_params_index_' + str(i) + '_scaled.png')
             
         else: 
             print('-- odeint failed -- ')
         
         # test perturbation
-        mu_a = 0.9 # LDN  mu_a > 1; control, mu_a = 1;
-        mu_b = 1 # bmp overexpression mu_b > 1; control, mu_b = 1
-        mu_s = 1 # shh ko mu_s < 1; control, mu_s = 1
+        # mu_a = 0.9 # LDN  mu_a > 1; control, mu_a = 1;
+        # mu_b = 1 # bmp overexpression mu_b > 1; control, mu_b = 1
+        # mu_s = 1 # shh ko mu_s < 1; control, mu_s = 1
         
-        rxn_perturb_params=(ks, S, mu_a, mu_b, mu_s)
-        conc = bct.rd_solve((a_0, b_0, s_0, f_0), t, L=L, derivs_0=0, derivs_L=0,
-                                diff_coeff_fun=constant_diff_coeffs,
-                                diff_coeff_params=(D, ),
-                                rxn_fun=fode_4N3M_perturb_rxn,
-                                rxn_params=rxn_perturb_params,
-                                atol=1.49012e-8,
-                                )
+        # rxn_perturb_params=(ks, S, mu_a, mu_b, mu_s)
+        # conc = bct.rd_solve((a_0, b_0, s_0, f_0), t, L=L, derivs_0=0, derivs_L=0,
+        #                         diff_coeff_fun=constant_diff_coeffs,
+        #                         diff_coeff_params=(D, ),
+        #                         rxn_fun=fode_4N3M_perturb_rxn,
+        #                         rxn_params=rxn_perturb_params,
+        #                         atol=1.49012e-8,
+        #                         )
          
-        a_f = conc[0][(len(t) -1), :]
-        b_f = conc[1][(len(t) -1), :]
-        s_f = conc[2][(len(t) -1), :]
-        f_f = conc[3][(len(t) -1), :]
+        # a_f = conc[0][(len(t) -1), :]
+        # b_f = conc[1][(len(t) -1), :]
+        # s_f = conc[2][(len(t) -1), :]
+        # f_f = conc[3][(len(t) -1), :]
         
-        fig, (ax1, ax2) = plt.subplots(2)
-        ax1.plot(x, a_f,  label = 'Noggin')
-        ax1.plot(x, b_f, color="red", label = 'BMP')
-        ax1.plot(x, s_f, color="orange", label = 'Shh')
-        ax1.plot(x, f_f,  color="green", label = 'Foxa2')
-        ax1.legend()
-        ax1.set_ylabel('nonscaled levels')
-        ax1.set_xlabel('x')
+        # fig, ax1 = plt.subplots()
+        # ax1.plot(x, a_f,  label = 'Noggin')
+        # ax1.plot(x, b_f, color="red", label = 'BMP')
+        # ax1.plot(x, s_f, color="orange", label = 'Shh')
+        # ax1.plot(x, f_f,  color="green", label = 'Foxa2')
+        # ax1.legend()
+        # ax1.set_ylabel('nonscaled levels')
+        # ax1.set_xlabel('x')
+        # ax1.set_title('M279_params_' + str(i) + '_unscaled')
+        # plt.savefig('/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_4N3M_v2/NumericalSolution/M279_params_index_' + str(i) + '_unscaled.png')
             
-        ax2.plot(x, (f_f-np.mean(f_f))/np.std(f_f) + 2.0 , color="green", label = 'Foxa2')
-        ax2.plot(x, (a_f-np.mean(a_f))/np.std(a_f), label = 'Noggin')
-        ax2.plot(x, (b_f-np.mean(b_f))/np.std(b_f) - 1.0, color="red", label = 'BMP')
-        ax2.plot(x, (s_f-np.mean(s_f))/np.std(s_f) + 1.0 , color="orange", label = 'Shh')
-        ax2.legend()
-        ax2.set_ylabel('scaled levels')
-        ax2.set_xlabel('x')
+        # fig, ax2 = plt.subplots()
+        # ax2.plot(x, (f_f-np.mean(f_f))/np.std(f_f) + 2.0 , color="green", label = 'Foxa2')
+        # ax2.plot(x, (a_f-np.mean(a_f))/np.std(a_f), label = 'Noggin')
+        # ax2.plot(x, (b_f-np.mean(b_f))/np.std(b_f) - 1.0, color="red", label = 'BMP')
+        # ax2.plot(x, (s_f-np.mean(s_f))/np.std(s_f) + 1.0 , color="orange", label = 'Shh')
+        # ax2.legend()
+        # ax2.set_ylabel('scaled levels')
+        # ax2.set_xlabel('x')
+        
             
     print(time.process_time() - start_time, "seconds for for loop")
             

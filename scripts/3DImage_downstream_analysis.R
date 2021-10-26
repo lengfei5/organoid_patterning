@@ -540,6 +540,10 @@ for(n in 1:length(conds.sels))
     #   show.legend = NA
     # )
   
+  params$dist.fp = as.numeric(params$dist.fp)
+  ggplot(params[sels, ], aes(x = dist.fp)) +
+    geom_histogram(binwidth = 0.1)
+  
   
   
 }

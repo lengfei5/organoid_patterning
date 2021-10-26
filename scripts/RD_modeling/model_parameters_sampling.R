@@ -193,7 +193,7 @@ library("igraph")
 network = '4N3M'
 
 if(network == '4N3M'){
-  RDoutDir = '../results/RD_topology_screening/topology_screening_4N3M_v2/'
+  RDoutDir = '../results/RD_topology_screening/topology_screening_4N3M_v3/'
   screening.outDir = paste0(RDoutDir, 'RD_out_4N3M/')
   modelDir = paste0(RDoutDir, '4N3M_topology_enumerate')
   
@@ -210,7 +210,7 @@ if(network == '3N2M'){
 
 #selection.criterion = 'D.larger.1_lambda.neg.max.q_phase'
 #resDir = paste0(RDoutDir, 'topology_summary_selection')
-resDir = paste0(RDoutDir, 'topology_summary_selection_D.larger.1_foxa2.noggin.phase_Noggin.withAutoactivation_foxa2.expressingBmp')
+resDir = paste0(RDoutDir, 'topology_summary_selection_D.larger.1_foxa2.noggin.phase_Noggin.noAutoactivation_foxa2.expressingBmp')
 modelSaveDir = paste0(resDir, '/Models_selected')
 paramSaveDir = paste0(resDir, '/table_params')
 
@@ -224,7 +224,7 @@ model.list = list.files(path = modelDir, pattern = '*.csv', full.names = TRUE)
 nb = 0
 
 for(n in 1:length(model.list)){
-  # n = grep('Model_63', model.list)
+  # n = grep('Model_279', model.list)
   Model = basename(model.list[n])
   Model = gsub('.csv', '', Model)
   
@@ -235,7 +235,7 @@ for(n in 1:length(model.list)){
     
     ss = read.csv(model.list[n], header = TRUE, row.names = 1)
     
-    if(ss[2, 2] < 1 & ss[4, 2] > 0 & ss[1, 1] > -1) {
+    if(ss[2, 2] < 1 & ss[4, 2] > 0 & ss[1, 1] == 0) {
       
       nb.param = 0
       index.param = c()
@@ -311,7 +311,8 @@ for(n in 1:length(model.list)){
           # j = 1
           sels = which(keep$index.param == j)
           # sels = which(keep$index.param == j & (keep$d1 > 1 & keep$d1 < 10 ))
-          
+          #sels = sels[which(keep$d1[sels] <100 )]
+          #sels = sels[20:30]
           lambda_real = keep[sels, grep('lambda_re', colnames(keep))]
           lambda_im = keep[sels, grep('lambda_im', colnames(keep))]
           k = keep[sels, match(paste0('q', c(0:(ncol(lambda_real)-1))) , colnames(keep))]
@@ -329,7 +330,7 @@ for(n in 1:length(model.list)){
                    col = 1:nrow(k), cex = 1.5, lwd = 4, bty = 'n')
           }
           if(network == '4N3M'){
-            legend('topleft', legend = paste0('d = ', signif(keep$d1[sels], d = 2), ';', signif(keep$d2[sels], d = 2)), 
+            legend('topleft', legend = paste0('d = ', signif(keep$d1[sels], d = 2), '-', signif(keep$d2[sels], d = 2)), 
                    col = 1:nrow(k), cex = 1.5, lwd = 4.0, bty = 'n')
           }
           
