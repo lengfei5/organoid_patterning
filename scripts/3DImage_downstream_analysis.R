@@ -534,6 +534,27 @@ dev.off()
 
 
 ##########################################
-# 
+# characterization of cyst and fp clusters
 ##########################################
+params$fp.surface = 4*pi*params$dist.cyst.fp^2/10^4
+sels0 = sels[which(as.numeric(params$nb.fp[sels])>0)]
+y0 = params$fp.surface[sels0]
+x0 = as.numeric(as.character(params$nb.fp[sels0]))
+fit = lm(y0 ~ x0 + 0)
+#params$nb.fp = as.numeric(as.character(params$nb.fp))
 
+ggplot(params[sels0, ], aes(x=nb.fp, y=fp.surface, color=condition, fill = condition)) +
+  geom_boxplot() + ggtitle('size dependency of fp nb (cyst volume 10^4 um)') + 
+  theme(axis.text.x = element_text(angle = 0, size = 16), 
+        axis.text.y = element_text(size = 12, angle = 0) ) +
+  scale_y_continuous(breaks = seq(0, 12, by = 2)) + 
+  geom_abline(
+  slope = 1.947,
+  intercept = -1.947,
+  na.rm = FALSE,
+  show.legend = NA
+  )
+
+params$dist.fp = as.numeric(params$dist.fp)
+ggplot(params[sels, ], aes(x = dist.fp)) +
+  geom_histogram(binwidth = 0.1)
