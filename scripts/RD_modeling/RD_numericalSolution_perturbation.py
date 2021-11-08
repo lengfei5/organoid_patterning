@@ -337,16 +337,6 @@ def fode_3N2M_rxn(as_tuple, t, k, S):
     #dx2dt = 16.17*a**2/(a**2 + 0.6421**2)*1.316**2/(1.316**2 + s**2) + 0.1 - 1.203*f
     
     ## NT organoid phase III pattern selection:  Noggin, BMP, FoxA2
-    #dx0dt = k[0]  -     x[0] + k[5]*(1.0/(1.0+(1.0/x[0])**(2.0*S.iloc[0,0])) * 1.0/(1.0 + (k[8]/x[1])**(2.0*S.iloc[1, 0])) * 1.0/(1.0 + (k[9]/x[2])**(2.0*S.iloc[2, 0]))) # Noggin
-    #dx1dt = k[1] - k[3]*x[1] + k[6]*(1.0/(1.0+(k[10]/x[0])**(2.0*S.iloc[0,1])) * 1.0/(1.0 + (1.0/x[1])**(2.0*S.iloc[1, 1])) * 1.0/(1.0 + (k[11]/x[2])**(2.0*S.iloc[2, 1]))) # BMP
-    #dx2dt = k[2] - k[4]*x[2] + k[7]*(1.0/(1.0+(k[12]/x[0])**(2.0*S.iloc[0,2])) * 1.0/(1.0 + (k[13]/x[1])**(2.0*S.iloc[1, 2])) * 1.0/(1.0 + (1.0/x[2])**(2.0*S.iloc[2, 2]))) # Foxa2
-    
-    ## NT organoid phase III pattern selection:  Noggin, BMP, FoxA2
-    #dx0dt = k[0]  -     a + k[5]*(1.0/(1.0+(1.0/a)**(2.0*S.iloc[0,0])) * 1.0/(1.0 + (k[8]/s)**(2.0*S.iloc[1, 0])) * 1.0/(1.0 + (k[9]/f)**(2.0*S.iloc[2, 0]))) # Noggin
-    #dx1dt = k[1] - k[3]*s + k[6]*(1.0/(1.0+(k[10]/a)**(2.0*S.iloc[0,1])) * 1.0/(1.0 + (1.0/s)**(2.0*S.iloc[1, 1])) * 1.0/(1.0 + (k[11]/f)**(2.0*S.iloc[2, 1]))) # BMP
-    #dx2dt = k[2] - k[4]*f + k[7]*(1.0/(1.0+(k[12]/a)**(2.0*S.iloc[0,2])) * 1.0/(1.0 + (k[13]/s)**(2.0*S.iloc[1, 2])) * 1.0/(1.0 + (1.0/f)**(2.0*S.iloc[2, 2]))) # Foxa2
-        
-    ## NT organoid phase III pattern selection:  Noggin, BMP, FoxA2
     dx0dt = k[0]  -     a + k[5]*(1.0/(1.0+(1.0/a)**(2.0*S.iloc[0,0])) * 1.0/(1.0 + (k[8]/s)**(2.0*S.iloc[1, 0])) * 1.0/(1.0 + (k[9]/f)**(2.0*S.iloc[2, 0]))) # Noggin
     dx1dt = k[1] - k[3]*s + k[6]*(1.0/(1.0+(k[10]/a)**(2.0*S.iloc[0,1])) * 1.0/(1.0 + (1.0/s)**(2.0*S.iloc[1, 1])) * 1.0/(1.0 + (k[11]/f)**(2.0*S.iloc[2, 1]))) # BMP
     dx2dt = k[2] - k[4]*f + k[7]*(1.0/(1.0+(k[12]/a)**(2.0*S.iloc[0,2])) * 1.0/(1.0 + (k[13]/s)**(2.0*S.iloc[1, 2])) * 1.0/(1.0 + (1.0/f)**(2.0*S.iloc[2, 2]))) # Foxa2
@@ -354,27 +344,43 @@ def fode_3N2M_rxn(as_tuple, t, k, S):
     return (dx0dt, dx1dt, dx2dt)
 
 
-def fode_4N3M_rxn(as_tuple, t, k, S):
+def fode_4N3M_rxn_v2(as_tuple, t, k, S):
     #dRdt = np.empty(n)
     
     a, b, s, f = as_tuple
     
-    dx0dt = 0.1 -      a + k[3]*(1.0/(1.0 + (1.0 /a)**(2.0*S.iloc[0,0])) * 1.0/(1.0 + ( k[7]/b)**(2.0*S.iloc[1, 0])) *  1.0/(1.0 +           1.0                ) * 1.0/(1.0 + (k[8] /f)**(2.0*S.iloc[3, 0]))) # Noggin
-    dx1dt = 0.1 - k[0]*b + k[4]*(1.0/(1.0 + (k[9]/a)**(2.0*S.iloc[0,1])) * 1.0/(1.0 + ( 1.0/ b)**(2.0*S.iloc[1, 1])) *  1.0/(1.0 + (k[10]/s)**(2.0*S.iloc[2, 1])) * 1.0/(1.0 + (k[11]/f)**(2.0*S.iloc[3, 1]))) # BMP
-    dx2dt = 0.1 - k[1]*s + k[5]*(1.0/(1.0 +                    1.0     ) * 1.0/(1.0 + (k[12]/b)**(2.0*S.iloc[1, 2])) *  1.0/(1.0 + (1.0 / s)**(2.0*S.iloc[2, 2])) * 1.0/(1.0 + (k[13]/f)**(2.0*S.iloc[3, 2]))) # Shh
-    dx3dt = 0.1 - k[2]*f + k[6]*(1.0/(1.0 +                    1.0     ) * 1.0/(1.0 + (k[14]/b)**(2.0*S.iloc[1, 3])) *  1.0/(1.0 + (k[15]/s)**(2.0*S.iloc[2, 3])) * 1.0/(1.0 + ( 1.0 /f)**(2.0*S.iloc[3, 3]))) # Foxa2
+    b0 = 0.1
+    dx0dt = b0 -      a + k[3]*(1.0/(1.0 + (1.0 /a)**(2.0*S.iloc[0,0])) * 1.0/(1.0 + ( k[7]/b)**(2.0*S.iloc[1, 0])) *  1.0/(1.0 +           1.0                ) * 1.0/(1.0 + (k[8] /f)**(2.0*S.iloc[3, 0]))) # Noggin
+    dx1dt = b0 - k[0]*b + k[4]*(1.0/(1.0 + (k[9]/a)**(2.0*S.iloc[0,1])) * 1.0/(1.0 + ( 1.0/ b)**(2.0*S.iloc[1, 1])) *  1.0/(1.0 + (k[10]/s)**(2.0*S.iloc[2, 1])) * 1.0/(1.0 + (k[11]/f)**(2.0*S.iloc[3, 1]))) # BMP
+    dx2dt = b0 - k[1]*s + k[5]*(1.0/(1.0 +                    1.0     ) * 1.0/(1.0 + (k[12]/b)**(2.0*S.iloc[1, 2])) *  1.0/(1.0 + (1.0 / s)**(2.0*S.iloc[2, 2])) * 1.0/(1.0 + (k[13]/f)**(2.0*S.iloc[3, 2]))) # Shh
+    dx3dt = b0 - k[2]*f + k[6]*(1.0/(1.0 +                    1.0     ) * 1.0/(1.0 + (k[14]/b)**(2.0*S.iloc[1, 3])) *  1.0/(1.0 + (k[15]/s)**(2.0*S.iloc[2, 3])) * 1.0/(1.0 + ( 1.0 /f)**(2.0*S.iloc[3, 3]))) # Foxa2
             
     return (dx0dt, dx1dt, dx2dt, dx3dt)
 
-def fode_4N3M_perturb_rxn(as_tuple, t, k, S, mu_a, mu_b, mu_s):
+# version 3: b0 = 0.1
+# version 4: b0 = 0 
+def fode_4N3M_rxn(as_tuple, t, k, S):
     #dRdt = np.empty(n)
-    
+    b0 = 0.1
     a, b, s, f = as_tuple
     
-    dx0dt = 0.1 -      a + k[3]*(1.0/(1.0 + (1.0 /a)**(2.0*S.iloc[0,0])) * 1.0/(1.0 + ( k[7]/b)**(2.0*S.iloc[1, 0])) *  1.0/(1.0 +           1.0                ) * 1.0/(1.0 + (k[8] /f)**(2.0*S.iloc[3, 0]))) # Noggin
-    dx1dt = 0.1*mu_a - k[0]*b + mu_a* mu_b * k[4]*(1.0/(1.0 + (k[9]/a)**(2.0*S.iloc[0,1])) * 1.0/(1.0 + ( 1.0/ b)**(2.0*S.iloc[1, 1])) *  1.0/(1.0 + (k[10]/s)**(2.0*S.iloc[2, 1])) * 1.0/(1.0 + (k[11]/f)**(2.0*S.iloc[3, 1]))) # BMP
-    dx2dt = 0.1 - k[1]*s + mu_s * k[5]*(1.0/(1.0 +                    1.0     ) * 1.0/(1.0 + (k[12]/b)**(2.0*S.iloc[1, 2])) *  1.0/(1.0 + (1.0 / s)**(2.0*S.iloc[2, 2])) * 1.0/(1.0 + (k[13]/f)**(2.0*S.iloc[3, 2]))) # Shh
-    dx3dt = 0.1 - k[2]*f + k[6]*(1.0/(1.0 +                    1.0     ) * 1.0/(1.0 + (k[14]/b)**(2.0*S.iloc[1, 3])) *  1.0/(1.0 + (k[15]/s)**(2.0*S.iloc[2, 3])) * 1.0/(1.0 + ( 1.0 /f)**(2.0*S.iloc[3, 3]))) # Foxa2
+    dx0dt = b0 -      a + k[3]*(1.0/(1.0 + (1.0 /a)**(2.0*S.iloc[0,0])) * 1.0/(1.0 + ( k[7]/b)**(2.0*S.iloc[1, 0])) *  1.0/(1.0 +           1.0                ) * 1.0/(1.0 + (k[8] /f)**(2.0*S.iloc[3, 0]))) # Noggin
+    dx1dt = b0 - k[0]*b + k[4]*(1.0/(1.0 + (k[9]/a)**(S.iloc[0,1])) * 1.0/(1.0 + ( 1.0/ b)**(2.0*S.iloc[1, 1])) *  1.0/(1.0 + (k[10]/s)**(2.0*S.iloc[2, 1])) * 1.0/(1.0 + (k[11]/f)**(2.0*S.iloc[3, 1]))) # BMP
+    dx2dt = b0 - k[1]*s + k[5]*(1.0/(1.0 +                    1.0     ) * 1.0/(1.0 + (k[12]/b)**(2.0*S.iloc[1, 2])) *  1.0/(1.0 + (1.0 / s)**(2.0*S.iloc[2, 2])) * 1.0/(1.0 + (k[13]/f)**(2.0*S.iloc[3, 2]))) # Shh
+    dx3dt = b0 - k[2]*f + k[6]*(1.0/(1.0 +                    1.0     ) * 1.0/(1.0 + (k[14]/b)**(2.0*S.iloc[1, 3])) *  1.0/(1.0 + (k[15]/s)**(2.0*S.iloc[2, 3])) * 1.0/(1.0 + ( 1.0 /f)**(2.0*S.iloc[3, 3]))) # Foxa2
+            
+    return (dx0dt, dx1dt, dx2dt, dx3dt)
+    
+
+def fode_4N3M_perturb_rxn(as_tuple, t, k, S, mu_a, mu_b, mu_s):
+    #dRdt = np.empty(n)
+    b0 = 0.1
+    a, b, s, f = as_tuple
+    
+    dx0dt = b0 -      a + k[3]*(1.0/(1.0 + (1.0 /a)**(2.0*S.iloc[0,0])) * 1.0/(1.0 + ( k[7]/b)**(2.0*S.iloc[1, 0])) *  1.0/(1.0 +           1.0                ) * 1.0/(1.0 + (k[8] /f)**(2.0*S.iloc[3, 0]))) # Noggin
+    dx1dt = b0*mu_a - k[0]*b + mu_a* mu_b * k[4]*(1.0/(1.0 + (k[9]/a)**(S.iloc[0,1])) * 1.0/(1.0 + ( 1.0/ b)**(2.0*S.iloc[1, 1])) *  1.0/(1.0 + (k[10]/s)**(2.0*S.iloc[2, 1])) * 1.0/(1.0 + (k[11]/f)**(2.0*S.iloc[3, 1]))) # BMP
+    dx2dt = b0 - k[1]*s + mu_s * k[5]*(1.0/(1.0 +                    1.0     ) * 1.0/(1.0 + (k[12]/b)**(2.0*S.iloc[1, 2])) *  1.0/(1.0 + (1.0 / s)**(2.0*S.iloc[2, 2])) * 1.0/(1.0 + (k[13]/f)**(2.0*S.iloc[3, 2]))) # Shh
+    dx3dt = b0 - k[2]*f + k[6]*(1.0/(1.0 +                    1.0     ) * 1.0/(1.0 + (k[14]/b)**(2.0*S.iloc[1, 3])) *  1.0/(1.0 + (k[15]/s)**(2.0*S.iloc[2, 3])) * 1.0/(1.0 + ( 1.0 /f)**(2.0*S.iloc[3, 3]))) # Foxa2
             
     return (dx0dt, dx1dt, dx2dt, dx3dt)
 
@@ -400,14 +406,17 @@ def main(argv):
             paramfile = arg
     
     # test example
-    modelfile = '~/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_4N3M_v2/topology_summary_selection_D.larger.1_foxa2.noggin.phase_Noggin.noAutoactivation_foxa2.expressingBmp/table_params/Model_64.csv'
-    paramfile = '~/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_4N3M_v2/topology_summary_selection_D.larger.1_foxa2.noggin.phase_Noggin.noAutoactivation_foxa2.expressingBmp/table_params/params_saved_Model_64.csv'
+    Model = 'Model_279'
+    cwd = '/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_4N3M_v3'
+    model_Dir = cwd + '/topology_summary_selection_D.larger.1_foxa2.noggin.phase_Noggin.noAutoactivation_foxa2.expressingBmp/table_params/'
+    
+    modelfile = model_Dir + Model + '.csv'
+    paramfile = model_Dir + 'params_saved_' + Model + '.csv'
     print('model file is -- ', modelfile)
     print('param file is -- ', paramfile)
     
-    
-    outputDir = os.path.dirname(paramfile)
-    outputDir = outputDir + '/RD_numSolution_perturbation/'
+    #outputDir = os.path.dirname(paramfile)
+    outputDir = cwd + '/RD_numericalSolution_perturbation/'
     print('Output directory is ', outputDir)
     
     try:
@@ -474,7 +483,7 @@ def main(argv):
         lamda_pos = lamda_rel[lamda_rel > 0] 
         # L = 2.0*3.14159/q[index_max] * 4
         L = 50
-        nb_grids = 2000
+        nb_grids = 1000
         #plt.plot(q, lamda_rel)
         #plt.ylim(-0.1, max(lamda_rel))
         #plt.xscale("log")
@@ -489,8 +498,7 @@ def main(argv):
         
         
         print('system size L = ' + str(L))
-        print('grid size h = ' + str(L / (nb_grids - 1)))
-        
+        print('grid size h = ' + str(L / (nb_grids - 1)))        
         # Set up intial condition (using 500 grid points)
         a_0 = np.ones(nb_grids)*steadyState[0]
         b_0 = np.ones(nb_grids)*steadyState[1]
@@ -507,9 +515,14 @@ def main(argv):
         #a_0 +=  0.01 * cos(2*pi/2*x) * steadyState[0]
         #b_0 +=  0.001 * cos(2*pi/16*x)* steadyState[0]
         #s_0 += 0.01 * np.random.rand(len(s_0))*steadyState[2]
-        #f_0 +=  0.01 * cos(2*pi/10*x) * steadyState[3]
+        #f_0 +=  0.01 * cos(2*pi/5*x) * steadyState[3]
+        a_0 = cos(2*pi/25*x)**2
+        b_0 = ((1 + np.abs(cos(2*pi/25*x)))**(1/40) - 1.0)*54
+        plt.plot(x, a_0, label = 'control')
+        plt.plot(x, b_0, color="red", label = 'perturbation')
+        plt.legend()
+        plt.savefig(outputDir + 'LDN_perturbation.png')
         
-        # plt.plot(x, a_0)
         # plt.ylim(0.2, 0.6)
         # plt.plot(x, a_0)
         
@@ -538,17 +551,16 @@ def main(argv):
         
         if np.sum(a_f > 0) > 0 and np.sum(b_f > 0) > 0 and np.sum(s_f > 0) > 0 and np.sum(f_f > 0) > 0 :
        
-            fig, ax1 = plt.subplots()
-            ax1.plot(x, a_f,  label = 'Noggin')
-            ax1.plot(x, b_f, color="red", label = 'BMP')
-            ax1.plot(x, s_f, color="orange", label = 'Shh')
-            ax1.plot(x, f_f,  color="green", label = 'Foxa2')
-            ax1.legend()
-            ax1.set_ylabel('nonscaled levels')
-            ax1.set_xlabel('x')
-            ax1.set_title('M279_params_' + str(i) + '_unscaled')
-            plt.savefig('/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_4N3M_v3/NumericalSolution/M64_params_index_' + str(i) + '_unscaled.png')
-            
+            # fig, ax1 = plt.subplots()
+            # ax1.plot(x, a_f,  label = 'Noggin')
+            # ax1.plot(x, b_f, color="red", label = 'BMP')
+            # ax1.plot(x, s_f, color="orange", label = 'Shh')
+            # ax1.plot(x, f_f,  color="green", label = 'Foxa2')
+            # ax1.legend()
+            # ax1.set_ylabel('nonscaled levels')
+            # ax1.set_xlabel('x')
+            # ax1.set_title(Model +  '_param_' + str(i) + '_unscaled')
+            # plt.savefig(outputDir +  Model + '_param_index_' + str(i) + '_unscaled.png')
             
             fig, ax2 = plt.subplots()
             ax2.plot(x, (f_f-np.mean(f_f))/np.std(f_f) + 2.0 , color="green", label = 'Foxa2')
@@ -558,50 +570,99 @@ def main(argv):
             ax2.legend()
             ax2.set_ylabel('scaled levels')
             ax2.set_xlabel('x')
-            ax2.set_title('M279_params_' + str(i) + '_scaled')
-            plt.savefig('/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_4N3M_v3/NumericalSolution/M64_params_index_' + str(i) + '_scaled.png')
+            ax2.set_title(Model + '_param_' + str(i) + '_scaled')
+            plt.savefig(outputDir + Model + '_param_index_' + str(i) + '_scaled.png')
             
         else: 
             print('-- odeint failed -- ')
         
-        # test perturbation
-        # mu_a = 0.9 # LDN  mu_a > 1; control, mu_a = 1;
-        # mu_b = 1 # bmp overexpression mu_b > 1; control, mu_b = 1
-        # mu_s = 1 # shh ko mu_s < 1; control, mu_s = 1
+        #%% test perturbation prediction
+        #mu_a = 0.5 # LDN  mu_a < 1; control, mu_a = 1;
+        mu_a = 0.7
+        mu_b = 1 # bmp overexpression mu_b > 1; control, mu_b = 1
+        mu_s = 1 # shh ko mu_s < 1; control, mu_s = 1
         
-        # rxn_perturb_params=(ks, S, mu_a, mu_b, mu_s)
-        # conc = bct.rd_solve((a_0, b_0, s_0, f_0), t, L=L, derivs_0=0, derivs_L=0,
-        #                         diff_coeff_fun=constant_diff_coeffs,
-        #                         diff_coeff_params=(D, ),
-        #                         rxn_fun=fode_4N3M_perturb_rxn,
-        #                         rxn_params=rxn_perturb_params,
-        #                         atol=1.49012e-8,
-        #                         )
+        rxn_perturb_params=(ks, S, mu_a, mu_b, mu_s)
+        conc_p = bct.rd_solve((a_0, b_0, s_0, f_0), t, L=L, derivs_0=0, derivs_L=0,
+                                diff_coeff_fun=constant_diff_coeffs,
+                                diff_coeff_params=(D, ),
+                                rxn_fun=fode_4N3M_perturb_rxn,
+                                rxn_params=rxn_perturb_params,
+                                atol=1.49012e-8,
+                                )
          
-        # a_f = conc[0][(len(t) -1), :]
-        # b_f = conc[1][(len(t) -1), :]
-        # s_f = conc[2][(len(t) -1), :]
-        # f_f = conc[3][(len(t) -1), :]
-        
-        # fig, ax1 = plt.subplots()
-        # ax1.plot(x, a_f,  label = 'Noggin')
-        # ax1.plot(x, b_f, color="red", label = 'BMP')
-        # ax1.plot(x, s_f, color="orange", label = 'Shh')
-        # ax1.plot(x, f_f,  color="green", label = 'Foxa2')
-        # ax1.legend()
-        # ax1.set_ylabel('nonscaled levels')
-        # ax1.set_xlabel('x')
-        # ax1.set_title('M279_params_' + str(i) + '_unscaled')
-        # plt.savefig('/Users/jiwang/workspace/imp/organoid_patterning/results/RD_topology_screening/topology_screening_4N3M_v2/NumericalSolution/M279_params_index_' + str(i) + '_unscaled.png')
+        a_fp = conc_p[0][(len(t) -1), :]
+        b_fp = conc_p[1][(len(t) -1), :]
+        s_fp = conc_p[2][(len(t) -1), :]
+        f_fp = conc_p[3][(len(t) -1), :]
             
-        # fig, ax2 = plt.subplots()
-        # ax2.plot(x, (f_f-np.mean(f_f))/np.std(f_f) + 2.0 , color="green", label = 'Foxa2')
-        # ax2.plot(x, (a_f-np.mean(a_f))/np.std(a_f), label = 'Noggin')
-        # ax2.plot(x, (b_f-np.mean(b_f))/np.std(b_f) - 1.0, color="red", label = 'BMP')
-        # ax2.plot(x, (s_f-np.mean(s_f))/np.std(s_f) + 1.0 , color="orange", label = 'Shh')
-        # ax2.legend()
-        # ax2.set_ylabel('scaled levels')
-        # ax2.set_xlabel('x')
+        fig, ax2 = plt.subplots()
+        ax2.plot(x, (f_fp-np.mean(f_fp))/np.std(f_fp) + 2.0 , color="green", label = 'Foxa2')
+        ax2.plot(x, (a_fp-np.mean(a_fp))/np.std(a_fp), label = 'Noggin')
+        ax2.plot(x, (b_fp-np.mean(b_fp))/np.std(b_fp) - 1.0, color="red", label = 'BMP')
+        ax2.plot(x, (s_fp-np.mean(s_fp))/np.std(s_fp) + 1.0 , color="orange", label = 'Shh')
+        ax2.legend()
+        ax2.set_ylabel('scaled levels')
+        ax2.set_xlabel('x')
+        plt.savefig(outputDir + Model + '_param_index_' + str(i) + '_scaled_LDN.png')
+        
+        mu_a = 1 # LDN  mu_a < 1; control, mu_a = 1;
+        #mu_b = 1.6 # bmp overexpression mu_b > 1; control, mu_b = 1
+        mu_b = 1.05
+        mu_s = 1 # shh ko mu_s < 1; control, mu_s = 1
+        
+        rxn_perturb_params=(ks, S, mu_a, mu_b, mu_s)
+        conc_p = bct.rd_solve((a_0, b_0, s_0, f_0), t, L=L, derivs_0=0, derivs_L=0,
+                                diff_coeff_fun=constant_diff_coeffs,
+                                diff_coeff_params=(D, ),
+                                rxn_fun=fode_4N3M_perturb_rxn,
+                                rxn_params=rxn_perturb_params,
+                                atol=1.49012e-8,
+                                )
+         
+        a_fp = conc_p[0][(len(t) -1), :]; b_fp = conc_p[1][(len(t) -1), :]
+        s_fp = conc_p[2][(len(t) -1), :]; f_fp = conc_p[3][(len(t) -1), :]
+            
+        fig, ax2 = plt.subplots()
+        ax2.plot(x, (f_fp-np.mean(f_fp))/np.std(f_fp) + 2.0 , color="green", label = 'Foxa2')
+        ax2.plot(x, (a_fp-np.mean(a_fp))/np.std(a_fp), label = 'Noggin')
+        ax2.plot(x, (b_fp-np.mean(b_fp))/np.std(b_fp) - 1.0, color="red", label = 'BMP')
+        ax2.plot(x, (s_fp-np.mean(s_fp))/np.std(s_fp) + 1.0 , color="orange", label = 'Shh')
+        ax2.legend()
+        ax2.set_ylabel('scaled levels')
+        ax2.set_xlabel('x')
+        
+        plt.savefig(outputDir + Model + '_param_index_' + str(i) + '_scaled_BMP4.png')
+        
+        mu_a = 1 # LDN  mu_a < 1; control, mu_a = 1;
+        mu_b = 1 # bmp overexpression mu_b > 1; control, mu_b = 1
+        #mu_s = 0.5 # shh ko mu_s < 1; control, mu_s = 1
+        mu_s = 0.9 # shh ko mu_s < 1; control, mu_s = 1
+        
+        rxn_perturb_params=(ks, S, mu_a, mu_b, mu_s)
+        conc_p = bct.rd_solve((a_0, b_0, s_0, f_0), t, L=L, derivs_0=0, derivs_L=0,
+                                diff_coeff_fun=constant_diff_coeffs,
+                                diff_coeff_params=(D, ),
+                                rxn_fun=fode_4N3M_perturb_rxn,
+                                rxn_params=rxn_perturb_params,
+                                atol=1.49012e-8,
+                                )
+         
+        a_fp = conc_p[0][(len(t) -1), :]; b_fp = conc_p[1][(len(t) -1), :]
+        s_fp = conc_p[2][(len(t) -1), :]; f_fp = conc_p[3][(len(t) -1), :]
+            
+        fig, ax2 = plt.subplots()
+        ax2.plot(x, (f_fp-np.mean(f_fp))/np.std(f_fp) + 2.0 , color="green", label = 'Foxa2')
+        ax2.plot(x, (a_fp-np.mean(a_fp))/np.std(a_fp), label = 'Noggin')
+        ax2.plot(x, (b_fp-np.mean(b_fp))/np.std(b_fp) - 1.0, color="red", label = 'BMP')
+        ax2.plot(x, (s_fp-np.mean(s_fp))/np.std(s_fp) + 1.0 , color="orange", label = 'Shh')
+        ax2.legend()
+        ax2.set_ylabel('scaled levels')
+        ax2.set_xlabel('x')
+        
+        plt.savefig(outputDir + Model + '_param_index_' + str(i) + '_scaled_SHHknockdown.png')
+        
+        
         
             
     print(time.process_time() - start_time, "seconds for for loop")

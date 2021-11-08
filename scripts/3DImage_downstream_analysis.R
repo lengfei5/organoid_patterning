@@ -527,25 +527,13 @@ for(n in 1:length(conds.sels))
   grid.arrange(p6, p61,  nrow = 2, ncol = 1)
   grid.arrange(p9, nrow = 1, ncol = 1)
   
-  params$fp.surface = 4*pi*params$dist.cyst.fp^2
-  sels0 = sels[which(as.numeric(params$nb.fp[sels])>0)]
-  ggplot(params[sels0, ], aes(x=nb.fp, y=fp.surface, color=condition, fill = condition)) +
-    geom_boxplot() + ggtitle('size dependency of fp nb (cyst volume)') + 
-    theme(axis.text.x = element_text(angle = 0, size = 16), 
-          axis.text.y = element_text(size = 12, angle = 0) )# + 
-    # geom_abline(
-    #   slope = 1.5*10^4,
-    #   intercept = 0,
-    #   na.rm = FALSE,
-    #   show.legend = NA
-    # )
-  
-  params$dist.fp = as.numeric(params$dist.fp)
-  ggplot(params[sels, ], aes(x = dist.fp)) +
-    geom_histogram(binwidth = 0.1)
-  
-  
   
 }
 
 dev.off()
+
+
+##########################################
+# 
+##########################################
+

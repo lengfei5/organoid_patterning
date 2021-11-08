@@ -193,7 +193,7 @@ library("igraph")
 network = '4N3M'
 
 if(network == '4N3M'){
-  RDoutDir = '../results/RD_topology_screening/topology_screening_4N3M_v3/'
+  RDoutDir = '../results/RD_topology_screening/topology_screening_4N3M_v4/'
   screening.outDir = paste0(RDoutDir, 'RD_out_4N3M/')
   modelDir = paste0(RDoutDir, '4N3M_topology_enumerate')
   
