@@ -11,10 +11,14 @@
 
 ########################################################
 ########################################################
-# Section : process the segementation results from cellProfiler 
+# Section I : Main functions 
 # 
 ########################################################
 ########################################################
+
+##########################################
+# process the segementation results from cellProfiler 
+##########################################
 merge_image.cyst.fp_fromCellProfiler = function(image, cyst, fp)
 {
   # change to data.frame
@@ -55,8 +59,18 @@ merge_image.cyst.fp_fromCellProfiler = function(image, cyst, fp)
   return(res)
 }
 
+
+
+
+########################################################
+########################################################
+# Section : Utility functions 
+# 
+########################################################
+########################################################
+
 ##########################################
-# functions 
+# 
 ##########################################
 cat.image.parameters.per.condition = function(files.surface)
 {

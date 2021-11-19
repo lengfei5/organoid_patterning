@@ -48,6 +48,7 @@ dataDir = '/Volumes/groups/tanaka/People/current/jiwang/projects/patterning_orga
 
 analysis.verison = 'Teresa.LDN.timeSeries_20210917_d5'
 
+
 ##########################################
 # find associated fp for cyst at each condition from the processing output of CellProfiler
 ##########################################
@@ -104,6 +105,7 @@ colsToKeep = c('ImageNumber', 'ObjectNumber',
                'Intensity_MeanIntensity_FOXA2', 'Intensity_IntegratedIntensity_FOXA2',
                "Intensity_IntegratedIntensity_Olig2", "Intensity_MeanIntensity_Olig2"
 )
+
 kk = match(colsToKeep, colnames(cyst))
 if(any(is.na(kk))){
   cat('columns missing: \n', paste0(colsToKeep[which(is.na(kk))], collapse = '\n'), '\n')
