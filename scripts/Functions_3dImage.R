@@ -19,7 +19,93 @@
 ##########################################
 # process the segementation results from cellProfiler 
 ##########################################
-merge_image.cyst.fp_fromCellProfiler = function(image, cyst, fp)
+clean_image_table = function(image, DAPI.channel, 
+                             col.notselect = "ExecutionTime, MD5, Width, PathName, Metadata, ModuleError, ImageSet_ImageSet, 
+                              Series_, ProcessingStatus, Channel_, Height, Frame", 
+                             col.select = NULL,  
+                             image.format = 'tif')
+{
+  ##########################################
+  # cleaning step  
+  ##########################################
+  cat('DAPI.channel is ', DAPI.channel, ' will be used to name imagese \n')
+  cat('start to import and clean the image table\n')
+  if(!is.null(col.select)) cat('selected columns : ', col.select, '\n')
+  if(!is.null(col.notselect)) cat(' columns not to select : ', col.notselect, '\n')
+  
+  # select image columns
+  image = image[, grep('', 
+                     colnames(image), invert = TRUE)]
+  
+  image = data.frame(image, stringsAsFactors = FALSE)
+  
+  # drop the absolute path of image sources ONLY if all imges were frorm the same folder
+  cat('drop the absolute image path ONLY if images are from one same folder \n ')
+  image = image[, grep('URL_', colnames(image), invert = TRUE)]
+  
+  # give each image an unique name using the DAPI channel
+  image$name = gsub(paste0('_isotropic_', DAPI.channel, '.tif'), '', as.character(image$FileName_DNA))
+  
+  return(image)
+  
+}
+
+clean_cyst_table = function(cyst, Dummy.imageNumber)
+{
+  colsToKeep = c('ImageNumber', 'ObjectNumber', 
+                 "AreaShape_Volume",  "AreaShape_SurfaceArea", 
+                 "AreaShape_Center_X", "AreaShape_Center_Y", "AreaShape_Center_Z", 
+                 "AreaShape_EquivalentDiameter", "AreaShape_MajorAxisLength", "AreaShape_MinorAxisLength",
+                 "Children_foxa2cluster_Count", 
+                 'Intensity_MeanIntensity_FOXA2', 'Intensity_IntegratedIntensity_FOXA2',
+                 "Intensity_IntegratedIntensity_Olig2", "Intensity_MeanIntensity_Olig2"
+  )
+  
+  kk = match(colsToKeep, colnames(cyst))
+  if(any(is.na(kk))){
+    cat('columns missing: \n', paste0(colsToKeep[which(is.na(kk))], collapse = '\n'), '\n')
+    kk = kk[which(!is.na(kk))]
+    
+  }
+  
+  cyst = cyst[, kk]
+  cyst = cyst[which(cyst$ImageNumber != Dummy.imageNumber), ]
+  
+  return(cyst)
+}
+
+clean_fp_table = function(fp, Dummy.imageNumber)
+{
+  if(length(which(fp$Children_RelateObjects_Count != 1)) > 0 ){
+    cat('Warning : -- some foxA2 clusters do not have parents in the table \n')
+    
+    fp = fp[which(fp$Children_RelateObjects_Count == 1), ]
+    
+  }
+  
+  colsToKeep_cluster = c('ImageNumber', 'ObjectNumber', "Parent_organoid", 
+                         "AreaShape_Volume",  "AreaShape_SurfaceArea", "AreaShape_Center_X", "AreaShape_Center_Y", 
+                         "AreaShape_Center_Z", 
+                         "AreaShape_EquivalentDiameter", "AreaShape_MajorAxisLength", "AreaShape_MinorAxisLength",
+                         "Distance_Centroid_organoid",  
+                         'Intensity_MeanIntensity_FOXA2', 'Intensity_IntegratedIntensity_FOXA2'
+  )
+  
+  jj = match(colsToKeep_cluster, colnames(fp))
+  
+  if(any(is.na(jj))){
+    cat('columns missing: \n', paste0(colsToKeep_cluster[which(is.na(jj))], collapse = '\n'), '\n')
+    jj = jj[which(!is.na(jj))]
+  }
+  
+  fp = fp[,jj]
+  
+  fp = fp[which(fp$ImageNumber != Dummy.imageNumber), ]
+  
+  return(fp)
+}
+
+merge_image.cyst.fp_fromCellProfiler = function(cyst, image, fp)
 {
   # change to data.frame
   cyst = data.frame(cyst, stringsAsFactors = FALSE)
@@ -59,7 +145,18 @@ merge_image.cyst.fp_fromCellProfiler = function(image, cyst, fp)
   return(res)
 }
 
-
+correct_sphericity_cyst.fp = function(res)
+{
+  res$condition = as.factor(res$condition)
+  res$ID_cyst = res$ID
+  res$ID_fp = paste0(res$ImageNumber_fp, '_', res$ObjectNumber_fp)
+  res$ID_fp[is.na(res$ObjectNumber_fp)] = NA
+  
+  res$sphericity_cyst = pi^(1/3)*(6*res$AreaShape_Volume_cyst)^(2/3) / res$AreaShape_SurfaceArea_cyst*4/3 # mysterious factor 4/3
+  res$sphericity_fp = pi^(1/3)*(6*res$AreaShape_Volume_fp)^(2/3) / res$AreaShape_SurfaceArea_fp*4/3 
+  
+  return(res)
+}
 
 
 ########################################################

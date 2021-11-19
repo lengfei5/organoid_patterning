@@ -22,14 +22,17 @@
 ########################################################
 rm(list=ls())
 
-require(ggplot2)
+# load packages required (install missing packages)
 require(grid)
 require(gridExtra)
 library(tidyr)
 library(dplyr)
+require(ggplot2)
+
+source('Functions_3dImage.R') # be careful of the directory of this function, better to put it in the same folder as script
 
 # specific input and output folders
-resDir = '../results/CellProfiler_LDN.timeSeries'
+resDir = '../results/CellProfiler_LDN.timeSeries_test'
 tabDir = paste0(resDir, '/tables')
 Rdata = paste0('../results/Rdata')
 
@@ -38,113 +41,72 @@ if(!dir.exists(tabDir)) dir.create(tabDir)
 if(!dir.exists(Rdata)) dir.create(Rdata)
 
 save.table.each.condition = FALSE
-CellProfiler = TRUE
 
-Manally.extract.metadata = TRUE
-DAPI.channel = 'C1'
+Manally.extract.metadata = FALSE
+
+DAPI.channel = 'C1' # important to specify
 
 metadataCorrection = FALSE
-dataDir = '/Volumes/groups/tanaka/People/current/jiwang/projects/patterning_organoid/Images_data/Teresa_LDN_titration/batch.processed_d5/'
+dataDir = '/Volumes/groups/tanaka/People/current/Teresa/CellProfilerOutput/LDNtitration_20211117/outputfiles_parentchild/'
 
-analysis.verison = 'Teresa.LDN.timeSeries_20210917_d5'
-
+analysis.verison = 'Teresa.LDN.timeSeries_20210917_d5' # optional
 
 ##########################################
 # find associated fp for cyst at each condition from the processing output of CellProfiler
+# merge image information and cyst first and then merge cyst and fp
 ##########################################
-#make_mergedTables_fromSegementation_Imaris()
-#make_mergedTable_fromSegementation_cellProfiler()
+#double check where you are, to print this info that you check in terminal
+cat('input directory -- ', dataDir, '\n')
 
-# clean image metadata
-image = read.csv(file = paste0(dataDir, 'image.csv'))
-image = image[, 
-              grep('ExecutionTime|MD5|Width|PathName|Metadata|ModuleError|ImageSet_ImageSet|Series_|ProcessingStatus|Channel_|Height|Frame', 
-                   colnames(image), invert = TRUE)]
+image = read.csv(file = paste0(dataDir, 'MyExpt_Image.csv'))
 
-image = data.frame(image, stringsAsFactors = FALSE)
-# drop the absoute path of image sources ONLY if all imges were frorm the same folder
-image = image[, grep('URL_', colnames(image), invert = TRUE)]
+# call function 'clean_image_table'
+image = clean_image_table(image)
 
-# give each image an unique name using the DAPI channel
-image$name = gsub(paste0('_isotropic_', DAPI.channel, '.tif'), '', as.character(image$FileName_DNA))
-
-Dummy.imageNumber = image$ImageNumber[which(image$name == 'DUMMY')]
-image = image[which(image$ImageNumber !=  Dummy.imageNumber), ]
+# remove Dummy image if there is such image
+cat('remove dummy image \n')
+if(which(image$name == 'DUMMY') >0 & !is.na(image$ImageNumber[which(image$name == 'DUMMY')])){
+  Dummy.imageNumber = image$ImageNumber[which(image$name == 'DUMMY')]
+  image = image[which(image$ImageNumber !=  Dummy.imageNumber), ]
+  
+}
 
 # extract condition from image name and make design matrix
 if(Manally.extract.metadata){
+  
   image$condition = sapply(image$name, function(x) {
     xx = unlist(strsplit(as.character(x), '_')); 
     xx = xx[c((length(xx)-2):length(xx))]; 
     paste0(xx, collapse = '.')} )
   
-  image$condition = gsub('.d5', '', image$condition)
-  image$condition = paste0(image$condition, '.d5')
+  image$condition = gsub('.d6', '', image$condition) # data all from d6
+  
+  image$condition = paste0(image$condition, '.d6')
+  
   image$condition = gsub('LDn', 'LDN', image$condition)
   
-  if(metadataCorrection){
-    design = readRDS(file = paste0(Rdata, '/perturbation_design_hNTdrugs3_0310.rds'))
-    image$condition = NA
-    
-    for(n in 1:nrow(image))
-    {
-      kk = grep(image$name[n], design$Original.Image.Name)
-      if(length(kk) != 1) cat('Error')
-      image$condition[n] = design$condition[kk] 
-    }
-  }
+  # if(metadataCorrection){
+  #   design = readRDS(file = paste0(Rdata, '/perturbation_design_hNTdrugs3_0310.rds'))
+  #   image$condition = NA
+  #   
+  #   for(n in 1:nrow(image))
+  #   {
+  #     kk = grep(image$name[n], design$Original.Image.Name)
+  #     if(length(kk) != 1) cat('Error')
+  #     image$condition[n] = design$condition[kk] 
+  #   }
+  # }
 }
+
 
 # cyst
-cyst = read.csv(file = paste0(dataDir, 'organoid.csv'))
-colsToKeep = c('ImageNumber', 'ObjectNumber', 
-               "AreaShape_Volume",  "AreaShape_SurfaceArea", 
-               "AreaShape_Center_X", "AreaShape_Center_Y", "AreaShape_Center_Z", 
-               "AreaShape_EquivalentDiameter", "AreaShape_MajorAxisLength", "AreaShape_MinorAxisLength",
-               "Children_foxa2cluster_Count", 
-               'Intensity_MeanIntensity_FOXA2', 'Intensity_IntegratedIntensity_FOXA2',
-               "Intensity_IntegratedIntensity_Olig2", "Intensity_MeanIntensity_Olig2"
-)
-
-kk = match(colsToKeep, colnames(cyst))
-if(any(is.na(kk))){
-  cat('columns missing: \n', paste0(colsToKeep[which(is.na(kk))], collapse = '\n'), '\n')
-  kk = kk[which(!is.na(kk))]
-  
-}
-cyst = cyst[, kk]
-cyst = cyst[which(cyst$ImageNumber != Dummy.imageNumber), ]
+cyst = read.csv(file = paste0(dataDir, 'MyExpt_organoid.csv'))
+cyst = clean_cyst_table(cyst, Dummy.imageNumber, cols2select = c())
 
 # foxA2 clusters
-fp = read.csv(file = paste0(dataDir, 'foxa2cluster.csv'))
+fp = read.csv(file = paste0(dataDir, 'MyExpt_FOXA2cluster.csv'))
+fp = clean_fp_table(fp, Dummy.imageNumber)
 
-if(length(which(fp$Children_RelateObjects_Count != 1)) > 0 ){
-  cat('Warning : -- some foxA2 clusters do not have parents in the table \n')
-  
-  fp = fp[which(fp$Children_RelateObjects_Count == 1), ]
-}
-
-colsToKeep_cluster = c('ImageNumber', 'ObjectNumber', "Parent_organoid", 
-                       "AreaShape_Volume",  "AreaShape_SurfaceArea", "AreaShape_Center_X", "AreaShape_Center_Y", 
-                       "AreaShape_Center_Z", 
-                       "AreaShape_EquivalentDiameter", "AreaShape_MajorAxisLength", "AreaShape_MinorAxisLength",
-                       "Distance_Centroid_organoid",  
-                       'Intensity_MeanIntensity_FOXA2', 'Intensity_IntegratedIntensity_FOXA2'
-)
-jj = match(colsToKeep_cluster, colnames(fp))
-
-if(any(is.na(jj))){
-  cat('columns missing: \n', paste0(colsToKeep_cluster[which(is.na(jj))], collapse = '\n'), '\n')
-  jj = jj[which(!is.na(jj))]
-}
-
-fp = fp[,jj]
-
-fp = fp[which(fp$ImageNumber != Dummy.imageNumber), ]
-
-
-# merge image information and cyst first and then merge cyst and fp
-source('Functions_3dImage.R')
 res = merge_image.cyst.fp_fromCellProfiler(image, cyst, fp)
 
 saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_', analysis.verison, '.rds'))
@@ -158,25 +120,12 @@ saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_', analysi
 res = readRDS(file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_', analysis.verison, '.rds'))
 res = data.frame(res, stringsAsFactors = FALSE)
 
-DoubleCheck.CP.surfaceArea.volume = FALSE
+res = correct_sphericity_cyst.fp(res)
 
 ##########################################
 # filter cyst or/and floorplates using global parameters
 # QC plots
 ##########################################
-
-res$condition = as.factor(res$condition)
-res$ID_cyst = res$ID
-res$ID_fp = paste0(res$ImageNumber_fp, '_', res$ObjectNumber_fp)
-res$ID_fp[is.na(res$ObjectNumber_fp)] = NA
-
-res$sphericity_cyst = pi^(1/3)*(6*res$AreaShape_Volume_cyst)^(2/3) / res$AreaShape_SurfaceArea_cyst*4/3 # mysterious factor 4/3
-res$sphericity_fp = pi^(1/3)*(6*res$AreaShape_Volume_fp)^(2/3) / res$AreaShape_SurfaceArea_fp*4/3 
-
-## Old filtering for Imaris segemetation
-#res = res[which(res$Distance.to.Image.Border.XY.Unit.µm_Distance.to.Image.Border.XY.Img1_cyst > 0), ]
-#res = res[which(res$Overlapped.Volume.Ratio_fp > 0.5 | is.na(res$Overlapped.Volume.Ratio_fp)), ]
-#res = res[which(res$Sphericity.Unit._Sphericity_cyst > 0.8), ]
 
 ##########################################
 ## cyst filtering
@@ -535,28 +484,40 @@ for(n in 1:length(conds.sels))
 dev.off()
 
 
+
+########################################################
+########################################################
+# Section : other analysis 
+# 
+########################################################
+########################################################
+
 ##########################################
 # characterization of cyst and fp clusters
 ##########################################
-params$fp.surface = 4*pi*params$dist.cyst.fp^2/10^4
-sels0 = sels[which(as.numeric(params$nb.fp[sels])>0)]
-y0 = params$fp.surface[sels0]
-x0 = as.numeric(as.character(params$nb.fp[sels0]))
-fit = lm(y0 ~ x0 + 0)
-#params$nb.fp = as.numeric(as.character(params$nb.fp))
-
-ggplot(params[sels0, ], aes(x=nb.fp, y=fp.surface, color=condition, fill = condition)) +
-  geom_boxplot() + ggtitle('size dependency of fp nb (cyst volume 10^4 um)') + 
-  theme(axis.text.x = element_text(angle = 0, size = 16), 
-        axis.text.y = element_text(size = 12, angle = 0) ) +
-  scale_y_continuous(breaks = seq(0, 12, by = 2)) + 
-  geom_abline(
-  slope = 1.947,
-  intercept = -1.947,
-  na.rm = FALSE,
-  show.legend = NA
-  )
-
-params$dist.fp = as.numeric(params$dist.fp)
-ggplot(params[sels, ], aes(x = dist.fp)) +
-  geom_histogram(binwidth = 0.1)
+Further.Characterization = FALSE
+if(Further.Characterization){
+  params$fp.surface = 4*pi*params$dist.cyst.fp^2/10^4
+  sels0 = sels[which(as.numeric(params$nb.fp[sels])>0)]
+  y0 = params$fp.surface[sels0]
+  x0 = as.numeric(as.character(params$nb.fp[sels0]))
+  fit = lm(y0 ~ x0 + 0)
+  #params$nb.fp = as.numeric(as.character(params$nb.fp))
+  
+  ggplot(params[sels0, ], aes(x=nb.fp, y=fp.surface, color=condition, fill = condition)) +
+    geom_boxplot() + ggtitle('size dependency of fp nb (cyst volume 10^4 um)') + 
+    theme(axis.text.x = element_text(angle = 0, size = 16), 
+          axis.text.y = element_text(size = 12, angle = 0) ) +
+    scale_y_continuous(breaks = seq(0, 12, by = 2)) + 
+    geom_abline(
+      slope = 1.947,
+      intercept = -1.947,
+      na.rm = FALSE,
+      show.legend = NA
+    )
+  
+  params$dist.fp = as.numeric(params$dist.fp)
+  ggplot(params[sels, ], aes(x = dist.fp)) +
+    geom_histogram(binwidth = 0.1)
+  
+}
