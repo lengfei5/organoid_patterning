@@ -41,15 +41,12 @@ if(!dir.exists(tabDir)) dir.create(tabDir)
 if(!dir.exists(Rdata)) dir.create(Rdata)
 
 save.table.each.condition = FALSE
-
-Manally.extract.metadata = FALSE
-
+Manally.extract.metadata = TRUE
 DAPI.channel = 'C1' # important to specify
 
-metadataCorrection = FALSE
 dataDir = '/Volumes/groups/tanaka/People/current/Teresa/CellProfilerOutput/LDNtitration_20211117/outputfiles_parentchild/'
 
-analysis.verison = 'Teresa.LDN.timeSeries_20210917_d5' # optional
+analysis.verison = 'Teresa.LDN.timeSeries_20211119_d6' # optional
 
 ##########################################
 # find associated fp for cyst at each condition from the processing output of CellProfiler
@@ -61,7 +58,7 @@ cat('input directory -- ', dataDir, '\n')
 image = read.csv(file = paste0(dataDir, 'MyExpt_Image.csv'))
 
 # call function 'clean_image_table'
-image = clean_image_table(image)
+image = clean_image_table(image, DAPI.channel)
 
 # remove Dummy image if there is such image
 cat('remove dummy image \n')
@@ -85,23 +82,12 @@ if(Manally.extract.metadata){
   
   image$condition = gsub('LDn', 'LDN', image$condition)
   
-  # if(metadataCorrection){
-  #   design = readRDS(file = paste0(Rdata, '/perturbation_design_hNTdrugs3_0310.rds'))
-  #   image$condition = NA
-  #   
-  #   for(n in 1:nrow(image))
-  #   {
-  #     kk = grep(image$name[n], design$Original.Image.Name)
-  #     if(length(kk) != 1) cat('Error')
-  #     image$condition[n] = design$condition[kk] 
-  #   }
-  # }
 }
 
 
 # cyst
 cyst = read.csv(file = paste0(dataDir, 'MyExpt_organoid.csv'))
-cyst = clean_cyst_table(cyst, Dummy.imageNumber, cols2select = c())
+cyst = clean_cyst_table(cyst, Dummy.imageNumber)
 
 # foxA2 clusters
 fp = read.csv(file = paste0(dataDir, 'MyExpt_FOXA2cluster.csv'))
@@ -135,7 +121,7 @@ mm = match(unique(cond.id), cond.id)
 xx = res[mm, ]
 xx$volume.log10 = log10(xx$AreaShape_Volume_cyst)
 
-if(DoubleCheck.CP.surfaceArea.volume){ doubleCheck.CP.surfaceArea.volume(xx);}
+#if(DoubleCheck.CP.surfaceArea.volume){ doubleCheck.CP.surfaceArea.volume(xx);}
 
 p0 = as_tibble(xx) %>% 
   group_by(condition) %>% tally() %>%

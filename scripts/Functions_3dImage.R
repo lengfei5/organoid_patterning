@@ -20,9 +20,9 @@
 # process the segementation results from cellProfiler 
 ##########################################
 clean_image_table = function(image, DAPI.channel, 
-                             col.notselect = "ExecutionTime, MD5, Width, PathName, Metadata, ModuleError, ImageSet_ImageSet, 
-                              Series_, ProcessingStatus, Channel_, Height, Frame", 
-                             col.select = NULL,  
+                             colsnot2keep = c("ExecutionTime", "MD5", "Width", "PathName", "Metadata", 
+                              "ModuleError", "ImageSet_ImageSet", "Series_", "ProcessingStatus", "Channel_", "Height", "Frame"), 
+                             cols2keep = NULL,  
                              image.format = 'tif')
 {
   ##########################################
@@ -30,18 +30,31 @@ clean_image_table = function(image, DAPI.channel,
   ##########################################
   cat('DAPI.channel is ', DAPI.channel, ' will be used to name imagese \n')
   cat('start to import and clean the image table\n')
-  if(!is.null(col.select)) cat('selected columns : ', col.select, '\n')
-  if(!is.null(col.notselect)) cat(' columns not to select : ', col.notselect, '\n')
   
   # select image columns
-  image = image[, grep('', 
-                     colnames(image), invert = TRUE)]
+  if(!is.null(cols2keep)) {
+    cat('seleteced columns : ', cols2keep, '\n')
+    sels = grep(paste0(cols2keep, '|'), colnames(image))
+    if(!length(sels) == length(cols2keep)){
+      cat('some columsn were missing or miselected, please double check \n')
+    }
+    
+    if(length(sels) > 0)  image = images[, sels]
+    
+  }
+  
+  if(!is.null(colsnot2keep)){
+    cat(' columns not to select : ', colsnot2keep, '\n')
+    sels = grep(paste0(colsnot2keep, collapse =  '|'), colnames(image), invert = TRUE)
+    if(length(sels)>0)  image = image[, sels]
+  }
   
   image = data.frame(image, stringsAsFactors = FALSE)
   
   # drop the absolute path of image sources ONLY if all imges were frorm the same folder
-  cat('drop the absolute image path ONLY if images are from one same folder \n ')
-  image = image[, grep('URL_', colnames(image), invert = TRUE)]
+  cat('-- BE CAREFUL : drop the absolute image path ONLY if images are from one same folder -- \n ')
+  sels = grep('URL_', colnames(image), invert = TRUE)
+  if(length(sels) > 0)  image = image[ ,sels]
   
   # give each image an unique name using the DAPI channel
   image$name = gsub(paste0('_isotropic_', DAPI.channel, '.tif'), '', as.character(image$FileName_DNA))
@@ -50,22 +63,25 @@ clean_image_table = function(image, DAPI.channel,
   
 }
 
-clean_cyst_table = function(cyst, Dummy.imageNumber)
+clean_cyst_table = function(cyst, Dummy.imageNumber, cols2keep = NULL)
 {
-  colsToKeep = c('ImageNumber', 'ObjectNumber', 
-                 "AreaShape_Volume",  "AreaShape_SurfaceArea", 
-                 "AreaShape_Center_X", "AreaShape_Center_Y", "AreaShape_Center_Z", 
-                 "AreaShape_EquivalentDiameter", "AreaShape_MajorAxisLength", "AreaShape_MinorAxisLength",
-                 "Children_foxa2cluster_Count", 
-                 'Intensity_MeanIntensity_FOXA2', 'Intensity_IntegratedIntensity_FOXA2',
-                 "Intensity_IntegratedIntensity_Olig2", "Intensity_MeanIntensity_Olig2"
-  )
-  
-  kk = match(colsToKeep, colnames(cyst))
-  if(any(is.na(kk))){
-    cat('columns missing: \n', paste0(colsToKeep[which(is.na(kk))], collapse = '\n'), '\n')
-    kk = kk[which(!is.na(kk))]
+  if(is.null(cols2keep)){
+    cols2keep = c('ImageNumber', 'ObjectNumber', 
+                   "AreaShape_Volume",  "AreaShape_SurfaceArea", 
+                   "AreaShape_Center_X", "AreaShape_Center_Y", "AreaShape_Center_Z", 
+                   "AreaShape_EquivalentDiameter", "AreaShape_MajorAxisLength", "AreaShape_MinorAxisLength",
+                   "Children_foxa2cluster_Count", 'Intensity_MeanIntensity_FOXA2', 'Intensity_IntegratedIntensity_FOXA2',
+                   "Intensity_IntegratedIntensity_Olig2", "Intensity_MeanIntensity_Olig2"
+    )
     
+  }
+  
+  
+  kk = match(cols2keep, colnames(cyst))
+  
+  if(any(is.na(kk))){
+    cat('columns missing: \n', paste0(cols2keep[which(is.na(kk))], collapse = '\n'), '\n')
+    kk = kk[which(!is.na(kk))]
   }
   
   cyst = cyst[, kk]
@@ -74,16 +90,15 @@ clean_cyst_table = function(cyst, Dummy.imageNumber)
   return(cyst)
 }
 
-clean_fp_table = function(fp, Dummy.imageNumber)
+clean_fp_table = function(fp, Dummy.imageNumber, cols2keep_cluster = NULL)
 {
   if(length(which(fp$Children_RelateObjects_Count != 1)) > 0 ){
     cat('Warning : -- some foxA2 clusters do not have parents in the table \n')
-    
     fp = fp[which(fp$Children_RelateObjects_Count == 1), ]
     
   }
   
-  colsToKeep_cluster = c('ImageNumber', 'ObjectNumber', "Parent_organoid", 
+  cols2keep_cluster = c('ImageNumber', 'ObjectNumber', "Parent_organoid", 
                          "AreaShape_Volume",  "AreaShape_SurfaceArea", "AreaShape_Center_X", "AreaShape_Center_Y", 
                          "AreaShape_Center_Z", 
                          "AreaShape_EquivalentDiameter", "AreaShape_MajorAxisLength", "AreaShape_MinorAxisLength",
@@ -91,10 +106,10 @@ clean_fp_table = function(fp, Dummy.imageNumber)
                          'Intensity_MeanIntensity_FOXA2', 'Intensity_IntegratedIntensity_FOXA2'
   )
   
-  jj = match(colsToKeep_cluster, colnames(fp))
+  jj = match(cols2keep_cluster, colnames(fp))
   
   if(any(is.na(jj))){
-    cat('columns missing: \n', paste0(colsToKeep_cluster[which(is.na(jj))], collapse = '\n'), '\n')
+    cat('columns missing: \n', paste0(cols2keep_cluster[which(is.na(jj))], collapse = '\n'), '\n')
     jj = jj[which(!is.na(jj))]
   }
   
@@ -105,7 +120,7 @@ clean_fp_table = function(fp, Dummy.imageNumber)
   return(fp)
 }
 
-merge_image.cyst.fp_fromCellProfiler = function(cyst, image, fp)
+merge_image.cyst.fp_fromCellProfiler = function(image, cyst, fp)
 {
   # change to data.frame
   cyst = data.frame(cyst, stringsAsFactors = FALSE)
