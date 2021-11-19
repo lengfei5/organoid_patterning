@@ -29,7 +29,7 @@ library(tidyr)
 library(dplyr)
 require(ggplot2)
 
-source('Functions_3dImage.R') # be careful of the directory of this function, better to put it in the same folder as script
+source('Functions_3Dimage.R') # be careful of the directory of this function, better to put it in the same folder as script
 
 # specific input and output folders
 resDir = '../results/CellProfiler_LDN.timeSeries_test'
@@ -295,7 +295,7 @@ saveRDS(res, file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cyst.fp.Fi
 # res = readRDS(file = '~/workspace/imp/organoid_patterning/results/Rdata/mergedTable_cyst.fp_allConditions_cyst.fp.Filering_hNTdrugs3_0310_Analysis20210507_cellProfiler.rds')
 #res = readRDS(file = paste0(Rdata, '/mergedTable_cyst.fp_allConditions_cyst.fp.Filering_', analysis.verison, '.rds'))
 
-source('Functions_3dImage.R')
+source('Functions_3Dimage.R')
 cat(length(unique(res$ID_cyst)), ' cysts and ', length(unique(res$ID_fp)) -1, 'fps\n')
 
 params = extract.turing.parameters.cellProfiler(res, pixel.scale = 3, cyst.overlapRatio.threshold = 0.01)
