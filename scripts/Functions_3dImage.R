@@ -63,7 +63,7 @@ clean_image_table = function(image, DAPI.channel,
   
 }
 
-clean_cyst_table = function(cyst, Dummy.imageNumber, cols2keep = NULL)
+clean_cyst_table = function(cyst, Dummy.imageNumber= NULL, cols2keep = NULL)
 {
   if(is.null(cols2keep)){
     cols2keep = c('ImageNumber', 'ObjectNumber', 
@@ -85,12 +85,12 @@ clean_cyst_table = function(cyst, Dummy.imageNumber, cols2keep = NULL)
   }
   
   cyst = cyst[, kk]
-  cyst = cyst[which(cyst$ImageNumber != Dummy.imageNumber), ]
+  if(!is.null(Dummy.imageNumber)) cyst = cyst[which(cyst$ImageNumber != Dummy.imageNumber), ]
   
   return(cyst)
 }
 
-clean_fp_table = function(fp, Dummy.imageNumber, cols2keep_cluster = NULL)
+clean_fp_table = function(fp, Dummy.imageNumber = NULL, cols2keep_cluster = NULL)
 {
   if(length(which(fp$Children_RelateObjects_Count != 1)) > 0 ){
     cat('Warning : -- some foxA2 clusters do not have parents in the table \n')
@@ -114,10 +114,11 @@ clean_fp_table = function(fp, Dummy.imageNumber, cols2keep_cluster = NULL)
   }
   
   fp = fp[,jj]
-  
-  fp = fp[which(fp$ImageNumber != Dummy.imageNumber), ]
+  if(!is.null(Dummy.imageNumber)) fp = fp[which(fp$ImageNumber != Dummy.imageNumber), ]
   
   return(fp)
+  
+  
 }
 
 merge_image.cyst.fp_fromCellProfiler = function(image, cyst, fp)
@@ -155,7 +156,17 @@ merge_image.cyst.fp_fromCellProfiler = function(image, cyst, fp)
     }
   }
   
-  res = data.frame(cyst[index_cyst, ], fp[index_fp, ], stringsAsFactors = FALSE) 
+  res = data.frame(cyst[index_cyst, ], fp[index_fp, ], stringsAsFactors = FALSE)
+  
+  index.dist.cyst.fp =  which(colnames(res) == 'Distance_Centroid_organoid_fp')
+  if(length(index.dist.cyst.fp) == 0){
+    cat('Distance_Centroid_organoid_fp is missing -- start to calcuate it \n')
+  }
+  
+  coords.cyst = res[, grep('AreaShape_Center_X_cyst|AreaShape_Center_Y_cyst|AreaShape_Center_Z_cyst', colnames(res))]
+  coords.fp = res[, grep('AreaShape_Center_X_fp|AreaShape_Center_Y_fp|AreaShape_Center_Z_fp', colnames(res))]
+  
+  res$Distance_Centroid_organoid_fp  =  sqrt(apply(as.matrix(coords.cyst - coords.fp)^2, 1, sum))
   
   return(res)
 }
