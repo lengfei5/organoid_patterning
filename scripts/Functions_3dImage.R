@@ -70,24 +70,26 @@ clean_cyst_table = function(cyst, Dummy.imageNumber= NULL, cols2keep = NULL)
                    "AreaShape_Volume",  "AreaShape_SurfaceArea", 
                    "AreaShape_Center_X", "AreaShape_Center_Y", "AreaShape_Center_Z", 
                    "AreaShape_EquivalentDiameter", "AreaShape_MajorAxisLength", "AreaShape_MinorAxisLength",
-                   "Children_foxa2cluster_Count", 'Intensity_MeanIntensity_FOXA2', 'Intensity_IntegratedIntensity_FOXA2',
+                    'Intensity_MeanIntensity_FOXA2', 'Intensity_IntegratedIntensity_FOXA2',
                    "Intensity_IntegratedIntensity_Olig2", "Intensity_MeanIntensity_Olig2"
     )
     
   }
   
-  
   kk = match(cols2keep, colnames(cyst))
   
   if(any(is.na(kk))){
-    cat('columns missing: \n', paste0(cols2keep[which(is.na(kk))], collapse = '\n'), '\n')
+    cat('columns missing: \n', paste0(cols2keep[which(is.na(kk))], collapse = '\n '), '\n')
+    
     kk = kk[which(!is.na(kk))]
+    
   }
   
   cyst = cyst[, kk]
   if(!is.null(Dummy.imageNumber)) cyst = cyst[which(cyst$ImageNumber != Dummy.imageNumber), ]
   
   return(cyst)
+  
 }
 
 clean_fp_table = function(fp, Dummy.imageNumber = NULL, cols2keep_cluster = NULL)
