@@ -728,7 +728,8 @@ calcuate.fp.dist = function(xx0, use.cyst.radius, refine.rc = FALSE, use.global.
   
 }
 
-extract.turing.parameters.cellProfiler = function(res.cp, cyst.overlapRatio.threshold = 0.01, pixel.scale = 3,
+extract.turing.parameters.cellProfiler = function(res.cp, cyst.overlapRatio.threshold = 0.01, 
+                                                  pixel.scale = 3,
                                                   refine.rc = FALSE)
 {
   # res.cp = res
@@ -781,14 +782,17 @@ extract.turing.parameters.cellProfiler = function(res.cp, cyst.overlapRatio.thre
       params$radius.fp[n] = median(as.numeric(res.cp$AreaShape_EquivalentDiameter_fp[kk.fp]/2))
       params$dist.cyst.fp[n] = median(as.numeric(res.cp$Distance_Centroid_organoid_fp[kk.fp]))
       
+      cyst.fp.dist = calcuate.fp.dist(res.cp[kk.fp, ], refine.rc = refine.rc)
+      
+      # following parameters calculated only if there >= 2 fps
       if(length(kk.fp)>1){
         params$volumeSE.fp[n] = sd(as.numeric(res.cp$AreaShape_Volume_fp[kk.fp]))
         params$radiusSE.fp[n] = sd(as.numeric(res.cp$AreaShape_EquivalentDiameter_fp[kk.fp]/2))
+        params$dist.fp[n] = cyst.fp.dist[1]
+        params$dist.fp.extremeValue[n] = cyst.fp.dist[2]
+        
       }
       
-      cyst.fp.dist = calcuate.fp.dist(res.cp[kk.fp, ], refine.rc = refine.rc)
-      params$dist.fp[n] = cyst.fp.dist[1]
-      params$dist.fp.extremeValue[n] = cyst.fp.dist[2]
       
     }else{
       params$nb.fp[n] = 0
