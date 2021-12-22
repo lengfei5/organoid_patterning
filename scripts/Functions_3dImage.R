@@ -98,6 +98,7 @@ clean_fp_table = function(fp, Dummy.imageNumber = NULL, cols2keep_cluster = NULL
     
   }
   
+  
   cols2keep_cluster = c('ImageNumber', 'ObjectNumber', "Parent_organoid", 
                          "AreaShape_Volume",  "AreaShape_SurfaceArea", "AreaShape_Center_X", "AreaShape_Center_Y", 
                          "AreaShape_Center_Z", 
