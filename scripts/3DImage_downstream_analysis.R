@@ -507,8 +507,7 @@ grid.arrange(p3, nrow = 1, ncol = 1)
 grid.arrange(p6, nrow = 1, ncol = 1)
 grid.arrange(p61, nrow = 1, ncol = 1)
 
-
-dev.off()3
+dev.off()
 
 ##########################################
 # in case need to save result in table
