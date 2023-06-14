@@ -42,15 +42,10 @@ library(enrichplot)
 library(clusterProfiler)
 library(stringr)
 
-Counts.to.Use = 'UMI'
-
 load(file = paste0(RdataDir, 'TM3_dds_normalized.Rdata'))
-#load(file = paste0(resDir, '/TM3_Foxa2.positive_vs_neg.day3_comparisonStats_cpm.Rdata'))
 
-
-load(file = paste0(RdataDir, '/design.detailed_RawUMI_', Counts.to.Use, version.analysis, '.Rdata'))
-
-load(file = paste0(RdataDir, '/TM3_pooled.pos.neg_ddx_cc.pools_', Counts.to.Use, version.analysis, '.Rdata'))
+#load(file = paste0(RdataDir, '/design.detailed_RawUMI_', Counts.to.Use, version.analysis, '.Rdata'))
+#load(file = paste0(RdataDir, '/TM3_pooled.pos.neg_ddx_cc.pools_', Counts.to.Use, version.analysis, '.Rdata'))
 
 cc = unique(design.matrix$condition)
 cc = cc[which(cc != "N2B27" & cc != 'RA')]
@@ -277,9 +272,4 @@ if(Explore.perturbation.response.for.signaling.pathway.genes){
   dev.off()
   
 }
-
-
-
-
-
 

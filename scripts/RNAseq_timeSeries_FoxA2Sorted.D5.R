@@ -61,6 +61,9 @@ save(counts, design, file = paste0(RdataDir, '/RNAseq_timeSeries_sortedDay5_coun
 # annnotation: convert ens ID to gene symbol 
 ##########################################
 load(file = paste0(RdataDir, '/RNAseq_timeSeries_sortedDay5_count_design.Rdata'))
+saveRDS(design, file = paste0(RdataDir, '/sampleInfo_design.rds'))
+
+
 genes = counts$gene_id
 
 annots = read.delim('/Volumes/groups/tanaka/People/current/jiwang/Genomes/mouse/mm10_ens/ens_BioMart_GRCm38.p6.txt', sep = '\t', 

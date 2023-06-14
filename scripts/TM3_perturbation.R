@@ -955,13 +955,24 @@ if(Make.plot.examples.noggin){
   
   load(file = paste0(resDir, '/TM3_Foxa2.positive_vs_neg.day3_comparisonStats_cpm.Rdata'))
   
-  res = readRDS(file = paste0(RdataDir, '/TM3_res_pairwiseComparisons_perturbation.vs.RA_positive.negative.pooled.rds'))
+  res = readRDS(file = paste0(RdataDir, 
+                              '/TM3_res_pairwiseComparisons_perturbation.vs.RA_positive.negative.pooled.rds'))
   
   load(file = paste0(RdataDir, '/TM3_pooled.pos.neg_ddx_cc.pools_', Counts.to.Use, version.analysis, '.Rdata'))
+  
   fpm = fpm(dds, robust = TRUE)
+  
+  write.csv2(fpm, file = paste0(resDir, "/fpm_linearScale_allGenes_allConditions.csv"), 
+            row.names = TRUE, quote = FALSE)
+  
   gg = 'Nog'
   fpm = fpm[which(rownames(fpm) == gg), grep('RA_|BMP_', colnames(fpm))]
-  fpm = log2(fpm)
+  #fpm = log2(fpm)
+  
+  write.csv2(fpm, file = paste0(resDir, "/fpm_linearScale_Noggin.csv"), 
+             row.names = TRUE, quote = FALSE)
+  
+  
   fpm = data.frame(data = fpm)
   fpm$condition = sapply(rownames(fpm), function(x) unlist(strsplit(as.character(x), '_'))[1])
   fpm$cell = sapply(rownames(fpm), function(x) unlist(strsplit(as.character(x), '_'))[3])
@@ -977,6 +988,7 @@ if(Make.plot.examples.noggin){
   }
   
   fpm = fpm[match(unique(fpm$cc), fpm$cc), ]
+  
   
   library(ggplot2)
   # Default bar plot
