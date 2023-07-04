@@ -68,6 +68,7 @@ for(n in seq_len(length(cc)))
 {
   compares = c(compares, list(c('conds', paste0(cc[n], '_Foxa2.pos'), paste0(cc[n], '_Foxa2.neg'))))
 }
+
 compares = c(compares, 
              list(c('conds', paste0('BMP', '_Foxa2.pos'), paste0('RA', '_Foxa2.pos'))), 
              list(c('conds', paste0('BMP', '_Foxa2.neg'), paste0('RA', '_Foxa2.neg'))),
